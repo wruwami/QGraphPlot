@@ -38,6 +38,56 @@ QGraphPlot은 고성능 Qt 차트 라이브러리다. 다음 4가지 목표를 �
 | **Qt 부모-자식 소유권 = RAII** | `QObject` 파생 클래스는 parent를 전달해 Qt가 소멸을 관리하도록 한다. `new` 후 parent 없이 방치하지 않는다. |
 | **필요할 때만 `virtual` 소멸자** | 다형적 기본 클래스(상속 예정)에만 `virtual ~`를 붙인다. Final 클래스나 다형성 없는 클래스는 비가상 소멸자를 쓴다. |
 
+### 1.5 파일 및 식별자 명명 규칙
+
+모든 식별자는 **클래스명과 파일명이 1:1로 일치**하는 CamelCase 규칙을 따른다. Qt 코어(qtbase)가 소문자+언더스코어(`qpoint.h`)를 쓰지만, QGraphPlot은 클래스 중심 API에서 IDE 탐색/자동완성 가독성이 더 중요하다고 판단해 CamelCase를 채택했다 (QCustomPlot/JUCE 스타일).
+
+| 대상 | 규칙 | 예시 |
+|---|---|---|
+| **헤더/소스 파일명** | `ClassName.h` / `ClassName.cpp` (클래스명과 1:1) | `QAbstractSeriesModel.h`, `QRingBufferSeriesModel.cpp` |
+| **클래스명** | `Q` prefix + PascalCase | `QAbstractSeriesModel`, `QRingBufferSeriesModel` |
+| **인터페이스/구현 쌍** | 동일 파일명 (`QFoo.h` ↔ `QFoo.cpp`) | `QFoo.cpp`는 `QFoo.h`만 include |
+| **테스트 파일명** | `Test<Target>.cpp` (QtTest 클래스명과 일치) | `TestRingBuffer.cpp` (class `TestRingBuffer`) |
+| **디렉토리명** | 소문자 + 언더스코어 (관습 유지) | `model/`, `transform/`, `qml_frontend/` |
+| **네임스페이스** | 소문자 | `qgraphplot`, `qgraphplot::qml` |
+| **일반 함수/변수** | camelCase | `pointCount()`, `m_capacity` |
+| **매크로/상수** | `QGRAPHPLOT_` prefix + UPPER_SNAKE | `QGRAPHPLOT_EXPORT`, `QGRAPHPLOT_API_VERSION` |
+| **enum class** | PascalCase 타입, PascalCase 값 | `enum class ThreadSafety { Disabled, Enabled }` |
+
+**금지**:
+- Qt 코어 스타일(`qabstractseriesmodel.h`)의 파일명 사용 금지
+- 1개 파일에 2개 이상의 공개 클래스 선언 금지 (작은 헬퍼/struct는 예외)
+- 파일명과 클래스명이 다른 경우 금지 (예: `Series.h` 안에 `class LineSeries`)
+
+**예외**:
+- CMake/스크립트 파일은 관습적 이름 유지 (`CMakeLists.txt`, `.clang-format`, `cppcheck.options`)
+- 자동 생성 파일 (`moc_*.cpp`, `ui_*.h`, `qrc_*.cpp`)은 Qt 도구가 만드는 이름 그대로
+
+#### 1.5.1 파일명 변경(rename) 시 모든 참조 동기화
+
+`git mv`로 파일명을 바꿀 때, **같은 커밋에서 반드시 모든 참조를 함께 갱신**한다. 하나라도 누락되면 빌드가 끊기거나 CI가 붉게 실패한다.
+
+갱신해야 할 위치 (체크리스트):
+
+| 위치 | 예시 |
+|---|---|
+| `#include` 지시어 | `#include "qfoo.h"` → `#include "QFoo.h"` (모든 소스/헤더/테스트) |
+| `CMakeLists.txt`의 소스/헤더 목록 | `qt_add_library(... QFoo.cpp)` |
+| Doxygen `@file` 태그 | `//! @file qfoo.h` → `//! @file QFoo.h` |
+| QtTest 하단 `.moc` include | `#include "tst_foo.moc"` → `#include "TestFoo.moc"` |
+| 문서(README, PLAN)의 파일 트리 | 경로 표기 일관성 |
+| QML 모듈 `qmldir` | QML 타입 등록 경로 (해당 시) |
+
+**검증**: 커밋 전에 반드시 아래 명령으로 잔존 참조를 확인한다:
+```bash
+grep -rn "<old-name>" --include="*.h" --include="*.cpp" --include="*.txt" src/ tests/ examples/
+```
+아무것도 출력되지 않아야 커밋 가능. AI.md §3.4 (무력화된 워크어라운드 제거) 원칙과 동일한 맥락 — 한 곳에서 고치고 다른 곳은 잊지 않는다.
+
+---
+
+## 2. Workflow
+
 ---
 
 ## 2. Workflow
@@ -96,6 +146,47 @@ QGraphPlot은 고성능 Qt 차트 라이브러리다. 다음 4가지 목표를 �
 - 브랜치는 **하나의 관심사(이슈)**만 다룬다. 한 브랜치에서 여러 이슈를 섞지 않는다.
 - **이미 merge된 브랜치를 재사용하지 않는다.** 새 작업은 새 브랜치를 만든다.
 - 브랜치에 무관한 변경이 들어가면 별도 PR로 분리한다.
+
+#### 3.5.1 큰 변경은 여러 PR로 분리
+
+큰 변경(리팩터링, 아키텍처 전환, 라이선스 정책 변경, 코딩 컨벤션 변경 등)은 **기능/문서/리팩터 단위로 쪼개어 별도 PR로 제출**한다. 하나의 거대한 PR은 리뷰 부담을 폭발시키고, 부분 revert를 불가능하게 만든다.
+
+**권장 분리 기준**:
+
+| 변경 유형 | 같은 PR? | 비고 |
+|---|---|---|
+| 기능 구현 + 그에 대한 단위 테스트 | ✅ 같이 | §3.6 회귀 테스트 규칙 |
+| 기능 구현 + 연관된 rename | ✅ 같이 | rename만 따로 떼면 빌드가 끊김 |
+| 기능 구현 + 코딩 스타일(포맷) 변경 | ⚠️ 분리 권장 | 스타일 변경은 별도 chore PR |
+| rename + 그 rename을 정책화하는 문서 | ❌ 분리 | rename은 본 PR, 규칙 문서는 별도 docs PR |
+| 기능 + 관련 없는 버그 수정 | ❌ 분리 | §3.5 본 규칙 |
+| 기능 + AI.md/VERSIONING.md 규칙 추가 | ❌ 분리 | 규칙 변경은 별도 docs PR |
+
+**예시 (본 프로젝트 실제 사례)**:
+- PR #4 (Phase 0.2 코드 + CamelCase rename) — 같이
+- PR #5 (AI.md §1.5 명명 규칙 문서화) — 분리 ✅
+
+#### 3.5.2 단일 관심사의 예외 (밀접한 변경은 같은 PR 허용)
+
+§3.5 본 규칙이 "무관한 변경은 분리"를 요구하지만, **두 변경이 강하게 결합되어 분리 시 한쪽이 의미 없거나 빌드가 깨지는 경우**는 같은 PR을 허용한다.
+
+**예외 허용 조건 (모두 충족 시)**:
+1. 두 변경이 **같은 이슈를 해결**하거나 같은 이슈의 직접적 결과물
+2. 분리할 경우 **한쪽 PR만 merge해도 동작하지 않음** (의존성)
+3. PR 설명에 왜 같이 묶었는지 명시
+
+**예외 적용 사례**:
+
+| 사례 | 같은 PR? | 근거 |
+|---|---|---|
+| 새 클래스 + 그 클래스의 단위 테스트 | ✅ | 테스트 없는 클래스는 의미 없음 |
+| 인터페이스 변경 + 모든 구현체 업데이트 | ✅ | 분리 시 빌드 안 됨 |
+| 파일 rename + 모든 참조 갱신 | ✅ | §1.5.1에 따름 |
+| 뷰 렌더링 로직 + 양쪽 프론트엔드 적용 | ✅ | §3.1 패리티 규칙 |
+| 버그 수정 + 회귀 테스트 | ✅ | §3.6 |
+| 새 기능 + 그 기능과 무관한 문서 오타 수정 | ❌ | 문맥 무관, 별도 PR |
+
+**판단 기준**: "이 두 변경 중 하나만 merge하면 시스템이 정상 동작하는가?" → **아니오**면 같은 PR, **예**면 분리.
 
 ### 3.6 버그 수정은 회귀 테스트 동반
 - 모든 버그 수정 PR은 **동일한 PR에 회귀 테스트를 포함**한다.
