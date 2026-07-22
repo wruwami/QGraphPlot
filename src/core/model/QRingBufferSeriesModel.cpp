@@ -52,7 +52,12 @@ QRingBufferSeriesModel::QRingBufferSeriesModel(qsizetype capacity,
     : QAbstractSeriesModel(parent),
       m_capacity(capacity > 0 ? capacity : 1),
       m_threadSafety(threadSafety),
-      m_buffer(static_cast<size_t>(m_capacity > 0 ? m_capacity : 1)) {
+      // Sized 2x capacity: every write below is mirrored into slot
+      // (physical + m_capacity) so that any logical range [first, last]
+      // is readable as ONE contiguous span starting at (m_head + first),
+      // even when it wraps past the end of the primary region. Without
+      // this, points() would have to silently truncate wrapped ranges.
+      m_buffer(static_cast<size_t>(m_capacity) * 2) {
     if (capacity <= 0) {
         qCWarning(lcRingBuffer)
             << "QRingBufferSeriesModel: capacity must be > 0; clamped to 1";
@@ -78,20 +83,11 @@ PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const 
     Q_ASSERT(first >= 0 && last >= first && last < m_size);
 
     const qsizetype count = last - first + 1;
-    const qsizetype physicalFirst = (m_head + first) % m_capacity;
-
-    // Fast path: the requested range does not wrap around the ring.
-    if (physicalFirst + count <= m_capacity) {
-        return PointSpan(m_buffer.data() + physicalFirst, count);
-    }
-
-    // Slow path: range wraps. The returned span must be contiguous in
-    // memory; if it is not, the caller should fetch in two halves.
-    // For now we expose only the leading slice; a follow-up can promote
-    // this to a copy or to two calls. This keeps the contract simple
-    // (span = contiguous view).
-    const qsizetype leading = m_capacity - physicalFirst;
-    return PointSpan(m_buffer.data() + physicalFirst, leading);
+    // m_head < m_capacity and first < m_size <= m_capacity, so this index
+    // (and physicalFirst + count - 1) always lands inside the mirrored
+    // 2x-capacity buffer — no wraparound handling needed here.
+    const qsizetype physicalFirst = m_head + first;
+    return PointSpan(m_buffer.data() + physicalFirst, count);
 }
 
 QRectF QRingBufferSeriesModel::bounds() const {
@@ -103,10 +99,13 @@ QRectF QRingBufferSeriesModel::bounds() const {
 // ─────────────────────────────────────────────────────────────
 
 void QRingBufferSeriesModel::clear() {
+    const qsizetype oldSize = m_size;
     m_head = 0;
     m_size = 0;
     m_bounds = QRectF();
-    Q_EMIT pointsRemoved(0, 0);  // semantic: buffer emptied
+    if (oldSize > 0) {
+        Q_EMIT pointsRemoved(0, oldSize - 1);
+    }
     Q_EMIT boundsChanged();
     Q_EMIT modelChanged(0);
 }
@@ -134,11 +133,22 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
 
     auto* dst = m_buffer.data();
     const auto* srcData = src.data();
+    const auto capacityOffset = static_cast<size_t>(m_capacity);
 
     std::copy_n(srcData, static_cast<size_t>(firstChunk),
                 dst + static_cast<size_t>(writeStart));
     if (secondChunk > 0) {
         std::copy_n(srcData + firstChunk, static_cast<size_t>(secondChunk), dst);
+    }
+
+    // Mirror the same writes into the [m_capacity, 2*m_capacity) half so
+    // that points() can always return a single contiguous span (see the
+    // m_buffer sizing comment in the constructor).
+    std::copy_n(srcData, static_cast<size_t>(firstChunk),
+                dst + static_cast<size_t>(writeStart) + capacityOffset);
+    if (secondChunk > 0) {
+        std::copy_n(srcData + firstChunk, static_cast<size_t>(secondChunk),
+                    dst + capacityOffset);
     }
 
     // Advance bookkeeping.
@@ -169,7 +179,7 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     if (evicted > 0) {
         Q_EMIT pointsRemoved(0, evicted - 1);
     }
-    const qsizetype newFirst = (evicted > 0) ? (m_size - appended) : (m_size - appended);
+    const qsizetype newFirst = m_size - appended;
     const qsizetype newLast = m_size - 1;
     Q_EMIT pointsInserted(newFirst, newLast);
     Q_EMIT boundsChanged();
