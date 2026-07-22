@@ -84,9 +84,17 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # ── 하위 디렉토리 ────────────────────────────────────────────
-# Phase 0 구현 완료 후 순차 주석 해제.
+# Phase 0 구현에 따라 순차 활성화.
 #
-# add_subdirectory(src/qgraph)
+if(QGRAPHPLOT_BUILD_CORE)
+    add_subdirectory(src/core)
+endif()
+# if(QGRAPHPLOT_BUILD_QML_FRONTEND)
+#     add_subdirectory(src/qml_frontend)
+# endif()
+# if(QGRAPHPLOT_BUILD_WIDGET_FRONTEND)
+#     add_subdirectory(src/widget_frontend)
+# endif()
 # if(QGRAPHPLOT_BUILD_EXAMPLES)
 #     add_subdirectory(examples)
 # endif()
