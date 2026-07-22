@@ -27,12 +27,18 @@ configure_file(
 # ── Library target ────────────────────────────────────────────
 # qt_add_library handles Qt-specific concerns (MOC, Android, etc.)
 # automatically and is preferred over add_library for Qt 6 projects.
+# Headers with Q_OBJECT must be listed so AUTOMOC picks them up.
 set(_core_sources
     qgraphplot_global.h
+    model/qabstractseriesmodel.h
+    model/qringbufferseriesmodel.h
+    model/qringbufferseriesmodel.cpp
 )
 
 set(_core_public_headers
     qgraphplot_global.h
+    model/qabstractseriesmodel.h
+    model/qringbufferseriesmodel.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}
@@ -44,7 +50,7 @@ qt_add_library(QGraphPlotCore ${_core_lib_type}
 target_compile_definitions(QGraphPlotCore PRIVATE QGRAPHPLOT_BUILDING_LIB)
 
 # ── Public include directories ────────────────────────────────
-# 1. Source dir  : for qgraphplot_global.h
+# 1. Source dir  : for qgraphplot_global.h and model/ headers
 # 2. Binary dir  : for the generated qgraphplot_version.h
 target_include_directories(QGraphPlotCore
     PUBLIC
@@ -55,7 +61,8 @@ target_include_directories(QGraphPlotCore
 )
 
 # ── Qt dependencies ───────────────────────────────────────────
-target_link_libraries(QGraphPlotCore PUBLIC Qt6::Core)
+# Gui is needed for QPointF / QRectF used by the model layer.
+target_link_libraries(QGraphPlotCore PUBLIC Qt6::Core Qt6::Gui)
 
 # ── C++ standard (inherit from root, but make explicit) ───────
 target_compile_features(QGraphPlotCore PUBLIC cxx_std_17)
