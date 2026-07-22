@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────
+# QGraphPlot .gitattributes
+# 줄바꿈 정규화 + 바이너리 파일 처리
+# ─────────────────────────────────────────────────────────────
+
+# 기본: 텍스트 파일은 저장소에서 LF, 체크아웃 시 OS 기본
+#   - Windows 개발자: core.autocrlf=true 권장
+#   - Unix 개발자: core.autocrlf=input 권장
+* text=auto eol=lf
+
+# 소스 코드는 무조건 LF (크로스 플랫폼 일관성)
+*.cpp    text eol=lf
+*.cc     text eol=lf
+*.cxx    text eol=lf
+*.h      text eol=lf
+*.hpp    text eol=lf
+*.hxx    text eol=lf
+*.inl    text eol=lf
+*.c      text eol=lf
+
+# CMake / 빌드 스크립트
+*.cmake      text eol=lf
+CMakeLists.txt text eol=lf
+*.yaml       text eol=lf
+*.yml        text eol=lf
+*.json       text eol=lf
+*.xml        text eol=lf
+
+# QML / Qt
+*.qml    text eol=lf
+*.qrc    text eol=lf
+*.ui     text eol=lf
+
+# 셸 스크립트
+*.sh     text eol=lf
+
+# Markdown / 문서
+*.md     text eol=lf
+*.txt    text eol=lf
+
+# Windows 전용 파일 (CRLF 유지)
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# 바이너리 파일 (변환 금지)
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.icns   binary
+*.svg    text eol=lf
+*.pdf    binary
+*.zip    binary
+*.gz     binary
+*.7z     binary
+
+# Linguist (GitHub 언어 통계 정확도)
+docs/* linguist-documentation
+*.h text linguist-language=cpp
