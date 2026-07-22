@@ -30,15 +30,15 @@ configure_file(
 # Headers with Q_OBJECT must be listed so AUTOMOC picks them up.
 set(_core_sources
     qgraphplot_global.h
-    model/qabstractseriesmodel.h
-    model/qringbufferseriesmodel.h
-    model/qringbufferseriesmodel.cpp
+    model/QAbstractSeriesModel.h
+    model/QRingBufferSeriesModel.h
+    model/QRingBufferSeriesModel.cpp
 )
 
 set(_core_public_headers
     qgraphplot_global.h
-    model/qabstractseriesmodel.h
-    model/qringbufferseriesmodel.h
+    model/QAbstractSeriesModel.h
+    model/QRingBufferSeriesModel.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}
