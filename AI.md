@@ -38,6 +38,31 @@ QGraphPlot은 고성능 Qt 차트 라이브러리다. 다음 4가지 목표를 �
 | **Qt 부모-자식 소유권 = RAII** | `QObject` 파생 클래스는 parent를 전달해 Qt가 소멸을 관리하도록 한다. `new` 후 parent 없이 방치하지 않는다. |
 | **필요할 때만 `virtual` 소멸자** | 다형적 기본 클래스(상속 예정)에만 `virtual ~`를 붙인다. Final 클래스나 다형성 없는 클래스는 비가상 소멸자를 쓴다. |
 
+### 1.5 파일 및 식별자 명명 규칙
+
+모든 식별자는 **클래스명과 파일명이 1:1로 일치**하는 CamelCase 규칙을 따른다. Qt 코어(qtbase)가 소문자+언더스코어(`qpoint.h`)를 쓰지만, QGraphPlot은 클래스 중심 API에서 IDE 탐색/자동완성 가독성이 더 중요하다고 판단해 CamelCase를 채택했다 (QCustomPlot/JUCE 스타일).
+
+| 대상 | 규칙 | 예시 |
+|---|---|---|
+| **헤더/소스 파일명** | `ClassName.h` / `ClassName.cpp` (클래스명과 1:1) | `QAbstractSeriesModel.h`, `QRingBufferSeriesModel.cpp` |
+| **클래스명** | `Q` prefix + PascalCase | `QAbstractSeriesModel`, `QRingBufferSeriesModel` |
+| **인터페이스/구현 쌍** | 동일 파일명 (`QFoo.h` ↔ `QFoo.cpp`) | `QFoo.cpp`는 `QFoo.h`만 include |
+| **테스트 파일명** | `Test<Target>.cpp` (QtTest 클래스명과 일치) | `TestRingBuffer.cpp` (class `TestRingBuffer`) |
+| **디렉토리명** | 소문자 + 언더스코어 (관습 유지) | `model/`, `transform/`, `qml_frontend/` |
+| **네임스페이스** | 소문자 | `qgraphplot`, `qgraphplot::qml` |
+| **일반 함수/변수** | camelCase | `pointCount()`, `m_capacity` |
+| **매크로/상수** | `QGRAPHPLOT_` prefix + UPPER_SNAKE | `QGRAPHPLOT_EXPORT`, `QGRAPHPLOT_API_VERSION` |
+| **enum class** | PascalCase 타입, PascalCase 값 | `enum class ThreadSafety { Disabled, Enabled }` |
+
+**금지**:
+- Qt 코어 스타일(`qabstractseriesmodel.h`)의 파일명 사용 금지
+- 1개 파일에 2개 이상의 공개 클래스 선언 금지 (작은 헬퍼/struct는 예외)
+- 파일명과 클래스명이 다른 경우 금지 (예: `Series.h` 안에 `class LineSeries`)
+
+**예외**:
+- CMake/스크립트 파일은 관습적 이름 유지 (`CMakeLists.txt`, `.clang-format`, `cppcheck.options`)
+- 자동 생성 파일 (`moc_*.cpp`, `ui_*.h`, `qrc_*.cpp`)은 Qt 도구가 만드는 이름 그대로
+
 ---
 
 ## 2. Workflow
