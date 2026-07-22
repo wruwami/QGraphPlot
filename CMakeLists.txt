@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.16)
 project(QGraphPlot
     VERSION 0.1.0
     DESCRIPTION "High-performance Qt chart library (QWidget + QML)"
-    HOMEPAGE_URL "https://github.com/OWNER/qgraphplot"
+    HOMEPAGE_URL "https://github.com/wruwami/QGraphPlot"
     LANGUAGES CXX
 )
 
