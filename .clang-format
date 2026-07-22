@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────
+# QGraphPlot .clang-format
+# AI.md §5.2 기준. 모든 PR은 이 파일로 clang-format 검사를 받는다.
+# 사용: clang-format -i <file>
+# ─────────────────────────────────────────────────────────────
+---
+# 기본 스타일: LLVM 베이스 + Qt 관용 조정
+BasedOnStyle: LLVM
+
+# ── 들여쓰기 ──────────────────────────────────────────────────
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never          # 공백만 사용 (Qt 6 표준)
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+
+# ── 줄 길이 ───────────────────────────────────────────────────
+ColumnLimit: 100       # Qt 코어 호환 (Qt는 100)
+
+# ── 브레이스 / 괄호 ───────────────────────────────────────────
+# Qt 스타일: 함수 정의만 같은 줄, 제어문은 같은 줄
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# ── 정렬 ──────────────────────────────────────────────────────
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Left
+AlignOperands: true
+AlignTrailingComments: true
+
+# ── 인자 정렬 / 줄바꿈 ────────────────────────────────────────
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackArguments: false        # 인자는 한 줄에 전부 또는 한 줄에 하나
+BinPackParameters: false
+
+# ── 포인터 / 참조 ────────────────────────────────────────────
+# Qt 관용: 포인터/참조 기호는 타입에 붙임 (Qt 코어와 일치)
+#   int* p;        (O)
+#   int &r;        (O)
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# ── 짧은 문 처리 ──────────────────────────────────────────────
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+
+# ── include 정렬 ─────────────────────────────────────────────
+SortIncludes: CaseInsensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  # C 시스템 헤더
+  - Regex: '^<[^/]+\.h>'
+    Priority: 1
+  # C++ 표준 헤더
+  - Regex: '^<[^/]+>$'
+    Priority: 2
+  # Qt 헤더 (모듈별)
+  - Regex: '^<Q[A-Z]'
+    Priority: 3
+  # 프로젝트 헤더 (qgraphplot/)
+  - Regex: '^<qgraphplot/'
+    Priority: 5
+  # 로컬 헤더 (동일 디렉토리)
+  - Regex: '^".*"'
+    Priority: 4
+
+# ── 기타 ─────────────────────────────────────────────────────
+AlwaysBreakTemplateDeclarations: Yes
+ConstructorInitIndentWidth: 4
+Cpp11BracedListStyle: true
+FixNamespaceComments: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: None
+ReflowComments: true
+SortUsingDeclarations: true
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: true
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+Standard: c++17

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  QGraphPlot cppcheck 억제 목록 (XML 포맷)
+  AI.md §5.2. cppcheck @cppcheck.options --suppress-xml=이 파일 형태로 사용.
+
+  억제 항목을 추가할 때는 반드시 사유와 추적 이슈 번호를 주석로 남긴다.
+  무력화된 억제(AI.md §3.4)는 근본 원인 해결 시 즉시 제거한다.
+-->
+<suppressions>
+
+  <!-- Qt 메타오브젝트 시스템: MOC가 생성하는 패턴을 cppcheck가 오탐지 -->
+  <suppress id="unusedFunction" files=".*moc_.*\.cpp$"/>
+  <suppress id="noConstructor" files=".*moc_.*\.cpp$"/>
+  <suppress id="noExplicitConstructor" files=".*moc_.*\.cpp$"/>
+
+  <!-- Qt uic가 생성하는 ui_*.h는 오탐지 다수 -->
+  <suppress id="unusedVariable" files=".*ui_.*\.h$"/>
+  <suppress id="unusedPrivateFunction" files=".*ui_.*\.h$"/>
+
+  <!-- Pimpl 패턴: d-pointer를 의도적으로 사용 -->
+  <!-- 필요한 경우 QGRAPHPLOT_D_PTR 관련 억제를 여기에 추가 -->
+
+  <!-- CI에서만 사용되는 헬퍼 파일 -->
+  <suppress id="unusedFunction" files=".*tests/.*"/>
+
+</suppressions>

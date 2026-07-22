@@ -1,0 +1,158 @@
+# ─────────────────────────────────────────────────────────────
+# QGraphPlot CI
+# AI.md §5 기준.
+#
+# 매트릭스: Ubuntu / Windows / macOS × Qt 6.7.3
+# - 모든 잡: 빌드 + 단위 테스트
+# - Ubuntu 잡 추가: clang-format 검사, cppcheck, lcov→Codecov 커버리지
+# ─────────────────────────────────────────────────────────────
+name: build-and-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: "6.7.3"
+  CMAKE_VERSION: "3.16"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 빌드 + 테스트 매트릭스 (3플랫폼)
+  # ─────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test (${{ matrix.os }}, Qt ${{ env.QT_VERSION }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      # ── 1. 소스 체크아웃 ──
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Qt 설치 ──
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: "qtcharts qtshadertools qtquick3d"
+          cache: true
+
+      # ── 3. CMake 설정 (Linux에서만 커버리지 활성화) ──
+      - name: Configure (Linux, with coverage)
+        if: runner.os == 'Linux'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DQGRAPHPLOT_BUILD_COVERAGE=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Configure (Windows / macOS)
+        if: runner.os != 'Linux'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      # ── 4. 빌드 ──
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # ── 5. 단위 테스트 ──
+      - name: Run tests
+        run: ctest --test-dir build --build-config Release --output-on-failure --parallel
+
+      # ── 6. (Linux만) lcov 커버리지 수집 → Codecov 업로드 ──
+      - name: Install lcov
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y lcov
+
+      - name: Capture coverage
+        if: runner.os == 'Linux'
+        run: |
+          lcov --directory build --capture --output-file coverage.info
+          lcov --remove coverage.info \
+            '/usr/*' \
+            '*/build/*' \
+            '*/tests/*' \
+            '*/examples/*' \
+            '*/moc_*' \
+            '*/ui_*.h' \
+            --output-file coverage.filtered.info
+
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.filtered.info
+          fail_ci_if_error: false
+
+      # ── 7. (Linux만) 빌드 산출물 아티팩트 업로드 (디버깅용) ──
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ runner.os }}
+          path: |
+            build/compile_commands.json
+            build/tests/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ─────────────────────────────────────────────────────────────
+  # 정적 분석 (Ubuntu 1개 잡에서만 실행)
+  # ─────────────────────────────────────────────────────────────
+  static-analysis:
+    name: Static Analysis (cppcheck)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: "qtcharts qtshadertools qtquick3d"
+          cache: true
+
+      - name: Configure (for compile_commands.json)
+        run: |
+          cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: cppcheck @cppcheck.options src
+
+  # ─────────────────────────────────────────────────────────────
+  # 코드 포맷 검사 (Ubuntu 1개 잡에서만 실행)
+  # ─────────────────────────────────────────────────────────────
+  format-check:
+    name: Format Check (clang-format)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        # diff 가 있으면 실패. —dry-run 옵션으로 실제 파일 변경 없이 검사.
+        run: |
+          find src tests examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
+            -exec clang-format --dry-run --Werror -i {} +

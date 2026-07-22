@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────────
+# QGraphPlot cppcheck 옵션
+# AI.md §5.2 기준. CI에서 cppcheck @cppcheck.options 형태로 사용.
+# ─────────────────────────────────────────────────────────────
+
+# 언어/표준
+--language=c++
+--std=c++17
+
+# 빌드 경로 (compile_commands.json 사용)
+--project=build/compile_commands.json
+
+# 활성화할 체크 (엄격 모드)
+--enable=warning,style,performance,portability,information
+
+# 경고도 에러로 취급 (CI 실패 조건)
+--error-exitcode=1
+
+# 인클루드 경로 (Qt 경로는 CI에서 보충)
+-I src
+-I build/include
+
+# 미정의 심볼 (Qt 매크로)
+-DQ_OBJECT=
+-DQ_PROPERTY(x)=
+-DQ_ENUMS(x)=
+-DQ_FLAGS(x)=
+-DQ_DECLARE_METATYPE(x)=
+-DQ_REQUIRED_RESULT=
+-DQ_DECL_NOEXCEPT=noexcept
+-DQ_DECL_CONSTEXPR=constexpr
+-DQ_DECL_EQ_DEFAULT=default
+-DQ_DECL_DEPRECATED=
+-DQT_VERSION=0x060700
+-DQGRAPHPLOT_EXPORT=
+
+# 억제 파일
+--suppress-xml=.cppcheck-suppressions
+
+# 출력 포맷 (CI 로그 가독성)
+--template={file}:{line}:{column}: {severity}:{id}: {message}
+
+# 진행 표시
+--quiet
+
+# 최대 인클루드 깊이/체크
+--max-configs=1
+
+# 미사용 함수 검사 (헤더 포함)
+--check-level=exhaustive
