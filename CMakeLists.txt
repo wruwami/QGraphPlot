@@ -60,10 +60,14 @@ else()
 endif()
 
 # ── Qt 찾기 (AI.md §1.3: Qt 6.7+) ────────────────────────────
-find_package(Qt6 6.7 REQUIRED COMPONENTS Core Gui Widgets)
+set(QT_COMPONENTS Core Gui Widgets)
 if(QGRAPHPLOT_BUILD_QML_FRONTEND)
-    find_package(Qt6 6.7 REQUIRED COMPONENTS Quick QuickControls2)
+    list(APPEND QT_COMPONENTS Quick QuickControls2)
 endif()
+if(QGRAPHPLOT_BUILD_TESTS)
+    list(APPEND QT_COMPONENTS Test)
+endif()
+find_package(Qt6 6.7 REQUIRED COMPONENTS ${QT_COMPONENTS})
 
 # ── 커버리지 플래그 ────────────────────────────────────────
 if(QGRAPHPLOT_BUILD_COVERAGE)

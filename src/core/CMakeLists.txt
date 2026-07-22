@@ -33,17 +33,24 @@ set(_core_sources
     model/qabstractseriesmodel.h
     model/qringbufferseriesmodel.h
     model/qringbufferseriesmodel.cpp
+    transform/qcoordinate.h
+    transform/qcoordinate.cpp
+    transform/qscaleengine.h
+    transform/qscaleengine.cpp
 )
 
 set(_core_public_headers
     qgraphplot_global.h
     model/qabstractseriesmodel.h
     model/qringbufferseriesmodel.h
+    transform/qcoordinate.h
+    transform/qscaleengine.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}
     ${_core_sources}
 )
+set_target_properties(QGraphPlotCore PROPERTIES AUTOMOC ON)
 
 # ── Private compile definition: BUILDING_LIB ─────────────────
 # Inside this target QGRAPHPLOT_EXPORT expands to Q_DECL_EXPORT.
@@ -56,6 +63,7 @@ target_include_directories(QGraphPlotCore
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/qgraphplot>
     INTERFACE
         $<INSTALL_INTERFACE:include>
 )
