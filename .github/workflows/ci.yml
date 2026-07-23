@@ -53,7 +53,7 @@ jobs:
 
       # ── 4. 빌드 ──
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Debug --parallel
 
       # ── 5. 단위 테스트 ──
       - name: Run tests
