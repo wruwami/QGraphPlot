@@ -16,7 +16,7 @@
 
 #include <QtTest/QtTest>
 
-#include "../src/core/transform/qscaleengine.h"
+#include "../src/core/transform/QScaleEngine.h"
 
 using namespace qgraphplot;
 
@@ -120,4 +120,4 @@ void TestScaleEngine::testLabelFormatting() {
 }
 
 QTEST_GUILESS_MAIN(TestScaleEngine)
-#include "tst_scaleengine.moc"
+#include "TestScaleEngine.moc"

@@ -20,24 +20,24 @@ endif()
 
 set(_test_libs QGraphPlot::Core)
 
-# ── tst_ringbuffer ────────────────────────────────────────────
-qt_add_test(tst_ringbuffer
-    SOURCES tst_ringbuffer.cpp
+# ── TestRingBuffer ────────────────────────────────────────────
+qt_add_test(TestRingBuffer
+    SOURCES TestRingBuffer.cpp
     LIBRARIES ${_test_libs}
 )
 
-# ── tst_coordinate ────────────────────────────────────────────
-qt_add_test(tst_coordinate
-    SOURCES tst_coordinate.cpp
+# ── TestCoordinate ────────────────────────────────────────────
+qt_add_test(TestCoordinate
+    SOURCES TestCoordinate.cpp
     LIBRARIES ${_test_libs}
 )
 
-# ── tst_scaleengine ───────────────────────────────────────────
-qt_add_test(tst_scaleengine
-    SOURCES tst_scaleengine.cpp
+# ── TestScaleEngine ───────────────────────────────────────────
+qt_add_test(TestScaleEngine
+    SOURCES TestScaleEngine.cpp
     LIBRARIES ${_test_libs}
 )
 
 # The test source includes a private .moc include at the bottom which
-# expects AUTOMOC to have processed tst_ringbuffer.cpp. qt_add_test
+# expects AUTOMOC to have processed TestRingBuffer.cpp. qt_add_test
 # enables AUTOMOC by default for the target, so no extra setup is needed.

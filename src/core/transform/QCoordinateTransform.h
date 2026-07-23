@@ -14,8 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef QGRAPHPLOT_COORDINATE_H
-#define QGRAPHPLOT_COORDINATE_H
+//! @file QCoordinateTransform.h
+//! @brief Data <-> pixel coordinate transformation (linear / log scale).
+
+#ifndef QGRAPHPLOT_COORDINATETRANSFORM_H
+#define QGRAPHPLOT_COORDINATETRANSFORM_H
 
 #include "../qgraphplot_global.h"
 
@@ -72,4 +75,4 @@ private:
 
 } // namespace qgraphplot
 
-#endif // QGRAPHPLOT_COORDINATE_H
+#endif // QGRAPHPLOT_COORDINATETRANSFORM_H

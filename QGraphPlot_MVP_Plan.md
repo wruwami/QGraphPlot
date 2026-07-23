@@ -93,13 +93,13 @@ QGraphPlot/
 │   │   ├── CMakeLists.txt
 │   │   ├── qgraphplot_global.h         # QGRAPHPLOT_EXPORT 매크로
 │   │   ├── model/
-│   │   │   ├── qabstractseriesmodel.h/.cpp
-│   │   │   └── qringbufferseriesmodel.h/.cpp
+│   │   │   ├── QAbstractSeriesModel.h/.cpp
+│   │   │   └── QRingBufferSeriesModel.h/.cpp
 │   │   ├── transform/
-│   │   │   ├── qcoordinate.h/.cpp       # data ↔ pixel 변환
-│   │   │   └── qscaleengine.h/.cpp      # 축 틱/라벨 계산
+│   │   │   ├── QCoordinateTransform.h/.cpp   # data ↔ pixel 변환
+│   │   │   └── QScaleEngine.h/.cpp           # 축 틱/라벨 계산
 │   │   └── series/
-│   │       └── qabstractseries.h/.cpp   # 순수 인터페이스 (렌더링 미포함)
+│   │       └── QAbstractSeries.h/.cpp        # 순수 인터페이스 (렌더링 미포함)
 │   │
 │   ├── qml_frontend/                   # QML 프론트엔드
 │   │   ├── CMakeLists.txt
@@ -128,9 +128,9 @@ QGraphPlot/
 │
 └── tests/
     ├── CMakeLists.txt
-    ├── tst_ringbuffer.cpp              # 링 버퍼 단위 테스트
-    ├── tst_coordinate.cpp              # 좌표 변환 단위 테스트
-    └── tst_scaleengine.cpp             # 스케일 엔진 단위 테스트
+    ├── TestRingBuffer.cpp              # 링 버퍼 단위 테스트
+    ├── TestCoordinate.cpp              # 좌표 변환 단위 테스트
+    └── TestScaleEngine.cpp             # 스케일 엔진 단위 테스트
 ```
 
 ---
@@ -245,8 +245,8 @@ QML/Widget 양쪽이 동일 변환 사용 → 패리티 보장 (AI.md §3.1).
 | Step | 이슈 | 작업 | 완료 기준 |
 |---|---|---|---|
 | **0.1** | #1 | `src/core/` CMakeLists.txt + 글로벌 헤더 | 빈 코어 라이브러리 빌드 성공 |
-| **0.2** | #2 | `QAbstractSeriesModel` + `QRingBufferSeriesModel` | 단위 테스트 통과 (tst_ringbuffer) |
-| **0.3** | #3 | `QCoordinateTransform` + `QScaleEngine` | 단위 테스트 통과 (tst_coordinate, tst_scaleengine) |
+| **0.2** | #2 | `QAbstractSeriesModel` + `QRingBufferSeriesModel` | 단위 테스트 통과 (TestRingBuffer) |
+| **0.3** | #3 | `QCoordinateTransform` + `QScaleEngine` | 단위 테스트 통과 (TestCoordinate, TestScaleEngine) |
 | **0.4** | #4 | `QAbstractSeries` 순수 인터페이스 | 코어 라이브러리 완성, 헤더만 사용 가능 |
 | **0.5** | #5 | `QmlChartView` (QQuickItem) + `QmlLineSeries` (QSGGeometryNode) | QML 데모에 라인 표시 |
 | **0.6** | #6 | `QmlAxis`, `QmlLegend` (간단 버전) | 축/그리드 표시 |
@@ -338,8 +338,8 @@ Widget 프론트엔드 렌더링 백엔드는 **Phase 1에서 결정**. 후보:
 **소스 (라이브러리):**
 - `src/core/CMakeLists.txt`
 - `src/core/qgraphplot_global.h`
-- `src/core/model/{qabstractseriesmodel, qringbufferseriesmodel}.{h,cpp}`
-- `src/core/transform/{qcoordinate, qscaleengine}.{h,cpp}`
+- `src/core/model/{QAbstractSeriesModel, QRingBufferSeriesModel}.{h,cpp}`
+- `src/core/transform/{QCoordinateTransform, QScaleEngine}.{h,cpp}`
 - `src/core/series/qabstractseries.{h,cpp}`
 - `src/qml_frontend/{CMakeLists.txt, qml/, qmlchartview, qmllineseries, qmlaxis, qmllegend}.{h,cpp}`
 - `src/widget_frontend/{CMakeLists.txt, widgetchartview}.{h,cpp}`
@@ -349,7 +349,7 @@ Widget 프론트엔드 렌더링 백엔드는 **Phase 1에서 결정**. 후보:
 - `examples/widget_demo/{CMakeLists.txt, main.cpp}`
 
 **테스트:**
-- `tests/{CMakeLists.txt, tst_ringbuffer.cpp, tst_coordinate.cpp, tst_scaleengine.cpp}`
+- `tests/{CMakeLists.txt, TestRingBuffer.cpp, TestCoordinate.cpp, TestScaleEngine.cpp}`
 
 예상 총 파일 수: **약 30개** (Phase 0 완료 시).
 

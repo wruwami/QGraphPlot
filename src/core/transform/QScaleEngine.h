@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! @file QScaleEngine.h
+//! @brief Axis tick / label computation (nice-number algorithm).
+
 #ifndef QGRAPHPLOT_SCALEENGINE_H
 #define QGRAPHPLOT_SCALEENGINE_H
 

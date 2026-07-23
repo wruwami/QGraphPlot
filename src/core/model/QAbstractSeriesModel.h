@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! @file qabstractseriesmodel.h
+//! @file QAbstractSeriesModel.h
 //! @brief Abstract data-source interface for chart series.
 //!
 //! QAbstractSeriesModel is the contract between a data source (ring buffer,

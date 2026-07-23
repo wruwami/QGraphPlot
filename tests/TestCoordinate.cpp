@@ -16,7 +16,7 @@
 
 #include <QtTest/QtTest>
 
-#include "../src/core/transform/qcoordinate.h"
+#include "../src/core/transform/QCoordinateTransform.h"
 
 using namespace qgraphplot;
 
@@ -154,4 +154,4 @@ void TestCoordinate::testDegenerateBoundsSafety() {
 }
 
 QTEST_GUILESS_MAIN(TestCoordinate)
-#include "tst_coordinate.moc"
+#include "TestCoordinate.moc"
