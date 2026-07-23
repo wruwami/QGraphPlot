@@ -8,6 +8,16 @@
 
 # Tests link against the core library target directly (build interface),
 # not via the installed package, so they always exercise the in-tree code.
+if(NOT COMMAND qt_add_test)
+    macro(qt_add_test name)
+        cmake_parse_arguments(ARG "" "" "SOURCES;LIBRARIES" ${ARGN})
+        add_executable(${name} ${ARG_SOURCES})
+        target_link_libraries(${name} PRIVATE Qt6::Test ${ARG_LIBRARIES})
+        set_target_properties(${name} PROPERTIES AUTOMOC ON)
+        add_test(NAME ${name} COMMAND ${name})
+    endmacro()
+endif()
+
 set(_test_libs QGraphPlot::Core)
 
 # ── TestRingBuffer ────────────────────────────────────────────
