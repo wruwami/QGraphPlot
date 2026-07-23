@@ -37,7 +37,19 @@ void QAbstractSeries::setModel(QAbstractSeriesModel* model) {
     if (m_model == model) {
         return;
     }
+    if (m_modelDestroyedConnection) {
+        disconnect(m_modelDestroyedConnection);
+    }
     m_model = model;
+    if (m_model) {
+        m_modelDestroyedConnection = connect(m_model, &QObject::destroyed, this, [this]() {
+            m_model = nullptr;
+            m_modelDestroyedConnection = QMetaObject::Connection();
+            Q_EMIT modelChanged(nullptr);
+        });
+    } else {
+        m_modelDestroyedConnection = QMetaObject::Connection();
+    }
     Q_EMIT modelChanged(m_model);
 }
 

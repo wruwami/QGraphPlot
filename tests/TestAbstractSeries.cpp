@@ -28,6 +28,8 @@
 #include "../src/core/model/QRingBufferSeriesModel.h"
 
 #include <memory>
+#include <type_traits>
+#include <QtCore/QPointer>
 
 using namespace qgraphplot;
 
@@ -154,9 +156,15 @@ void TestAbstractSeriesFixture::setVisibleEmitsOnChange() {
 void TestAbstractSeriesFixture::setModelUpdatesPointer() {
     TestSeries s;
     auto* model = new QRingBufferSeriesModel(16);
+    QSignalSpy spy(&s, &TestSeries::modelChanged);
     s.setModel(model);
     QCOMPARE(s.model(), model);
+    QCOMPARE(spy.count(), 1);
+
     delete model;  // explicit cleanup; series does NOT take ownership of model
+    QVERIFY(s.model() == nullptr);
+    QCOMPARE(spy.count(), 2);
+    QCOMPARE(spy.at(1).at(0).value<QAbstractSeriesModel*>(), nullptr);
 }
 
 void TestAbstractSeriesFixture::setModelNullClears() {
@@ -173,15 +181,14 @@ void TestAbstractSeriesFixture::setModelNullClears() {
 // ─────────────────────────────────────────────────────────────
 
 void TestAbstractSeriesFixture::parentDeletesChild() {
-    QObject parent;
-    auto* series = new TestSeries(&parent);
-    QCOMPARE(series->parent(), &parent);
-    // Trigger parent destruction — series must be deleted by Qt.
-    // We verify by checking the pointer would be invalid; since this is
-    // UB to dereference, we instead trust Qt's well-documented behavior
-    // and just confirm the parent link.
-    QVERIFY(series->parent() != nullptr);
-    // (parent goes out of scope here; series is destroyed with it)
+    QPointer<TestSeries> seriesPointer;
+    {
+        QObject parent;
+        auto* series = new TestSeries(&parent);
+        seriesPointer = series;
+        QCOMPARE(seriesPointer->parent(), &parent);
+    } // parent is destroyed here, deleting series
+    QVERIFY(seriesPointer.isNull());
 }
 
 // ─────────────────────────────────────────────────────────────

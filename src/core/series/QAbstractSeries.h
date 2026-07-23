@@ -17,9 +17,9 @@
 //! @file QAbstractSeries.h
 //! @brief Abstract base class for all chart series (line, scatter, bar, ...).
 //!
-//! QAbstractSeries is the property contract for a series — it owns the data
-//! model, color, name, and visibility, but it deliberately does NOT know how
-//! to render itself. Concrete renderers live in the frontends:
+//! QAbstractSeries is the property contract for a series — it references the
+//! data model (which it does not own), and owns the color, name, and visibility,
+//! but it deliberately does NOT know how to render itself. Concrete renderers live in the frontends:
 //!
 //!   - QML frontend:    QmlLineSeries, QmlScatterSeries, ...
 //!   - Widget frontend: WidgetLineSeries, WidgetScatterSeries, ...
@@ -121,6 +121,7 @@ Q_SIGNALS:
 
 private:
     QAbstractSeriesModel* m_model = nullptr;
+    QMetaObject::Connection m_modelDestroyedConnection;
     QColor m_color = Qt::blue;     //!< Member-initialized (AI.md §1.4)
     QString m_name;
     bool m_visible = true;
