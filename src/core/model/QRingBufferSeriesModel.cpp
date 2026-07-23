@@ -165,8 +165,17 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     if (evicted > 0) {
         recomputeBounds();
     } else {
+        // m_size was already advanced above, so m_size == appended means
+        // the buffer was empty before this batch: seed m_bounds directly
+        // instead of expanding from the stale default-constructed QRectF()
+        // (which would anchor min/max at (0,0) instead of the first point).
+        const bool wasEmpty = (m_size == appended);
         for (qsizetype i = 0; i < appended; ++i) {
-            expandBounds(srcData[i]);
+            if (wasEmpty && i == 0) {
+                m_bounds = QRectF(srcData[0].x(), srcData[0].y(), 0.0, 0.0);
+            } else {
+                expandBounds(srcData[i]);
+            }
         }
     }
 
