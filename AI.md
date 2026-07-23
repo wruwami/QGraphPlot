@@ -62,6 +62,10 @@ QGraphPlot은 고성능 Qt 차트 라이브러리다. 다음 4가지 목표를 �
 **예외**:
 - CMake/스크립트 파일은 관습적 이름 유지 (`CMakeLists.txt`, `.clang-format`, `cppcheck.options`)
 - 자동 생성 파일 (`moc_*.cpp`, `ui_*.h`, `qrc_*.cpp`)은 Qt 도구가 만드는 이름 그대로
+- **클래스가 없는 글로벌/매크로 헤더**는 소문자+언더스코어 유지 (Qt `qglobal.h` 관행)
+  - `qgraphplot_global.h` (X) → 유지 ✅
+  - `qgraphplot_version.h.in` (X) → 유지 ✅
+  - 적용 기준: 클래스 선언이 없고 매크로/namespace/include guard만 있는 헤더
 
 #### 1.5.1 파일명 변경(rename) 시 모든 참조 동기화
 
