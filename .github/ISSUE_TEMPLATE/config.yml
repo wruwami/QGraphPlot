@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Question / discussion
+    url: https://github.com/wruwami/QGraphPlot/discussions
+    about: Ask "how do I..." questions here, not in issues.
+  - name: 🔒 Security report
+    url: https://github.com/wruwami/QGraphPlot/security/policy
+    about: Found a vulnerability? Report privately, do NOT open a public issue.
+  - name: 📖 Documentation
+    url: https://github.com/wruwami/QGraphPlot/blob/main/README.md
+    about: Read the README and AI.md first for project conventions.
