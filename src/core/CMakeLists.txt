@@ -37,6 +37,8 @@ set(_core_sources
     transform/QCoordinateTransform.cpp
     transform/QScaleEngine.h
     transform/QScaleEngine.cpp
+    series/QAbstractSeries.h
+    series/QAbstractSeries.cpp
 )
 
 set(_core_public_headers
@@ -45,6 +47,7 @@ set(_core_public_headers
     model/QRingBufferSeriesModel.h
     transform/QCoordinateTransform.h
     transform/QScaleEngine.h
+    series/QAbstractSeries.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}
