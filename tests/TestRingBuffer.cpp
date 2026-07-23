@@ -53,6 +53,7 @@ private slots:
     // ─ Queries ─────────────────────────────────────────────
     void pointAtReturnsLogicalOrder();
     void pointsRangeNonWrapping();
+    void pointsRangeWrapping();
     void boundsAfterEvictionRecomputed();
 
     // ─ Clear ───────────────────────────────────────────────
@@ -63,6 +64,8 @@ private slots:
     void signalsOnAppend();
     void signalsOnOverflow();
     void noSignalsOnEmptyAppend();
+    void signalsOnClearNonEmpty();
+    void noSignalsOnClearAlreadyEmpty();
 };
 
 void TestRingBuffer::initTestCase() {
@@ -190,6 +193,25 @@ void TestRingBuffer::pointsRangeNonWrapping() {
     QCOMPARE(span[1], QPointF(2.0, 2.0));
 }
 
+void TestRingBuffer::pointsRangeWrapping() {
+    // Fill the ring exactly, then force one eviction so the logical range
+    // [0, size-1] straddles the physical wrap boundary (regression test:
+    // points() used to silently truncate this to a partial span).
+    QRingBufferSeriesModel rb(4);
+    rb.append(QPointF(0.0, 0.0));
+    rb.append(QPointF(1.0, 1.0));
+    rb.append(QPointF(2.0, 2.0));
+    rb.append(QPointF(3.0, 3.0));
+    rb.append(QPointF(4.0, 4.0));  // evicts (0,0); head now mid-buffer
+
+    auto span = rb.points(0, rb.pointCount() - 1);
+    QCOMPARE(span.size(), qsizetype(4));
+    QCOMPARE(span[0], QPointF(1.0, 1.0));
+    QCOMPARE(span[1], QPointF(2.0, 2.0));
+    QCOMPARE(span[2], QPointF(3.0, 3.0));
+    QCOMPARE(span[3], QPointF(4.0, 4.0));
+}
+
 void TestRingBuffer::boundsAfterEvictionRecomputed() {
     QRingBufferSeriesModel rb(3);
     rb.append(QPointF(-100.0, 0.0));  // x_min
@@ -266,6 +288,32 @@ void TestRingBuffer::noSignalsOnEmptyAppend() {
 
     QCOMPARE(insertedSpy.count(), 0);
     QCOMPARE(changedSpy.count(), 0);
+}
+
+void TestRingBuffer::signalsOnClearNonEmpty() {
+    // Regression test: clear() used to always emit pointsRemoved(0, 0)
+    // regardless of how many points were actually held.
+    QRingBufferSeriesModel rb(8);
+    rb.append(QPointF(1.0, 1.0));
+    rb.append(QPointF(2.0, 2.0));
+    rb.append(QPointF(3.0, 3.0));
+
+    QSignalSpy removedSpy(&rb, &QRingBufferSeriesModel::pointsRemoved);
+    rb.clear();
+
+    QCOMPARE(removedSpy.count(), 1);
+    auto removedArgs = removedSpy.takeFirst();
+    QCOMPARE(removedArgs.at(0).toLongLong(), qsizetype(0));
+    QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(2));  // last of 3 points
+}
+
+void TestRingBuffer::noSignalsOnClearAlreadyEmpty() {
+    QRingBufferSeriesModel rb(8);
+    QSignalSpy removedSpy(&rb, &QRingBufferSeriesModel::pointsRemoved);
+
+    rb.clear();
+
+    QCOMPARE(removedSpy.count(), 0);
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)
