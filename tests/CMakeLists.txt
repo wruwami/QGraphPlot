@@ -26,24 +26,6 @@ qt_add_test(TestRingBuffer
     LIBRARIES ${_test_libs}
 )
 
-# ── TestCoordinate ────────────────────────────────────────────
-qt_add_test(TestCoordinate
-    SOURCES TestCoordinate.cpp
-    LIBRARIES ${_test_libs}
-)
-
-# ── TestScaleEngine ───────────────────────────────────────────
-qt_add_test(TestScaleEngine
-    SOURCES TestScaleEngine.cpp
-    LIBRARIES ${_test_libs}
-)
-
-# ── TestAbstractSeries ────────────────────────────────────────
-qt_add_test(TestAbstractSeries
-    SOURCES TestAbstractSeries.cpp
-    LIBRARIES ${_test_libs}
-)
-
 # The test source includes a private .moc include at the bottom which
 # expects AUTOMOC to have processed TestRingBuffer.cpp. qt_add_test
 # enables AUTOMOC by default for the target, so no extra setup is needed.

@@ -33,21 +33,12 @@ set(_core_sources
     model/QAbstractSeriesModel.h
     model/QRingBufferSeriesModel.h
     model/QRingBufferSeriesModel.cpp
-    transform/QCoordinateTransform.h
-    transform/QCoordinateTransform.cpp
-    transform/QScaleEngine.h
-    transform/QScaleEngine.cpp
-    series/QAbstractSeries.h
-    series/QAbstractSeries.cpp
 )
 
 set(_core_public_headers
     qgraphplot_global.h
     model/QAbstractSeriesModel.h
     model/QRingBufferSeriesModel.h
-    transform/QCoordinateTransform.h
-    transform/QScaleEngine.h
-    series/QAbstractSeries.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}

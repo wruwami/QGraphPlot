@@ -165,13 +165,8 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     if (evicted > 0) {
         recomputeBounds();
     } else {
-        const bool wasEmpty = (m_size == appended);
         for (qsizetype i = 0; i < appended; ++i) {
-            if (wasEmpty && i == 0) {
-                m_bounds = QRectF(srcData[0].x(), srcData[0].y(), 0.0, 0.0);
-            } else {
-                expandBounds(srcData[i]);
-            }
+            expandBounds(srcData[i]);
         }
     }
 
