@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! @file tst_ringbuffer.cpp
+//! @file TestRingBuffer.cpp
 //! @brief Unit tests for qgraphplot::QRingBufferSeriesModel.
 //!
 //! Covers append, overflow eviction, range queries, bounds tracking, clear,
@@ -22,7 +22,7 @@
 
 #include <QtTest/QtTest>
 
-#include "../src/core/model/qringbufferseriesmodel.h"
+#include "../src/core/model/QRingBufferSeriesModel.h"
 
 #include <vector>
 
@@ -269,4 +269,4 @@ void TestRingBuffer::noSignalsOnEmptyAppend() {
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)
-#include "tst_ringbuffer.moc"
+#include "TestRingBuffer.moc"

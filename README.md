@@ -29,9 +29,9 @@ The core library, series models (`QAbstractSeriesModel`, `QRingBufferSeriesModel
 The core library exposes a C++ API for managing data feeds, calculating layout grids, and transforming coordinates. Here is how the core model and transform layers are wired up:
 
 ```cpp
-#include "model/qringbufferseriesmodel.h"
-#include "transform/qcoordinate.h"
-#include "transform/qscaleengine.h"
+#include "model/QRingBufferSeriesModel.h"
+#include "transform/QCoordinateTransform.h"
+#include "transform/QScaleEngine.h"
 
 // 1. Create a 60fps ring buffer model with a capacity of 1000 points
 auto* model = new qgraphplot::QRingBufferSeriesModel(1000, qgraphplot::ThreadSafety::Enabled);

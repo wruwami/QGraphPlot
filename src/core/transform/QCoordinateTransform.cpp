@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "qcoordinate.h"
+#include "QCoordinateTransform.h"
 
 #include <QtCore/QLoggingCategory>
 #include <cmath>

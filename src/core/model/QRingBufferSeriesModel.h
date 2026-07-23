@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! @file qringbufferseriesmodel.h
+//! @file QRingBufferSeriesModel.h
 //! @brief Fixed-capacity ring buffer series model for real-time streaming.
 //!
 //! QRingBufferSeriesModel is the first concrete QAbstractSeriesModel. It is
@@ -35,7 +35,7 @@
 #ifndef QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 #define QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 
-#include "qabstractseriesmodel.h"
+#include "QAbstractSeriesModel.h"
 
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
