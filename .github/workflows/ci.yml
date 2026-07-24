@@ -27,7 +27,7 @@ jobs:
   # 빌드 + 테스트 (셀프 호스팅 Linux)
   # ─────────────────────────────────────────────────────────────
   build-and-test:
-    name: Build & Test (self-hosted Linux, Qt ${{ env.QT_VERSION }})
+    name: Build & Test (self-hosted Linux, Qt 6.7.3)
     runs-on: [self-hosted, Linux]
 
     steps:
@@ -140,4 +140,4 @@ jobs:
         # diff 가 있으면 실패. —dry-run 옵션으로 실제 파일 변경 없이 검사.
         run: |
           find src tests examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
-            -exec clang-format --dry-run --Werror -i {} +
+            -exec clang-format --dry-run --Werror {} +
