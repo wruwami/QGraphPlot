@@ -1,11 +1,14 @@
 # ─────────────────────────────────────────────────────────────
-# QGraphPlot CI
-# AI.md §5 기준.
+# QGraphPlot CI — 셀프 호스팅 GCE 러너용
 #
-# 셀프 호스팅 Linux 러너(GCE)에서 실행.
-# - 빌드 + 단위 테스트 + 커버리지(lcov→Codecov)
-# - clang-format 검사, cppcheck
-# (sudo 명령어 제거 — 모든 관련 도구 및 라이브러리는 러너 호스트에 사전 설치됨)
+# 전제 조건 (러너 호스트에 1회 수동 설치):
+#   pip install aqtinstall
+#   aqt install-qt linux desktop 6.7.3 gcc_64
+#       --outputdir /home/wruwami/Qt
+#   apt-get install -y build-essential cmake git lcov cppcheck clang-format
+#       libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0
+#       libxcb-{glx0,icccm4,image0,keysyms1,randr0,render-util0,shm0,sync1,xfixes0,shape0,xinerama0,xinput0}
+#       libdbus-1-3 libfontconfig1 libfreetype6
 # ─────────────────────────────────────────────────────────────
 name: build-and-test
 
@@ -21,11 +24,13 @@ concurrency:
 
 env:
   QT_VERSION: "6.7.3"
-  CMAKE_VERSION: "3.16"
+  # Qt가 러너 호스트에 사전 설치된 경로
+  QT_ROOT: "/home/wruwami/Qt/6.7.3/gcc_64"
+  CMAKE_PREFIX_PATH: "/home/wruwami/Qt/6.7.3/gcc_64"
 
 jobs:
   # ─────────────────────────────────────────────────────────────
-  # 빌드 + 테스트 (셀프 호스팅 Linux)
+  # 빌드 + 테스트 (셀프 호스팅 GCE Linux)
   # ─────────────────────────────────────────────────────────────
   build-and-test:
     name: Build & Test (self-hosted Linux, Qt 6.7.3)
@@ -36,31 +41,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Qt 설치 ──
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          modules: "qtcharts qtshadertools qtquick3d"
-          cache: true
-
-      # ── 3. CMake 설정 (커버리지 활성화) ──
+      # ── 2. CMake 설정 (커버리지 활성화) ──
       - name: Configure
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}" \
             -DQGRAPHPLOT_BUILD_COVERAGE=ON \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      # ── 4. 빌드 ──
+      # ── 3. 빌드 ──
       - name: Build
         run: cmake --build build --config Debug --parallel
 
-      # ── 5. 단위 테스트 ──
+      # ── 4. 단위 테스트 ──
       - name: Run tests
-        run: ctest --test-dir build --build-config Debug --output-on-failure --parallel
+        run: |
+          export LD_LIBRARY_PATH="${{ env.QT_ROOT }}/lib:$LD_LIBRARY_PATH"
+          ctest --test-dir build --build-config Debug --output-on-failure --parallel
 
-      # ── 6. lcov 커버리지 수집 → Codecov 업로드 ──
+      # ── 5. lcov 커버리지 수집 → Codecov 업로드 ──
       - name: Capture coverage
         run: |
           lcov --directory build --capture --output-file coverage.info
@@ -79,7 +79,7 @@ jobs:
           files: coverage.filtered.info
           fail_ci_if_error: false
 
-      # ── 7. 빌드 산출물 아티팩트 업로드 (디버깅용) ──
+      # ── 6. 빌드 산출물 업로드 (디버깅용) ──
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,12 +87,12 @@ jobs:
           name: build-linux
           path: |
             build/compile_commands.json
-            build/tests/*.log
+            build/Testing/Temporary/LastTest.log
           retention-days: 7
           if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────
-  # 정적 분석 (셀프 호스팅 Linux)
+  # 정적 분석 (셀프 호스팅 GCE Linux)
   # ─────────────────────────────────────────────────────────────
   static-analysis:
     name: Static Analysis (cppcheck)
@@ -102,22 +102,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          modules: "qtcharts qtshadertools qtquick3d"
-          cache: true
-
       - name: Configure (for compile_commands.json)
         run: |
-          cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake -S . -B build \
+            -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Run cppcheck
         run: cppcheck @cppcheck.options src
 
   # ─────────────────────────────────────────────────────────────
-  # 코드 포맷 검사 (셀프 호스팅 Linux)
+  # 코드 포맷 검사 (셀프 호스팅 GCE Linux)
   # ─────────────────────────────────────────────────────────────
   format-check:
     name: Format Check (clang-format)
