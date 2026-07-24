@@ -1,14 +1,15 @@
 # ─────────────────────────────────────────────────────────────
 # QGraphPlot CI — 셀프 호스팅 GCE 러너용
 #
-# 전제 조건 (러너 호스트에 1회 수동 설치):
-#   pip install aqtinstall
-#   aqt install-qt linux desktop 6.7.3 gcc_64
-#       --outputdir /home/wruwami/Qt
+# GCE 인스턴스 사전 설치 필요 패키지 (sudo 1회):
 #   apt-get install -y build-essential cmake git lcov cppcheck clang-format
-#       libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0
-#       libxcb-{glx0,icccm4,image0,keysyms1,randr0,render-util0,shm0,sync1,xfixes0,shape0,xinerama0,xinput0}
-#       libdbus-1-3 libfontconfig1 libfreetype6
+#     python3 python3-pip
+#     libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0
+#     libxcb-{glx0,icccm4,image0,keysyms1,randr0,render-util0,shm0,sync1,
+#             xfixes0,shape0,xinerama0,xinput0,util1}
+#     libdbus-1-3 libfontconfig1 libfreetype6
+#
+# Qt 6.7.3 은 aqt 로 홈 디렉토리에 설치 (아래 Install Qt 스텝이 자동 수행).
 # ─────────────────────────────────────────────────────────────
 name: build-and-test
 
@@ -24,9 +25,7 @@ concurrency:
 
 env:
   QT_VERSION: "6.7.3"
-  # Qt가 러너 호스트에 사전 설치된 경로
-  QT_ROOT: "/home/wruwami/Qt/6.7.3/gcc_64"
-  CMAKE_PREFIX_PATH: "/home/wruwami/Qt/6.7.3/gcc_64"
+  QT_DIR: "$HOME/Qt/6.7.3/gcc_64"
 
 jobs:
   # ─────────────────────────────────────────────────────────────
@@ -41,26 +40,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. CMake 설정 (커버리지 활성화) ──
+      # ── 2. Qt 설치 (aqt — sudo 불필요, $HOME/Qt에 설치) ──
+      - name: Install Qt via aqt
+        run: |
+          QT_INSTALL_DIR="$HOME/Qt/6.7.3/gcc_64"
+          if [ ! -f "$QT_INSTALL_DIR/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+            pip3 install --user --quiet aqtinstall
+            python3 -m aqt install-qt linux desktop 6.7.3 gcc_64 \
+              --modules qtcharts qtshadertools qtquick3d \
+              --outputdir "$HOME/Qt"
+          else
+            echo "Qt already installed at $QT_INSTALL_DIR — skipping download."
+          fi
+
+      # ── 3. CMake 설정 ──
       - name: Configure
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}" \
+            -DCMAKE_PREFIX_PATH="$HOME/Qt/6.7.3/gcc_64" \
             -DQGRAPHPLOT_BUILD_COVERAGE=ON \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      # ── 3. 빌드 ──
+      # ── 4. 빌드 ──
       - name: Build
         run: cmake --build build --config Debug --parallel
 
-      # ── 4. 단위 테스트 ──
+      # ── 5. 단위 테스트 ──
       - name: Run tests
         run: |
-          export LD_LIBRARY_PATH="${{ env.QT_ROOT }}/lib:$LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="$HOME/Qt/6.7.3/gcc_64/lib:$LD_LIBRARY_PATH"
           ctest --test-dir build --build-config Debug --output-on-failure --parallel
 
-      # ── 5. lcov 커버리지 수집 → Codecov 업로드 ──
+      # ── 6. lcov 커버리지 수집 → Codecov 업로드 ──
       - name: Capture coverage
         run: |
           lcov --directory build --capture --output-file coverage.info
@@ -79,7 +91,7 @@ jobs:
           files: coverage.filtered.info
           fail_ci_if_error: false
 
-      # ── 6. 빌드 산출물 업로드 (디버깅용) ──
+      # ── 7. 빌드 산출물 업로드 (디버깅용) ──
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -105,7 +117,7 @@ jobs:
       - name: Configure (for compile_commands.json)
         run: |
           cmake -S . -B build \
-            -DCMAKE_PREFIX_PATH="${{ env.CMAKE_PREFIX_PATH }}" \
+            -DCMAKE_PREFIX_PATH="$HOME/Qt/6.7.3/gcc_64" \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Run cppcheck

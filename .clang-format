@@ -90,7 +90,7 @@ IncludeCategories:
 
 # ── 기타 ─────────────────────────────────────────────────────
 AlwaysBreakTemplateDeclarations: Yes
-ConstructorInitIndentWidth: 4
+# ConstructorInitIndentWidth is clang-format 14+; omitted for compatibility.
 Cpp11BracedListStyle: true
 FixNamespaceComments: true
 KeepEmptyLinesAtTheStartOfBlocks: false
