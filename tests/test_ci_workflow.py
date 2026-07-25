@@ -247,6 +247,8 @@ class BuildAndTestJobTests(unittest.TestCase):
                 "Patch generated build files to strip AGL framework on macOS",
                 "Build",
                 "Test",
+                "Install Python dependencies",
+                "Test CI workflow structure",
                 "Collect coverage",
                 "Upload coverage to Codecov",
             ],
@@ -316,7 +318,10 @@ class BuildAndTestJobTests(unittest.TestCase):
         run = step.get("run", "")
         self.assertIn('"${{ matrix.os }}" = "ubuntu-latest"', run)
         self.assertIn("xvfb-run ctest --test-dir build --output-on-failure -C Debug", run)
-        self.assertIn("ctest --test-dir build --output-on-failure -C Debug", run)
+        # Verify the else-branch contains the plain ctest command (not as substring of xvfb-run)
+        lines = run.split('\n')
+        plain_ctest_line = "    ctest --test-dir build --output-on-failure -C Debug"
+        self.assertIn(plain_ctest_line, lines)
 
     def test_collect_coverage_is_ubuntu_qt6_only(self):
         step = get_step(self.job, "Collect coverage")
