@@ -7,9 +7,10 @@ Window {
     width: 900
     height: 600
     visible: true
-    title: "QGraphPlot 60fps Streaming Demo"
+    title: "QGraphPlot QML Demo — 60fps Streaming"
     color: "#F8F9FA" // Sleek light gray background
 
+    // ── FPS 측정 (Phase 0.7 DoD: 프레임 드랍 가시화) ──────────────
     property int frameCounter: 0
     property int fps: 0
     property real lastSampleTime: 0
@@ -31,13 +32,6 @@ Window {
         }
     }
 
-    ChartView {
-        id: chart
-        anchors.fill: parent
-        anchors.margins: 30
-
-        xMin: dataSource.xMin
-        xMax: dataSource.xMax
     // ── 실시간 데이터 스트리밍 (Phase 0.7) ────────────────────────
     // 매 프레임(16ms) 1K 포인트를 QRingBufferSeriesModel::appendRange()로 밀어넣어
     // 60K 포인트 용량의 링 버퍼를 지속적으로 스트리밍한다.
@@ -51,8 +45,16 @@ Window {
         repeat: true
         onTriggered: dataSource.generateFrame()
     }
-        yMin: -1.5
-        yMax: 1.5
+
+    ChartView {
+        id: chart
+        anchors.fill: parent
+        anchors.margins: 30
+
+        xMin: dataSource.xMin
+        xMax: dataSource.xMax
+        yMin: -1.2
+        yMax: 1.2
 
         marginLeft: 60
         marginRight: 30
@@ -105,14 +107,5 @@ Window {
             font.pixelSize: 14
             font.bold: true
         }
-    }
-
-    Text {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 12
-        text: rootWindow.fps + " FPS"
-        font.pixelSize: 14
-        color: "#495057"
     }
 }
