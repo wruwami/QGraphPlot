@@ -27,8 +27,7 @@ constexpr qsizetype DEFAULT_CAPACITY = 60000;
 }  // namespace
 
 StreamingDataSource::StreamingDataSource(QObject* parent)
-    : QObject(parent),
-      m_model(DEFAULT_CAPACITY, qgraphplot::ThreadSafety::Disabled, nullptr)
+    : QObject(parent), m_model(DEFAULT_CAPACITY, qgraphplot::ThreadSafety::Disabled, nullptr)
 {
     m_timer.setInterval(m_interval);
     m_timer.setTimerType(Qt::PreciseTimer);
