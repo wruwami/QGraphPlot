@@ -48,7 +48,7 @@ jobs:
             --inline-suppr \
             --suppressions-list=.cppcheck-suppressions \
             --xml --xml-version=2 \
-            -DQ_OBJECT= -DQ_PROPERTY(x)= -DQ_ENUMS(x)= -DQ_FLAGS(x)= -DQ_DECLARE_METATYPE(x)= \
+            -DQ_OBJECT= '-DQ_PROPERTY(x)=' '-DQ_ENUMS(x)=' '-DQ_FLAGS(x)=' '-DQ_DECLARE_METATYPE(x)=' \
             -DQGRAPHPLOT_EXPORT= \
             -I src/core \
             src tests 2> cppcheck.xml
