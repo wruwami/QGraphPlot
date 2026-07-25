@@ -5,6 +5,8 @@
 # executable 타겟 선언
 qt_add_executable(qml_demo
     main.cpp
+    StreamingDataSource.h
+    StreamingDataSource.cpp
 )
 
 # qt_add_qml_module()의 메타타입 생성(qt6_extract_metatypes)이 요구하는 AUTOMOC 활성화

@@ -7,16 +7,31 @@ Window {
     width: 800
     height: 600
     visible: true
-    title: "QGraphPlot QML Demo"
+    title: "QGraphPlot 60fps Streaming Demo"
     color: "#F8F9FA" // Sleek light gray background
+
+    property int frameCounter: 0
+    property int fps: 0
+
+    onFrameSwapped: ++frameCounter
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            rootWindow.fps = rootWindow.frameCounter
+            rootWindow.frameCounter = 0
+        }
+    }
 
     ChartView {
         id: chart
         anchors.fill: parent
         anchors.margins: 30
 
-        xMin: 0.0
-        xMax: 20.0
+        xMin: dataSource.xMin
+        xMax: dataSource.xMax
         yMin: -1.5
         yMax: 1.5
 
@@ -48,9 +63,18 @@ Window {
 
         LineSeries {
             id: series
-            model: chartModel
+            model: dataSource.model
             color: "#007ACC" // Premium deep blue
             name: "Sine Wave"
         }
+    }
+
+    Text {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 12
+        text: rootWindow.fps + " FPS"
+        font.pixelSize: 14
+        color: "#495057"
     }
 }
