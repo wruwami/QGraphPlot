@@ -38,6 +38,19 @@ Window {
 
         xMin: dataSource.xMin
         xMax: dataSource.xMax
+    // ── 실시간 데이터 스트리밍 (Phase 0.7) ────────────────────────
+    // 매 프레임(16ms) 1K 포인트를 QRingBufferSeriesModel::appendRange()로 밀어넣어
+    // 60K 포인트 용량의 링 버퍼를 지속적으로 스트리밍한다.
+    StreamingDataSource {
+        id: dataSource
+    }
+
+    Timer {
+        interval: 16
+        running: true
+        repeat: true
+        onTriggered: dataSource.generateFrame()
+    }
         yMin: -1.5
         yMax: 1.5
 
