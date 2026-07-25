@@ -141,11 +141,8 @@ void WidgetChartView::addSeries(QAbstractSeries* series)
     }
     m_series.append(series);
     series->setParent(this);
-    m_seriesDestroyedConnections[series] = connect(
-        series,
-        &QObject::destroyed,
-        this,
-        [this, series](QObject*) {
+    m_seriesDestroyedConnections[series] =
+        connect(series, &QObject::destroyed, this, [this, series](QObject*) {
             m_series.removeAll(series);
             m_seriesDestroyedConnections.remove(series);
         });
