@@ -79,10 +79,8 @@ void QmlAxis::itemChange(ItemChange change, const ItemChangeData& value)
 
 void QmlAxis::connectChartViewSignals()
 {
-    static QmlChartView* previousChartView = nullptr;
-
-    if (previousChartView) {
-        disconnect(previousChartView,
+    if (m_previousChartView) {
+        disconnect(m_previousChartView,
                    &QmlChartView::transformChanged,
                    this,
                    &QmlAxis::handleTransformChanged);
@@ -95,9 +93,9 @@ void QmlAxis::connectChartViewSignals()
                 this,
                 &QmlAxis::handleTransformChanged,
                 Qt::UniqueConnection);
-        previousChartView = chartView;
+        m_previousChartView = chartView;
     } else {
-        previousChartView = nullptr;
+        m_previousChartView = nullptr;
     }
 }
 

@@ -35,8 +35,10 @@
 #ifndef QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 #define QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 
+#include <memory>
 #include <vector>
 
+#include <QtCore/QMutex>
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QSpan>
@@ -137,6 +139,10 @@ private:
 
     const qsizetype m_capacity;
     const ThreadSafety m_threadSafety;
+    // Only allocated when m_threadSafety == Enabled (see #33): a null
+    // QMutex* is a documented no-op for QMutexLocker, so single-threaded
+    // callers pay no locking cost at all.
+    const std::unique_ptr<QMutex> m_mutex;
     std::vector<QPointF> m_buffer;
     //! Index in m_buffer that holds the OLDEST live point.
     qsizetype m_head = 0;
