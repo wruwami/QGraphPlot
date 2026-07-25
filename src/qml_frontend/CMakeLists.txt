@@ -4,6 +4,8 @@
 
 # QML 모듈 생성. URI는 QGraphPlot으로 설정하여 QML에서 import QGraphPlot이 가능하게 함.
 # C++ 소스 파일과 QML 파일들을 함께 묶어 모듈을 정의합니다.
+set(CMAKE_AUTOMOC ON)
+
 qt_add_qml_module(qml_frontend
     URI QGraphPlot
     VERSION 0.1
