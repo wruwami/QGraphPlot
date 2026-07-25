@@ -16,16 +16,18 @@
 
 #include "QRingBufferSeriesModel.h"
 
+#include <algorithm>
+#include <utility>
+
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QMutex>
 #include <QtCore/QMutexLocker>
 
-#include <algorithm>
-#include <utility>
+namespace qgraphplot
+{
 
-namespace qgraphplot {
-
-namespace {
+namespace
+{
 //! Logs once when capacity precondition is violated (AI.md §3.3).
 Q_LOGGING_CATEGORY(lcRingBuffer, "qgraphplot.ringbuffer")
 }  // namespace
@@ -35,9 +37,11 @@ Q_LOGGING_CATEGORY(lcRingBuffer, "qgraphplot.ringbuffer")
 // A pointer (possibly null) avoids even the atomic cost of a QMutex
 // member when locking is off.
 // ─────────────────────────────────────────────────────────────
-class QRingBufferSeriesModelLock {
+class QRingBufferSeriesModelLock
+{
 public:
     explicit QRingBufferSeriesModelLock(QMutex* m) : m_locker(m) {}
+
 private:
     QMutexLocker<QMutex> m_locker;
 };
@@ -49,18 +53,17 @@ private:
 QRingBufferSeriesModel::QRingBufferSeriesModel(qsizetype capacity,
                                                ThreadSafety threadSafety,
                                                QObject* parent)
-    : QAbstractSeriesModel(parent),
-      m_capacity(capacity > 0 ? capacity : 1),
+    : QAbstractSeriesModel(parent), m_capacity(capacity > 0 ? capacity : 1),
       m_threadSafety(threadSafety),
       // Sized 2x capacity: every write below is mirrored into slot
       // (physical + m_capacity) so that any logical range [first, last]
       // is readable as ONE contiguous span starting at (m_head + first),
       // even when it wraps past the end of the primary region. Without
       // this, points() would have to silently truncate wrapped ranges.
-      m_buffer(static_cast<size_t>(m_capacity) * 2) {
+      m_buffer(static_cast<size_t>(m_capacity) * 2)
+{
     if (capacity <= 0) {
-        qCWarning(lcRingBuffer)
-            << "QRingBufferSeriesModel: capacity must be > 0; clamped to 1";
+        qCWarning(lcRingBuffer) << "QRingBufferSeriesModel: capacity must be > 0; clamped to 1";
     }
 }
 
@@ -70,16 +73,19 @@ QRingBufferSeriesModel::~QRingBufferSeriesModel() = default;
 // Queries
 // ─────────────────────────────────────────────────────────────
 
-qsizetype QRingBufferSeriesModel::pointCount() const {
+qsizetype QRingBufferSeriesModel::pointCount() const
+{
     return m_size;
 }
 
-QPointF QRingBufferSeriesModel::pointAt(qsizetype index) const {
+QPointF QRingBufferSeriesModel::pointAt(qsizetype index) const
+{
     Q_ASSERT(index >= 0 && index < m_size);
     return m_buffer[static_cast<size_t>((m_head + index) % m_capacity)];
 }
 
-PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const {
+PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const
+{
     Q_ASSERT(first >= 0 && last >= first && last < m_size);
 
     const qsizetype count = last - first + 1;
@@ -90,7 +96,8 @@ PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const 
     return PointSpan(m_buffer.data() + physicalFirst, count);
 }
 
-QRectF QRingBufferSeriesModel::bounds() const {
+QRectF QRingBufferSeriesModel::bounds() const
+{
     return m_bounds;
 }
 
@@ -98,7 +105,8 @@ QRectF QRingBufferSeriesModel::bounds() const {
 // Mutators
 // ─────────────────────────────────────────────────────────────
 
-void QRingBufferSeriesModel::clear() {
+void QRingBufferSeriesModel::clear()
+{
     const qsizetype oldSize = m_size;
     m_head = 0;
     m_size = 0;
@@ -110,7 +118,8 @@ void QRingBufferSeriesModel::clear() {
     Q_EMIT modelChanged(0);
 }
 
-void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
+void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
+{
     if (pts.isEmpty()) {
         return;  // AI.md §3.3: explicit no-op on empty input.
     }
@@ -135,8 +144,7 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     const auto* srcData = src.data();
     const auto capacityOffset = static_cast<size_t>(m_capacity);
 
-    std::copy_n(srcData, static_cast<size_t>(firstChunk),
-                dst + static_cast<size_t>(writeStart));
+    std::copy_n(srcData, static_cast<size_t>(firstChunk), dst + static_cast<size_t>(writeStart));
     if (secondChunk > 0) {
         std::copy_n(srcData + firstChunk, static_cast<size_t>(secondChunk), dst);
     }
@@ -144,11 +152,11 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     // Mirror the same writes into the [m_capacity, 2*m_capacity) half so
     // that points() can always return a single contiguous span (see the
     // m_buffer sizing comment in the constructor).
-    std::copy_n(srcData, static_cast<size_t>(firstChunk),
+    std::copy_n(srcData,
+                static_cast<size_t>(firstChunk),
                 dst + static_cast<size_t>(writeStart) + capacityOffset);
     if (secondChunk > 0) {
-        std::copy_n(srcData + firstChunk, static_cast<size_t>(secondChunk),
-                    dst + capacityOffset);
+        std::copy_n(srcData + firstChunk, static_cast<size_t>(secondChunk), dst + capacityOffset);
     }
 
     // Advance bookkeeping.
@@ -190,7 +198,8 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts) {
     Q_EMIT modelChanged(m_size);
 }
 
-void QRingBufferSeriesModel::append(QPointF pt) {
+void QRingBufferSeriesModel::append(QPointF pt)
+{
     appendBatch(QSpan<const QPointF>(&pt, 1));
 }
 
@@ -198,7 +207,8 @@ void QRingBufferSeriesModel::append(QPointF pt) {
 // Bounds helpers
 // ─────────────────────────────────────────────────────────────
 
-void QRingBufferSeriesModel::recomputeBounds() noexcept {
+void QRingBufferSeriesModel::recomputeBounds() noexcept
+{
     if (m_size == 0) {
         m_bounds = QRectF();
         return;
@@ -209,15 +219,20 @@ void QRingBufferSeriesModel::recomputeBounds() noexcept {
     qreal maxY = minY;
     for (qsizetype i = 1; i < m_size; ++i) {
         const QPointF& p = m_buffer[static_cast<size_t>((m_head + i) % m_capacity)];
-        if (p.x() < minX) minX = p.x();
-        if (p.x() > maxX) maxX = p.x();
-        if (p.y() < minY) minY = p.y();
-        if (p.y() > maxY) maxY = p.y();
+        if (p.x() < minX)
+            minX = p.x();
+        if (p.x() > maxX)
+            maxX = p.x();
+        if (p.y() < minY)
+            minY = p.y();
+        if (p.y() > maxY)
+            maxY = p.y();
     }
     m_bounds = QRectF(minX, minY, maxX - minX, maxY - minY);
 }
 
-void QRingBufferSeriesModel::expandBounds(QPointF pt) noexcept {
+void QRingBufferSeriesModel::expandBounds(QPointF pt) noexcept
+{
     if (m_size == 0) {
         m_bounds = QRectF(pt.x(), pt.y(), 0.0, 0.0);
         return;
@@ -227,10 +242,22 @@ void QRingBufferSeriesModel::expandBounds(QPointF pt) noexcept {
     qreal minY = m_bounds.top();
     qreal maxY = m_bounds.bottom();
     bool changed = false;
-    if (pt.x() < minX) { minX = pt.x(); changed = true; }
-    if (pt.x() > maxX) { maxX = pt.x(); changed = true; }
-    if (pt.y() < minY) { minY = pt.y(); changed = true; }
-    if (pt.y() > maxY) { maxY = pt.y(); changed = true; }
+    if (pt.x() < minX) {
+        minX = pt.x();
+        changed = true;
+    }
+    if (pt.x() > maxX) {
+        maxX = pt.x();
+        changed = true;
+    }
+    if (pt.y() < minY) {
+        minY = pt.y();
+        changed = true;
+    }
+    if (pt.y() > maxY) {
+        maxY = pt.y();
+        changed = true;
+    }
     if (changed) {
         m_bounds = QRectF(minX, minY, maxX - minX, maxY - minY);
     }

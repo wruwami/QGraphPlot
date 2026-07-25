@@ -32,14 +32,15 @@
 #ifndef QGRAPHPLOT_ABSTRACTSERIESMODEL_H
 #define QGRAPHPLOT_ABSTRACTSERIESMODEL_H
 
-#include "../qgraphplot_global.h"
-
 #include <QtCore/QObject>
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QSpan>
 
-namespace qgraphplot {
+#include "../qgraphplot_global.h"
+
+namespace qgraphplot
+{
 
 //! A view over a contiguous run of (x, y) points in the model.
 //!
@@ -55,13 +56,13 @@ using PointSpan = QSpan<const QPointF>;
 //! thread-safe with respect to their own producer thread; GUI thread
 //! access is always safe because Qt Quick blocks the GUI thread while
 //! the render thread reads (QGraphPlot_MVP_Plan.md § 실시간 60fps 설계).
-class QGRAPHPLOT_EXPORT QAbstractSeriesModel : public QObject {
+class QGRAPHPLOT_EXPORT QAbstractSeriesModel : public QObject
+{
     Q_OBJECT
 
 public:
     //! Constructs a model with the given @p parent for Qt ownership (RAII).
-    explicit QAbstractSeriesModel(QObject* parent = nullptr)
-        : QObject(parent) {}
+    explicit QAbstractSeriesModel(QObject* parent = nullptr) : QObject(parent) {}
 
     //! Polymorphic base → virtual destructor (AI.md §1.4: only when needed).
     ~QAbstractSeriesModel() override = default;

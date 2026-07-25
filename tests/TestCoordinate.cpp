@@ -20,7 +20,8 @@
 
 using namespace qgraphplot;
 
-class TestCoordinate : public QObject {
+class TestCoordinate : public QObject
+{
     Q_OBJECT
 
 private slots:
@@ -34,10 +35,10 @@ private slots:
     void testDegenerateBoundsSafety();
 };
 
-void TestCoordinate::initTestCase() {
-}
+void TestCoordinate::initTestCase() {}
 
-void TestCoordinate::testLinearTransform() {
+void TestCoordinate::testLinearTransform()
+{
     // Data: X from 0.0 to 10.0, Y from 50.0 to 150.0
     // Screen: X from 100.0 to 500.0 (width 400), Y from 50.0 to 250.0 (height 200)
     QRectF dataBounds(0.0, 50.0, 10.0, 100.0);
@@ -62,7 +63,8 @@ void TestCoordinate::testLinearTransform() {
     QCOMPARE(p3.y(), 50.0);
 }
 
-void TestCoordinate::testLinearInverseTransform() {
+void TestCoordinate::testLinearInverseTransform()
+{
     QRectF dataBounds(0.0, 50.0, 10.0, 100.0);
     QRectF pixelRect(100.0, 50.0, 400.0, 200.0);
 
@@ -81,7 +83,8 @@ void TestCoordinate::testLinearInverseTransform() {
     QCOMPARE(d3.y(), 150.0);
 }
 
-void TestCoordinate::testLogTransform() {
+void TestCoordinate::testLogTransform()
+{
     // Log scale. Bounds must be positive.
     // Data: X from 10.0 to 1000.0 (log: 1 to 3), Y from 1.0 to 100.0 (log: 0 to 2)
     // Screen: X from 0.0 to 200.0, Y from 0.0 to 100.0
@@ -107,7 +110,8 @@ void TestCoordinate::testLogTransform() {
     QCOMPARE(p3.y(), 0.0);
 }
 
-void TestCoordinate::testLogInverseTransform() {
+void TestCoordinate::testLogInverseTransform()
+{
     QRectF dataBounds(10.0, 1.0, 990.0, 99.0);
     QRectF pixelRect(0.0, 0.0, 200.0, 100.0);
 
@@ -126,21 +130,27 @@ void TestCoordinate::testLogInverseTransform() {
     QVERIFY(std::abs(d3.y() - 100.0) < 1e-9);
 }
 
-void TestCoordinate::testLogFallbackOnInvalidBounds() {
+void TestCoordinate::testLogFallbackOnInvalidBounds()
+{
     // Log scale enabled but bounds contain non-positive values.
     // Must print warnings and fall back to linear scale (AI.md §3.3).
     QRectF dataBounds(-10.0, 0.0, 20.0, 10.0);
     QRectF pixelRect(0.0, 0.0, 200.0, 100.0);
 
-    QTest::ignoreMessage(QtWarningMsg, "QCoordinateTransform: X log scale requires positive bounds. Falling back to linear.");
-    QTest::ignoreMessage(QtWarningMsg, "QCoordinateTransform: Y log scale requires positive bounds. Falling back to linear.");
+    QTest::ignoreMessage(
+        QtWarningMsg,
+        "QCoordinateTransform: X log scale requires positive bounds. Falling back to linear.");
+    QTest::ignoreMessage(
+        QtWarningMsg,
+        "QCoordinateTransform: Y log scale requires positive bounds. Falling back to linear.");
 
     QCoordinateTransform trans(dataBounds, pixelRect, true, true);
     QVERIFY(!trans.xLog());
     QVERIFY(!trans.yLog());
 }
 
-void TestCoordinate::testDegenerateBoundsSafety() {
+void TestCoordinate::testDegenerateBoundsSafety()
+{
     // Degenerate range where width/height is 0.
     // Must map everything safely to center to avoid division by zero (NaN/Inf).
     QRectF dataBounds(5.0, 5.0, 0.0, 0.0);

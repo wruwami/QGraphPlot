@@ -21,10 +21,10 @@
 
 #include <utility>
 
-namespace qgraphplot {
+namespace qgraphplot
+{
 
-QAbstractSeries::QAbstractSeries(QObject* parent)
-    : QObject(parent) {}
+QAbstractSeries::QAbstractSeries(QObject* parent) : QObject(parent) {}
 
 QAbstractSeries::~QAbstractSeries() = default;
 
@@ -33,7 +33,8 @@ QAbstractSeries::~QAbstractSeries() = default;
 // changes (prevents spurious signal cascades on the render thread).
 // ─────────────────────────────────────────────────────────────
 
-void QAbstractSeries::setModel(QAbstractSeriesModel* model) {
+void QAbstractSeries::setModel(QAbstractSeriesModel* model)
+{
     if (m_model == model) {
         return;
     }
@@ -53,7 +54,8 @@ void QAbstractSeries::setModel(QAbstractSeriesModel* model) {
     Q_EMIT modelChanged(m_model);
 }
 
-void QAbstractSeries::setColor(QColor color) {
+void QAbstractSeries::setColor(QColor color)
+{
     if (m_color == color) {
         return;
     }
@@ -61,7 +63,8 @@ void QAbstractSeries::setColor(QColor color) {
     Q_EMIT colorChanged(m_color);
 }
 
-void QAbstractSeries::setName(QString name) {
+void QAbstractSeries::setName(QString name)
+{
     if (m_name == name) {
         return;
     }
@@ -69,7 +72,8 @@ void QAbstractSeries::setName(QString name) {
     Q_EMIT nameChanged(m_name);
 }
 
-void QAbstractSeries::setVisible(bool visible) {
+void QAbstractSeries::setVisible(bool visible)
+{
     if (m_visible == visible) {
         return;
     }

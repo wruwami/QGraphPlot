@@ -20,33 +20,37 @@
 #ifndef QGRAPHPLOT_SCALEENGINE_H
 #define QGRAPHPLOT_SCALEENGINE_H
 
-#include "../qgraphplot_global.h"
-
-#include <QtCore/QString>
 #include <vector>
 
-namespace qgraphplot {
+#include <QtCore/QString>
+
+#include "../qgraphplot_global.h"
+
+namespace qgraphplot
+{
 
 //! @brief Computes nice tick positions and text labels for chart axes.
-class QGRAPHPLOT_EXPORT QScaleEngine {
+class QGRAPHPLOT_EXPORT QScaleEngine
+{
 public:
     //! Bundles a single tick's value/position and its formatted label.
-    struct TickInfo {
-        double position; //!< Position in data coordinates.
-        QString label;   //!< Formatted label text.
+    struct TickInfo
+    {
+        double position;  //!< Position in data coordinates.
+        QString label;    //!< Formatted label text.
     };
 
     QScaleEngine() = default;
 
     //! Computes nice tick marks for the range [min, max] given targetTickCount.
     //! Supports both linear and logarithmic scales (AI.md §3.3: validate inputs).
-    [[nodiscard]] static std::vector<TickInfo> calculateTicks(
-        double min, double max, int targetTickCount, bool isLog = false);
+    [[nodiscard]] static std::vector<TickInfo>
+    calculateTicks(double min, double max, int targetTickCount, bool isLog = false);
 
     //! Formats a tick value nicely based on the step size to avoid float precision noise.
     [[nodiscard]] static QString formatLabel(double value, double step);
 };
 
-} // namespace qgraphplot
+}  // namespace qgraphplot
 
-#endif // QGRAPHPLOT_SCALEENGINE_H
+#endif  // QGRAPHPLOT_SCALEENGINE_H

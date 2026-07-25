@@ -92,22 +92,33 @@ grep -rn "<old-name>" --include="*.h" --include="*.cpp" --include="*.txt" src/ t
 
 ## 2. Workflow
 
----
-
-## 2. Workflow
-
-### 2.1 이슈/기능당 브랜치 1개, main에 직접 push 금지
+### 2.1 브랜칭 규칙
 - 모든 변경은 **GitHub 이슈 1개당 브랜치 1개**에서 진행한다.
-- 브랜치 네이밍: `feature/<issue-number>-<short-desc>` 또는 `fix/<issue-number>-<short-desc>`.
+- **AI 브랜치 네이밍 형식**: `<ai-name>/issue-<number>-<short-work-description>`
+  - 예: `antigravity/issue-12-ci-workflow-and-badges`, `claude/issue-7-cmake-build-fix`
+  - 설명 부분에는 공백이나 슬래시 없이 **kebab-case**를 사용한다.
 - **`main` 브랜치에 직접 commit/push하지 않는다.** 항상 PR을 연다.
-- AI는 브랜치 생성 전 해당 이슈가 존재하는지 먼저 확인한다.
 
-### 2.2 리포 소유자가 직접 PR 리뷰/merge
+### 2.2 작업 시작 전 점검 사항
+1. `git fetch origin`을 실행하고 `main` 브랜치의 최신 변경 사항을 로컬에 풀(`git checkout main && git pull`)하여 베이스라인을 최신화한다.
+2. 리모트 PR 상태를 확인하여(`gh pr list --state all --limit 10` 등) 해결하려는 이슈가 이미 다른 에이전트에 의해 해결 중이거나 머지되었는지 확인한다.
+3. 원격 저장소에 동일한 이슈의 브랜치가 존재하는지 검사한다:
+   ```bash
+   git branch -r | grep "issue-<number>"
+   ```
+4. 이미 해당 이슈 브랜치가 존재한다면 새로 만들지 않고, **기존 브랜치를 체크아웃하여 커밋을 확인하고 이어서 작업**한다.
+
+### 2.3 푸시 전 점검 사항
+- 푸시하기 전에 다시 한번 `git fetch`를 실행하여 원격의 내 브랜치가 다른 에이전트에 의해 갱신되었는지 확인한다.
+- 푸시가 거부(reject)되면 다른 에이전트의 커밋이 추가된 것이므로, 로컬로 머지하고 재검증한 후 푸시한다.
+- **다른 에이전트의 커밋 위로 절대 강제 푸시(`force push`)하지 않는다.**
+
+### 2.4 리포 소유자가 직접 PR 리뷰/merge
 - **AI는 자기가 연 PR을 스스로 merge하지 않는다.**
 - PR 오픈 후 리포 소유자(인간)의 리뷰와 merge를 기다린다.
 - 리뷰 피드백이 오면 같은 브랜치에서 commit 추가 후 push한다 (새 PR 금지).
 
-### 2.3 작업은 GitHub 이슈로 추적, 커밋/PR에 참조
+### 2.5 작업은 GitHub 이슈로 추적, 커밋/PR에 참조
 - 모든 작업은 GitHub 이슈로 시작한다. 이슈 없는 작업은 하지 않는다.
 - **커밋 메시지**: 제목 또는 본문에 `Refs #<issue-number>`를 포함한다.
 - **PR 제목/본문**: `Closes #<issue-number>` 또는 `Refs #<issue-number>`를 반드시 포함한다.

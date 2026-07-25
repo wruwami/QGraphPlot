@@ -61,7 +61,7 @@
 // Public API lives in the qgraphplot namespace. Frontends (QML/Widget)
 // may introduce their own sub-namespaces under qgraphplot::qml and
 // qgraphplot::widgets respectively.
-namespace qgraphplot {
-}  // namespace qgraphplot
+namespace qgraphplot
+{}  // namespace qgraphplot
 
 #endif  // QGRAPHPLOT_GLOBAL_H
