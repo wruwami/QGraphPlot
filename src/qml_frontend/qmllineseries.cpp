@@ -117,6 +117,10 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         node = new QSGGeometryNode();
 
         // 2D 포인트 포맷 사용, 라인 스트립으로 연속 선 그리기
+        if (count > INT_MAX) {
+            delete node;
+            return nullptr;
+        }
         geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), static_cast<int>(count));
         geometry->setLineWidth(2.0f);
         geometry->setDrawingMode(QSGGeometry::DrawLineStrip);
