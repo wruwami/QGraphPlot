@@ -124,6 +124,10 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     // 3. 그리드선 (m_showGrid ? ticks.size() 개 : 0)
     const size_t tickCount = m_tickInfos.size();
     const size_t lineCount = 1 + tickCount + (m_showGrid ? tickCount : 0);
+    if (lineCount > static_cast<size_t>(INT_MAX / 2)) {
+        delete oldNode;
+        return nullptr;
+    }
     const int vertexCount = static_cast<int>(lineCount * 2);
 
     QSGGeometryNode* node = qobject_cast<QSGGeometryNode*>(oldNode);
