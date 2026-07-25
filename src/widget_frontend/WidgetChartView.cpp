@@ -161,8 +161,10 @@ void WidgetChartView::clearSeries()
 QCoordinateTransform WidgetChartView::coordinateTransform() const noexcept
 {
     const QRectF dataBounds(m_xMin, m_yMin, m_xMax - m_xMin, m_yMax - m_yMin);
-    const double pixelWidth = qMax(0.0, static_cast<double>(width()) - m_marginLeft - m_marginRight);
-    const double pixelHeight = qMax(0.0, static_cast<double>(height()) - m_marginTop - m_marginBottom);
+    const double pixelWidth =
+        qMax(0.0, static_cast<double>(width()) - m_marginLeft - m_marginRight);
+    const double pixelHeight =
+        qMax(0.0, static_cast<double>(height()) - m_marginTop - m_marginBottom);
     const QRectF pixelRect(m_marginLeft, m_marginTop, pixelWidth, pixelHeight);
     return QCoordinateTransform(dataBounds, pixelRect);
 }
