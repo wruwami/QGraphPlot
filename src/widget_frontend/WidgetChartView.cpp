@@ -42,6 +42,18 @@ bool fuzzyDifferent(double oldValue, double newValue)
 
 WidgetChartView::WidgetChartView(QWidget* parent) : QWidget(parent) {}
 
+WidgetChartView::~WidgetChartView()
+{
+    // Disconnect external-destroy tracking before ~QObject deletes children,
+    // otherwise the destroyed handlers would access already-destroyed members.
+    for (auto it = m_seriesDestroyedConnections.constBegin();
+         it != m_seriesDestroyedConnections.constEnd();
+         ++it) {
+        disconnect(it.value());
+    }
+    m_seriesDestroyedConnections.clear();
+}
+
 void WidgetChartView::setXMin(double val)
 {
     if (fuzzyDifferent(m_xMin, val)) {
@@ -129,6 +141,14 @@ void WidgetChartView::addSeries(QAbstractSeries* series)
     }
     m_series.append(series);
     series->setParent(this);
+    m_seriesDestroyedConnections[series] = connect(
+        series,
+        &QObject::destroyed,
+        this,
+        [this, series](QObject*) {
+            m_series.removeAll(series);
+            m_seriesDestroyedConnections.remove(series);
+        });
     emit seriesAdded(series);
     update();
 }
@@ -137,6 +157,9 @@ void WidgetChartView::removeSeries(QAbstractSeries* series)
 {
     if (!m_series.contains(series)) {
         return;
+    }
+    if (m_seriesDestroyedConnections.contains(series)) {
+        disconnect(m_seriesDestroyedConnections.take(series));
     }
     m_series.removeOne(series);
     if (series) {
@@ -150,6 +173,9 @@ void WidgetChartView::clearSeries()
 {
     while (!m_series.isEmpty()) {
         QAbstractSeries* series = m_series.takeLast();
+        if (m_seriesDestroyedConnections.contains(series)) {
+            disconnect(m_seriesDestroyedConnections.take(series));
+        }
         if (series) {
             series->setParent(nullptr);
         }

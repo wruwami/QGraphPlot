@@ -20,6 +20,8 @@
 #ifndef WIDGETCHARTVIEW_H
 #define WIDGETCHARTVIEW_H
 
+#include <QtCore/QHash>
+#include <QtCore/QMetaObject>
 #include <QtWidgets/QWidget>
 
 #include "series/QAbstractSeries.h"
@@ -50,7 +52,7 @@ class WidgetChartView : public QWidget
 
 public:
     explicit WidgetChartView(QWidget* parent = nullptr);
-    ~WidgetChartView() override = default;
+    ~WidgetChartView() override;
 
     WidgetChartView(const WidgetChartView&) = delete;
     WidgetChartView& operator=(const WidgetChartView&) = delete;
@@ -115,6 +117,7 @@ private:
     double m_marginBottom{40.0};
 
     QList<QAbstractSeries*> m_series;
+    QHash<QAbstractSeries*, QMetaObject::Connection> m_seriesDestroyedConnections;
 };
 
 }  // namespace qgraphplot
