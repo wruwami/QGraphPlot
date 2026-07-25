@@ -90,7 +90,6 @@ IncludeCategories:
 
 # ── 기타 ─────────────────────────────────────────────────────
 AlwaysBreakTemplateDeclarations: Yes
-ConstructorInitIndentWidth: 4
 Cpp11BracedListStyle: true
 FixNamespaceComments: true
 KeepEmptyLinesAtTheStartOfBlocks: false

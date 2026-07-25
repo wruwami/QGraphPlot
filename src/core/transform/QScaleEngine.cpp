@@ -16,17 +16,21 @@
 
 #include "QScaleEngine.h"
 
-#include <QtCore/QLoggingCategory>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
-namespace qgraphplot {
+#include <QtCore/QLoggingCategory>
 
-namespace {
+namespace qgraphplot
+{
+
+namespace
+{
 Q_LOGGING_CATEGORY(lcScaleEngine, "qgraphplot.scaleengine")
 
 //! Helper function to compute "nice" numbers (Paul Heckbert algorithm).
-double niceNum(double x, bool round) {
+double niceNum(double x, bool round)
+{
     if (x <= 0.0) {
         return 0.0;
     }
@@ -34,22 +38,30 @@ double niceNum(double x, bool round) {
     const double f = x / std::pow(10.0, expv);
     double nf;
     if (round) {
-        if (f < 1.5) nf = 1.0;
-        else if (f < 3.0) nf = 2.0;
-        else if (f < 7.0) nf = 5.0;
-        else nf = 10.0;
+        if (f < 1.5)
+            nf = 1.0;
+        else if (f < 3.0)
+            nf = 2.0;
+        else if (f < 7.0)
+            nf = 5.0;
+        else
+            nf = 10.0;
     } else {
-        if (f <= 1.0) nf = 1.0;
-        else if (f <= 2.0) nf = 2.0;
-        else if (f <= 5.0) nf = 5.0;
-        else nf = 10.0;
+        if (f <= 1.0)
+            nf = 1.0;
+        else if (f <= 2.0)
+            nf = 2.0;
+        else if (f <= 5.0)
+            nf = 5.0;
+        else
+            nf = 10.0;
     }
     return nf * std::pow(10.0, expv);
 }
-} // namespace
+}  // namespace
 
-std::vector<QScaleEngine::TickInfo> QScaleEngine::calculateTicks(
-    double min, double max, int targetTickCount, bool isLog)
+std::vector<QScaleEngine::TickInfo>
+QScaleEngine::calculateTicks(double min, double max, int targetTickCount, bool isLog)
 {
     std::vector<TickInfo> ticks;
 
@@ -66,7 +78,8 @@ std::vector<QScaleEngine::TickInfo> QScaleEngine::calculateTicks(
 
     if (isLog) {
         if (min <= 0.0 || max <= 0.0) {
-            qCWarning(lcScaleEngine) << "QScaleEngine: Log scale requires strictly positive range. Falling back to linear.";
+            qCWarning(lcScaleEngine) << "QScaleEngine: Log scale requires strictly positive range. "
+                                        "Falling back to linear.";
             isLog = false;
         }
     }
@@ -88,7 +101,8 @@ std::vector<QScaleEngine::TickInfo> QScaleEngine::calculateTicks(
             int step = 1;
             const int decadeCount = endDecade - startDecade;
             if (decadeCount > targetTickCount) {
-                step = static_cast<int>(std::ceil(static_cast<double>(decadeCount) / targetTickCount));
+                step =
+                    static_cast<int>(std::ceil(static_cast<double>(decadeCount) / targetTickCount));
             }
 
             for (int d = startDecade; d <= endDecade; d += step) {
@@ -108,7 +122,8 @@ std::vector<QScaleEngine::TickInfo> QScaleEngine::calculateTicks(
                 for (double val = tickStart; val <= tickEnd + 0.5 * step; val += step) {
                     const double dataVal = std::pow(10.0, val);
                     if (dataVal >= min && dataVal <= max) {
-                        ticks.push_back({dataVal, formatLabel(dataVal, dataVal - std::pow(10.0, val - step))});
+                        ticks.push_back(
+                            {dataVal, formatLabel(dataVal, dataVal - std::pow(10.0, val - step))});
                     }
                 }
             }
@@ -133,7 +148,8 @@ std::vector<QScaleEngine::TickInfo> QScaleEngine::calculateTicks(
     return ticks;
 }
 
-QString QScaleEngine::formatLabel(double value, double step) {
+QString QScaleEngine::formatLabel(double value, double step)
+{
     if (std::abs(value) < 1e-15) {
         value = 0.0;
     }
@@ -156,4 +172,4 @@ QString QScaleEngine::formatLabel(double value, double step) {
     return QString::number(value, 'f', precision);
 }
 
-} // namespace qgraphplot
+}  // namespace qgraphplot

@@ -20,12 +20,13 @@
 #ifndef QGRAPHPLOT_COORDINATETRANSFORM_H
 #define QGRAPHPLOT_COORDINATETRANSFORM_H
 
-#include "../qgraphplot_global.h"
-
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 
-namespace qgraphplot {
+#include "../qgraphplot_global.h"
+
+namespace qgraphplot
+{
 
 //! @brief Handles mapping between data coordinates and screen pixel coordinates.
 //!
@@ -33,14 +34,17 @@ namespace qgraphplot {
 //! to pixel space (and vice-versa). It accounts for linear/logarithmic axes, Y-axis
 //! inversion (screen space y=0 is top, data space y=0 is bottom), and safeguards
 //! against division by zero for degenerate dimensions (e.g. empty or single-point models).
-class QGRAPHPLOT_EXPORT QCoordinateTransform {
+class QGRAPHPLOT_EXPORT QCoordinateTransform
+{
 public:
     //! Constructs a transform between data bounds and pixel rect.
     //! If log scale is enabled for x or y, the corresponding bounds dimensions
     //! must be strictly positive. If invalid, a warning is printed and the scale
     //! falls back to linear (AI.md §3.3: validate boundaries).
-    QCoordinateTransform(const QRectF& dataBounds, const QRectF& pixelRect,
-                         bool xLog = false, bool yLog = false);
+    QCoordinateTransform(const QRectF& dataBounds,
+                         const QRectF& pixelRect,
+                         bool xLog = false,
+                         bool yLog = false);
 
     //! Maps data point to screen pixels. Y-axis is inverted.
     [[nodiscard]] QPointF toPixel(const QPointF& data) const noexcept;
@@ -73,6 +77,6 @@ private:
     double m_logMaxY = 0.0;
 };
 
-} // namespace qgraphplot
+}  // namespace qgraphplot
 
-#endif // QGRAPHPLOT_COORDINATETRANSFORM_H
+#endif  // QGRAPHPLOT_COORDINATETRANSFORM_H
