@@ -100,7 +100,11 @@ void QmlAxis::updateTicks()
     const double min = (m_orientation == Qt::Horizontal) ? chartView->xMin() : chartView->yMin();
     const double max = (m_orientation == Qt::Horizontal) ? chartView->xMax() : chartView->yMax();
 
-    m_tickInfos = qgraphplot::QScaleEngine::calculateTicks(min, max, m_tickCount);
+    if (qFuzzyCompare(min, max)) {
+        m_tickInfos.clear();
+    } else {
+        m_tickInfos = qgraphplot::QScaleEngine::calculateTicks(min, max, m_tickCount);
+    }
     emit ticksChanged();
     update();
 }
