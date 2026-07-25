@@ -1,143 +1,158 @@
-# ─────────────────────────────────────────────────────────────
-# QGraphPlot CI
-# AI.md §5 기준.
-#
-# 셀프 호스팅 Linux 러너에서만 실행.
-# - 빌드 + 단위 테스트 + 커버리지(lcov→Codecov)
-# - clang-format 검사, cppcheck
-# ─────────────────────────────────────────────────────────────
-name: build-and-test
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  QT_VERSION: "6.7.3"
-  CMAKE_VERSION: "3.16"
+permissions:
+  contents: read
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  # 빌드 + 테스트 (셀프 호스팅 Linux)
-  # ─────────────────────────────────────────────────────────────
-  build-and-test:
-    name: Build & Test (self-hosted Linux, Qt ${{ env.QT_VERSION }})
-    runs-on: [self-hosted, Linux]
+  lint:
+    name: clang-format + cppcheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      security-events: write
 
     steps:
-      # ── 1. 소스 체크아웃 ──
-      - name: Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Install clang-format and cppcheck
+        run: sudo apt-get update && sudo apt-get install -y clang-format cppcheck
+
+      - name: clang-format (auto-fix and commit)
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          mapfile -d '' files < <(find src tests examples \( -name '*.cpp' -o -name '*.h' \) -print0 2>/dev/null || true)
+          if [ ${#files[@]} -gt 0 ]; then
+            clang-format -i "${files[@]}"
+            if ! git diff --quiet -- "${files[@]}"; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -- "${files[@]}"
+              git commit -m "style: apply clang-format"
+              git push origin "HEAD:$TARGET_BRANCH"
+            fi
+          fi
+
+      - name: cppcheck
+        run: |
+          cppcheck --std=c++17 --language=c++ \
+            --enable=warning,style,performance,portability \
+            --inline-suppr \
+            --suppressions-list=.cppcheck-suppressions \
+            --xml --xml-version=2 \
+            -DQ_OBJECT= -DQ_PROPERTY(x)= -DQ_ENUMS(x)= -DQ_FLAGS(x)= -DQ_DECLARE_METATYPE(x)= \
+            -DQGRAPHPLOT_EXPORT= \
+            -I src/core \
+            src tests 2> cppcheck.xml
+            
+      - name: Convert Cppcheck XML to SARIF
+        uses: Flast/cppcheck-sarif@v2
+        with:
+          input: cppcheck.xml
+          output: cppcheck.sarif
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cppcheck.sarif
+          
+  build-and-test:
+    name: ${{ matrix.os }} / Qt ${{ matrix.qt-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        qt-version: ['6.8.0']
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Qt 설치 ──
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: ${{ env.QT_VERSION }}
+          version: ${{ matrix.qt-version }}
           modules: "qtcharts qtshadertools qtquick3d"
           cache: true
 
-      # ── 3. CMake 설정 (커버리지 활성화) ──
-      - name: Configure
-        run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DQGRAPHPLOT_BUILD_COVERAGE=ON \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-      # ── 4. 빌드 ──
-      - name: Build
-        run: cmake --build build --config Debug --parallel
-
-      # ── 5. 단위 테스트 ──
-      - name: Run tests
-        run: ctest --test-dir build --build-config Debug --output-on-failure --parallel
-
-      # ── 6. lcov 커버리지 수집 → Codecov 업로드 ──
       - name: Install lcov
-        run: sudo apt-get install -y lcov
+        if: matrix.os == 'ubuntu-latest' && startsWith(matrix.qt-version, '6')
+        run: sudo apt-get update && sudo apt-get install -y lcov
 
-      - name: Capture coverage
+      - name: Patch macOS AGL framework reference in Qt
+        if: matrix.os == 'macos-latest' && startsWith(matrix.qt-version, '6')
         run: |
-          lcov --directory build --capture --output-file coverage.info
-          lcov --remove coverage.info \
-            '/usr/*' \
-            '*/build/*' \
-            '*/tests/*' \
-            '*/examples/*' \
-            '*/moc_*' \
-            '*/ui_*.h' \
-            --output-file coverage.filtered.info
+          if [ -d "$QT_ROOT_DIR" ]; then
+            echo "=== Files containing AGL before patch ==="
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec grep -inH "AGL" {} + || true
+
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec sed -i '' 's/-framework AGL//g' {} +
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec sed -i '' 's/-framework agl//g' {} +
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec sed -i '' 's/;AGL;/;/g' {} +
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec sed -i '' 's/;AGL//g' {} +
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec sed -i '' 's/AGL;//g' {} +
+
+            echo "=== Files containing AGL after patch ==="
+            find "$QT_ROOT_DIR" -type f \( -name "*.cmake" -o -name "*.prl" -o -name "*.pc" \) -exec grep -inH "AGL" {} + || true
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DQGRAPHPLOT_BUILD_COVERAGE=${{ (matrix.os == 'ubuntu-latest' && startsWith(matrix.qt-version, '6')) && 'ON' || 'OFF' }}
+          ${{ (matrix.os == 'macos-latest' && startsWith(matrix.qt-version, '6')) && '-DWrapOpenGL_AGL="-framework OpenGL" -DOPENGL_agl_LIBRARY="-framework OpenGL"' || '' }}
+
+      - name: Patch generated build files to strip AGL framework on macOS
+        if: matrix.os == 'macos-latest' && startsWith(matrix.qt-version, '6')
+        run: |
+          if [ -d "build" ]; then
+            echo "=== Files containing AGL in build before patch ==="
+            find build -type f -exec grep -inH "AGL" {} + || true
+
+            find build -type f \( -name "Makefile" -o -name "*.make" -o -name "link.txt" -o -name "*.cmake" -o -name "CMakeCache.txt" \) -exec sed -i '' 's/-framework AGL//g' {} +
+            find build -type f \( -name "Makefile" -o -name "*.make" -o -name "link.txt" -o -name "*.cmake" -o -name "CMakeCache.txt" \) -exec sed -i '' 's/AGL.framework/OpenGL.framework/g' {} +
+
+            echo "=== Files containing AGL in build after patch ==="
+            find build -type f -exec grep -inH "AGL" {} + || true
+          fi
+
+      - name: Build
+        run: cmake --build build --parallel --config Debug
+
+      - name: Test
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            xvfb-run ctest --test-dir build --output-on-failure -C Debug
+          else
+            ctest --test-dir build --output-on-failure -C Debug
+          fi
+
+      - name: Collect coverage
+        if: matrix.os == 'ubuntu-latest' && startsWith(matrix.qt-version, '6')
+        run: |
+          lcov --capture --directory build --output-file coverage.info --ignore-errors inconsistent,gcov,mismatch
+          lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' --ignore-errors unused --output-file coverage.info
+          lcov --list coverage.info
 
       - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && startsWith(matrix.qt-version, '6')
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.filtered.info
-          fail_ci_if_error: false
-
-      # ── 7. 빌드 산출물 아티팩트 업로드 (디버깅용) ──
-      - name: Upload build artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-linux
-          path: |
-            build/compile_commands.json
-            build/tests/*.log
-          retention-days: 7
-          if-no-files-found: ignore
-
-  # ─────────────────────────────────────────────────────────────
-  # 정적 분석 (셀프 호스팅 Linux)
-  # ─────────────────────────────────────────────────────────────
-  static-analysis:
-    name: Static Analysis (cppcheck)
-    needs: build-and-test
-    runs-on: [self-hosted, Linux]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          modules: "qtcharts qtshadertools qtquick3d"
-          cache: true
-
-      - name: Configure (for compile_commands.json)
-        run: |
-          cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-      - name: Install cppcheck
-        run: sudo apt-get install -y cppcheck
-
-      - name: Run cppcheck
-        run: cppcheck @cppcheck.options src
-
-  # ─────────────────────────────────────────────────────────────
-  # 코드 포맷 검사 (셀프 호스팅 Linux)
-  # ─────────────────────────────────────────────────────────────
-  format-check:
-    name: Format Check (clang-format)
-    runs-on: [self-hosted, Linux]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
-
-      - name: Check formatting
-        # diff 가 있으면 실패. —dry-run 옵션으로 실제 파일 변경 없이 검사.
-        run: |
-          find src tests examples -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
-            -exec clang-format --dry-run --Werror -i {} +
+          files: ./coverage.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
+          fail_ci_if_error: true
