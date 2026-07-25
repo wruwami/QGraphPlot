@@ -1,10 +1,17 @@
 #include <QtCore/QCoreApplication>
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
+#include <QtQml/QQmlContext>
+
+#include "StreamingDataSource.h"
 
 int main(int argc, char* argv[])
 {
     QGuiApplication app(argc, argv);
+
+    // Streaming data source: 60K-point ring buffer, 1K points / 16 ms.
+    // Declared before the engine so QML references are released first.
+    StreamingDataSource dataSource;
 
     QQmlApplicationEngine engine;
 
@@ -13,8 +20,10 @@ int main(int argc, char* argv[])
     engine.addImportPath(QCoreApplication::applicationDirPath() + "/../lib");
     engine.addImportPath(QCoreApplication::applicationDirPath() + "/../qml");
 
-    // 실시간 데이터 스트리밍(Phase 0.7)은 StreamingDataSource가 main.qml 안에서
-    // 직접 인스턴스화하므로(QML_ELEMENT), 여기서는 엔진만 띄운다.
+    // 데이터 소스를 QML 컨텍스트에 등록
+    engine.rootContext()->setContextProperty("dataSource", &dataSource);
+
+    // 메인 QML 파일 로드
     const QUrl url(QStringLiteral("qrc:/qml_demo/main.qml"));
     QObject::connect(
         &engine,
