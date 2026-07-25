@@ -70,7 +70,12 @@ void StreamingDataSource::setBatchSize(int batchSize)
     if (batchSize <= 0 || m_batchSize == batchSize) {
         return;
     }
-    m_batchSize = batchSize;
+    // Clamp to model capacity to prevent oversized allocations
+    const int clampedSize = qMin(batchSize, static_cast<int>(DEFAULT_CAPACITY));
+    if (m_batchSize == clampedSize) {
+        return;
+    }
+    m_batchSize = clampedSize;
     m_batch.resize(static_cast<size_t>(m_batchSize));
     Q_EMIT batchSizeChanged();
 }
@@ -84,7 +89,8 @@ void StreamingDataSource::prefill()
     std::vector<QPointF> initial(static_cast<size_t>(capacity));
     for (qsizetype i = 0; i < capacity; ++i) {
         const double x = i * m_xStep;
-        initial[static_cast<size_t>(i)] = QPointF(x, qSin(x));
+        const double y = qSin(x) + 0.2 * qSin(10.0 * x + m_phase);
+        initial[static_cast<size_t>(i)] = QPointF(x, y);
     }
     m_model.appendBatch(QSpan<const QPointF>(initial.data(), capacity));
 

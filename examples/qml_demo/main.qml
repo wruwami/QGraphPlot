@@ -12,6 +12,7 @@ Window {
 
     property int frameCounter: 0
     property int fps: 0
+    property real lastSampleTime: 0
 
     onFrameSwapped: ++frameCounter
 
@@ -20,7 +21,12 @@ Window {
         running: true
         repeat: true
         onTriggered: {
-            rootWindow.fps = rootWindow.frameCounter
+            var currentTime = Date.now()
+            if (rootWindow.lastSampleTime > 0) {
+                var elapsedSeconds = (currentTime - rootWindow.lastSampleTime) / 1000.0
+                rootWindow.fps = Math.round(rootWindow.frameCounter / elapsedSeconds)
+            }
+            rootWindow.lastSampleTime = currentTime
             rootWindow.frameCounter = 0
         }
     }
