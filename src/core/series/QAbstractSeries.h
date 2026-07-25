@@ -19,7 +19,8 @@
 //!
 //! QAbstractSeries is the property contract for a series — it references the
 //! data model (which it does not own), and owns the color, name, and visibility,
-//! but it deliberately does NOT know how to render itself. Concrete renderers live in the frontends:
+//! but it deliberately does NOT know how to render itself. Concrete renderers live in the
+//! frontends:
 //!
 //!   - QML frontend:    QmlLineSeries, QmlScatterSeries, ...
 //!   - Widget frontend: WidgetLineSeries, WidgetScatterSeries, ...
@@ -33,14 +34,15 @@
 #ifndef QGRAPHPLOT_ABSTRACTSERIES_H
 #define QGRAPHPLOT_ABSTRACTSERIES_H
 
-#include "../qgraphplot_global.h"
-#include "../model/QAbstractSeriesModel.h"
-
 #include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtGui/QColor>
 
-namespace qgraphplot {
+#include "../model/QAbstractSeriesModel.h"
+#include "../qgraphplot_global.h"
+
+namespace qgraphplot
+{
 
 //! Identifies what kind of series a subclass renders.
 //!
@@ -48,12 +50,13 @@ namespace qgraphplot {
 //! elsewhere). Frontends switch on this to dispatch to their per-type
 //! renderer. New series types add a value here and consume it via the
 //! enum; numeric values are NOT to be hardcoded.
-enum class SeriesType : unsigned char {
-    Line,      //!< Connected polyline (QmlLineSeries / WidgetLineSeries)
-    Scatter,   //!< Discrete markers per point
-    Area,      //!< Filled region between a line and a baseline
-    Bar,       //!< Rectangular bars
-    Pie,       //!< Pie / donut slices (future)
+enum class SeriesType : unsigned char
+{
+    Line,     //!< Connected polyline (QmlLineSeries / WidgetLineSeries)
+    Scatter,  //!< Discrete markers per point
+    Area,     //!< Filled region between a line and a baseline
+    Bar,      //!< Rectangular bars
+    Pie,      //!< Pie / donut slices (future)
 };
 
 //! @brief Property-only base class for all chart series.
@@ -66,10 +69,11 @@ enum class SeriesType : unsigned char {
 //! are affined to the thread that creates them. GUI-thread access is
 //! the norm; the render thread reads only via the model's signals
 //! (QGraphPlot_MVP_Plan.md § 60fps 설계).
-class QGRAPHPLOT_EXPORT QAbstractSeries : public QObject {
+class QGRAPHPLOT_EXPORT QAbstractSeries : public QObject
+{
     Q_OBJECT
-    Q_PROPERTY(qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel
-                   NOTIFY modelChanged)
+    Q_PROPERTY(
+        qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
     Q_PROPERTY(bool visible READ isVisible WRITE setVisible NOTIFY visibleChanged)
@@ -122,7 +126,7 @@ Q_SIGNALS:
 private:
     QAbstractSeriesModel* m_model = nullptr;
     QMetaObject::Connection m_modelDestroyedConnection;
-    QColor m_color = Qt::blue;     //!< Member-initialized (AI.md §1.4)
+    QColor m_color = Qt::blue;  //!< Member-initialized (AI.md §1.4)
     QString m_name;
     bool m_visible = true;
 };

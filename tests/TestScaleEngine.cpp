@@ -20,7 +20,8 @@
 
 using namespace qgraphplot;
 
-class TestScaleEngine : public QObject {
+class TestScaleEngine : public QObject
+{
     Q_OBJECT
 
 private slots:
@@ -35,10 +36,10 @@ private slots:
     void testLabelFormatting();
 };
 
-void TestScaleEngine::initTestCase() {
-}
+void TestScaleEngine::initTestCase() {}
 
-void TestScaleEngine::testLinearTicksSimple() {
+void TestScaleEngine::testLinearTicksSimple()
+{
     // Range [0.0, 10.0], 5 ticks target.
     // Heckbert should select step = 2.0 or 2.5
     // Ticks generated: 0, 2, 4, 6, 8, 10
@@ -53,7 +54,8 @@ void TestScaleEngine::testLinearTicksSimple() {
     QCOMPARE(ticks.back().label, QString("10"));
 }
 
-void TestScaleEngine::testLinearTicksFloating() {
+void TestScaleEngine::testLinearTicksFloating()
+{
     // Range [1.2, 8.7], 4 ticks target.
     auto ticks = QScaleEngine::calculateTicks(1.2, 8.7, 4, false);
 
@@ -63,7 +65,8 @@ void TestScaleEngine::testLinearTicksFloating() {
     }
 }
 
-void TestScaleEngine::testLogTicksWideSpan() {
+void TestScaleEngine::testLogTicksWideSpan()
+{
     // Range [10.0, 1000.0] (log logMin=1, logMax=3), target 3.
     // Wide span should generate 10^1 (10), 10^2 (100), 10^3 (1000)
     auto ticks = QScaleEngine::calculateTicks(10.0, 1000.0, 3, true);
@@ -77,7 +80,8 @@ void TestScaleEngine::testLogTicksWideSpan() {
     QCOMPARE(ticks[2].label, QString("1000"));
 }
 
-void TestScaleEngine::testLogTicksNarrowSpan() {
+void TestScaleEngine::testLogTicksNarrowSpan()
+{
     // Range [10.0, 50.0] (log logMin=1, logMax=1.69), target 4.
     // Narrow span should generate intermediate nice ticks in log space.
     auto ticks = QScaleEngine::calculateTicks(10.0, 50.0, 4, true);
@@ -88,10 +92,13 @@ void TestScaleEngine::testLogTicksNarrowSpan() {
     }
 }
 
-void TestScaleEngine::testLogTicksFallbackOnInvalidBounds() {
+void TestScaleEngine::testLogTicksFallbackOnInvalidBounds()
+{
     // Log scale requested but range contains negative numbers.
     // Warnings should be printed, and falls back to linear ticks.
-    QTest::ignoreMessage(QtWarningMsg, "QScaleEngine: Log scale requires strictly positive range. Falling back to linear.");
+    QTest::ignoreMessage(
+        QtWarningMsg,
+        "QScaleEngine: Log scale requires strictly positive range. Falling back to linear.");
     auto ticks = QScaleEngine::calculateTicks(-10.0, 10.0, 5, true);
 
     QVERIFY(!ticks.empty());
@@ -101,7 +108,8 @@ void TestScaleEngine::testLogTicksFallbackOnInvalidBounds() {
     QVERIFY(ticks.back().position >= 10.0);
 }
 
-void TestScaleEngine::testDegenerateRangeTicks() {
+void TestScaleEngine::testDegenerateRangeTicks()
+{
     // Range [5.0, 5.0]
     auto ticks = QScaleEngine::calculateTicks(5.0, 5.0, 5, false);
 
@@ -110,13 +118,15 @@ void TestScaleEngine::testDegenerateRangeTicks() {
     QCOMPARE(ticks[0].label, QString("5"));
 }
 
-void TestScaleEngine::testLabelFormatting() {
+void TestScaleEngine::testLabelFormatting()
+{
     // Verify decimal place calculations
     QCOMPARE(QScaleEngine::formatLabel(1.2345, 0.1), QString("1.2"));
     QCOMPARE(QScaleEngine::formatLabel(1.2345, 0.01), QString("1.23"));
-    QCOMPARE(QScaleEngine::formatLabel(1.2346, 0.001), QString("1.235")); // Rounding check
+    QCOMPARE(QScaleEngine::formatLabel(1.2346, 0.001), QString("1.235"));  // Rounding check
     QCOMPARE(QScaleEngine::formatLabel(100.0, 10.0), QString("100"));
-    QCOMPARE(QScaleEngine::formatLabel(-0.0000000000000001, 1.0), QString("0")); // Sign normalization check
+    QCOMPARE(QScaleEngine::formatLabel(-0.0000000000000001, 1.0),
+             QString("0"));  // Sign normalization check
 }
 
 QTEST_GUILESS_MAIN(TestScaleEngine)

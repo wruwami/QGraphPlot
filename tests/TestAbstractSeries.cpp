@@ -22,21 +22,23 @@
 //! This keeps the tests focused on the property layer without dragging
 //! in any rendering code.
 
-#include <QtTest/QtTest>
-
-#include "../src/core/series/QAbstractSeries.h"
-#include "../src/core/model/QRingBufferSeriesModel.h"
-
 #include <memory>
 #include <type_traits>
+
 #include <QtCore/QPointer>
+#include <QtTest/QtTest>
+
+#include "../src/core/model/QRingBufferSeriesModel.h"
+#include "../src/core/series/QAbstractSeries.h"
 
 using namespace qgraphplot;
 
-namespace {
+namespace
+{
 
 //! Minimal concrete series for testing the abstract property layer.
-class TestSeries final : public QAbstractSeries {
+class TestSeries final : public QAbstractSeries
+{
     Q_OBJECT
 public:
     explicit TestSeries(QObject* parent = nullptr) : QAbstractSeries(parent) {}
@@ -45,7 +47,8 @@ public:
 
 }  // namespace
 
-class TestAbstractSeriesFixture : public QObject {
+class TestAbstractSeriesFixture : public QObject
+{
     Q_OBJECT
 
 private slots:
@@ -83,22 +86,26 @@ void TestAbstractSeriesFixture::initTestCase() {}
 // Defaults
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::defaultColorIsBlue() {
+void TestAbstractSeriesFixture::defaultColorIsBlue()
+{
     TestSeries s;
     QCOMPARE(s.color(), QColor(Qt::blue));
 }
 
-void TestAbstractSeriesFixture::defaultVisibleIsTrue() {
+void TestAbstractSeriesFixture::defaultVisibleIsTrue()
+{
     TestSeries s;
     QVERIFY(s.isVisible());
 }
 
-void TestAbstractSeriesFixture::defaultModelIsNull() {
+void TestAbstractSeriesFixture::defaultModelIsNull()
+{
     TestSeries s;
     QVERIFY(s.model() == nullptr);
 }
 
-void TestAbstractSeriesFixture::defaultNameIsEmpty() {
+void TestAbstractSeriesFixture::defaultNameIsEmpty()
+{
     TestSeries s;
     QVERIFY(s.name().isEmpty());
 }
@@ -107,7 +114,8 @@ void TestAbstractSeriesFixture::defaultNameIsEmpty() {
 // type() dispatch
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::typeReturnsLineForTestSubclass() {
+void TestAbstractSeriesFixture::typeReturnsLineForTestSubclass()
+{
     TestSeries s;
     QCOMPARE(s.type(), SeriesType::Line);
 }
@@ -116,7 +124,8 @@ void TestAbstractSeriesFixture::typeReturnsLineForTestSubclass() {
 // Setters emit signals only on change
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::setColorEmitsOnceOnRealChange() {
+void TestAbstractSeriesFixture::setColorEmitsOnceOnRealChange()
+{
     TestSeries s;
     QSignalSpy spy(&s, &TestSeries::colorChanged);
     s.setColor(QColor(Qt::red));
@@ -124,7 +133,8 @@ void TestAbstractSeriesFixture::setColorEmitsOnceOnRealChange() {
     QCOMPARE(s.color(), QColor(Qt::red));
 }
 
-void TestAbstractSeriesFixture::setColorDoesNotEmitOnSameValue() {
+void TestAbstractSeriesFixture::setColorDoesNotEmitOnSameValue()
+{
     TestSeries s;
     s.setColor(QColor(Qt::green));
     QSignalSpy spy(&s, &TestSeries::colorChanged);
@@ -132,7 +142,8 @@ void TestAbstractSeriesFixture::setColorDoesNotEmitOnSameValue() {
     QCOMPARE(spy.count(), 0);
 }
 
-void TestAbstractSeriesFixture::setNameEmitsOnChange() {
+void TestAbstractSeriesFixture::setNameEmitsOnChange()
+{
     TestSeries s;
     QSignalSpy spy(&s, &TestSeries::nameChanged);
     s.setName(QStringLiteral("temperature"));
@@ -140,7 +151,8 @@ void TestAbstractSeriesFixture::setNameEmitsOnChange() {
     QCOMPARE(s.name(), QStringLiteral("temperature"));
 }
 
-void TestAbstractSeriesFixture::setVisibleEmitsOnChange() {
+void TestAbstractSeriesFixture::setVisibleEmitsOnChange()
+{
     TestSeries s;
     QVERIFY(s.isVisible());  // default
     QSignalSpy spy(&s, &TestSeries::visibleChanged);
@@ -153,7 +165,8 @@ void TestAbstractSeriesFixture::setVisibleEmitsOnChange() {
 // Model ownership
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::setModelUpdatesPointer() {
+void TestAbstractSeriesFixture::setModelUpdatesPointer()
+{
     TestSeries s;
     auto* model = new QRingBufferSeriesModel(16);
     QSignalSpy spy(&s, &TestSeries::modelChanged);
@@ -167,7 +180,8 @@ void TestAbstractSeriesFixture::setModelUpdatesPointer() {
     QCOMPARE(spy.at(1).at(0).value<QAbstractSeriesModel*>(), nullptr);
 }
 
-void TestAbstractSeriesFixture::setModelNullClears() {
+void TestAbstractSeriesFixture::setModelNullClears()
+{
     TestSeries s;
     auto* model = new QRingBufferSeriesModel(16);
     s.setModel(model);
@@ -180,14 +194,15 @@ void TestAbstractSeriesFixture::setModelNullClears() {
 // Parent / child ownership (RAII — AI.md §1.4)
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::parentDeletesChild() {
+void TestAbstractSeriesFixture::parentDeletesChild()
+{
     QPointer<TestSeries> seriesPointer;
     {
         QObject parent;
         auto* series = new TestSeries(&parent);
         seriesPointer = series;
         QCOMPARE(seriesPointer->parent(), &parent);
-    } // parent is destroyed here, deleting series
+    }  // parent is destroyed here, deleting series
     QVERIFY(seriesPointer.isNull());
 }
 
@@ -195,7 +210,8 @@ void TestAbstractSeriesFixture::parentDeletesChild() {
 // Copy / move disabled
 // ─────────────────────────────────────────────────────────────
 
-void TestAbstractSeriesFixture::nonCopyable() {
+void TestAbstractSeriesFixture::nonCopyable()
+{
     // Compile-time check: these lines would fail to compile if the
     // deleted functions were not present. We assert via QVERIFY so the
     // test runner has something to report; the real guard is the

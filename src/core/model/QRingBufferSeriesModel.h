@@ -35,19 +35,22 @@
 #ifndef QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 #define QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 
-#include "QAbstractSeriesModel.h"
+#include <vector>
 
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QSpan>
-#include <vector>
 
-namespace qgraphplot {
+#include "QAbstractSeriesModel.h"
+
+namespace qgraphplot
+{
 
 //! Whether QRingBufferSeriesModel takes a mutex on each public call.
 //! Kept as a scoped enum (AI.md §1.4) and not duplicated as magic bools
 //! (AI.md §3.2).
-enum class ThreadSafety : unsigned char {
+enum class ThreadSafety : unsigned char
+{
     Disabled,  //!< No locking. Single-threaded or GUI-blocks-render usage.
     Enabled    //!< QMutex on every mutating/read call.
 };
@@ -58,7 +61,8 @@ enum class ThreadSafety : unsigned char {
 //! points and emit pointsRemoved(0, k-1) followed by
 //! pointsInserted(adjustedRange). The buffer always reports the most
 //! recent @p capacity points via pointCount() / pointAt().
-class QGRAPHPLOT_EXPORT QRingBufferSeriesModel final : public QAbstractSeriesModel {
+class QGRAPHPLOT_EXPORT QRingBufferSeriesModel final : public QAbstractSeriesModel
+{
     Q_OBJECT
 
 public:
@@ -116,7 +120,8 @@ public:
 
     //! Convenience overload for STL-compatible containers of QPointF.
     template <typename Container>
-    void appendRange(const Container& c) {
+    void appendRange(const Container& c)
+    {
         appendBatch(QSpan<const QPointF>(c.data(), static_cast<qsizetype>(c.size())));
     }
 

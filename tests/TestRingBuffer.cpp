@@ -20,15 +20,16 @@
 //! Covers append, overflow eviction, range queries, bounds tracking, clear,
 //! and signal emission. Companion to Phase 0.2 (issue #3).
 
+#include <vector>
+
 #include <QtTest/QtTest>
 
 #include "../src/core/model/QRingBufferSeriesModel.h"
 
-#include <vector>
-
 using namespace qgraphplot;
 
-class TestRingBuffer : public QObject {
+class TestRingBuffer : public QObject
+{
     Q_OBJECT
 
 private slots:
@@ -68,7 +69,8 @@ private slots:
     void noSignalsOnClearAlreadyEmpty();
 };
 
-void TestRingBuffer::initTestCase() {
+void TestRingBuffer::initTestCase()
+{
     // Sanity: nothing global to set up.
 }
 
@@ -76,7 +78,8 @@ void TestRingBuffer::initTestCase() {
 // Construction
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::constructValid() {
+void TestRingBuffer::constructValid()
+{
     QRingBufferSeriesModel rb(8);
     QCOMPARE(rb.capacity(), qsizetype(8));
     QCOMPARE(rb.pointCount(), qsizetype(0));
@@ -84,10 +87,11 @@ void TestRingBuffer::constructValid() {
     QVERIFY(rb.bounds().isNull());
 }
 
-void TestRingBuffer::constructInvalidCapacityClamps() {
+void TestRingBuffer::constructInvalidCapacityClamps()
+{
     // AI.md §3.3: invalid input is reported and clamped, not silently UB.
     QTest::ignoreMessage(QtWarningMsg,
-        "QRingBufferSeriesModel: capacity must be > 0; clamped to 1");
+                         "QRingBufferSeriesModel: capacity must be > 0; clamped to 1");
     QRingBufferSeriesModel rb(0);
     QCOMPARE(rb.capacity(), qsizetype(1));
 }
@@ -96,7 +100,8 @@ void TestRingBuffer::constructInvalidCapacityClamps() {
 // Append (single)
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::appendSingleGrowsSize() {
+void TestRingBuffer::appendSingleGrowsSize()
+{
     QRingBufferSeriesModel rb(4);
     rb.append(QPointF(1.0, 10.0));
     rb.append(QPointF(2.0, 20.0));
@@ -105,7 +110,8 @@ void TestRingBuffer::appendSingleGrowsSize() {
     QCOMPARE(rb.pointAt(1), QPointF(2.0, 20.0));
 }
 
-void TestRingBuffer::appendSingleUpdatesBounds() {
+void TestRingBuffer::appendSingleUpdatesBounds()
+{
     QRingBufferSeriesModel rb(4);
     rb.append(QPointF(1.0, 10.0));
     rb.append(QPointF(3.0, -5.0));
@@ -116,17 +122,17 @@ void TestRingBuffer::appendSingleUpdatesBounds() {
 // Append (batch)
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::appendBatchGrowsSize() {
-    std::vector<QPointF> pts = {
-        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0)
-    };
+void TestRingBuffer::appendBatchGrowsSize()
+{
+    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0)};
     QRingBufferSeriesModel rb(8);
     rb.appendRange(pts);
     QCOMPARE(rb.pointCount(), qsizetype(3));
     QCOMPARE(rb.pointAt(2), QPointF(2.0, 2.0));
 }
 
-void TestRingBuffer::appendBatchEmptyIsNoop() {
+void TestRingBuffer::appendBatchEmptyIsNoop()
+{
     QRingBufferSeriesModel rb(8);
     rb.appendBatch(QSpan<const QPointF>());
     QCOMPARE(rb.pointCount(), qsizetype(0));
@@ -137,10 +143,9 @@ void TestRingBuffer::appendBatchEmptyIsNoop() {
 // Overflow / eviction
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::overflowEvictsOldest() {
-    std::vector<QPointF> first = {
-        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0)
-    };
+void TestRingBuffer::overflowEvictsOldest()
+{
+    std::vector<QPointF> first = {QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0)};
     QRingBufferSeriesModel rb(3);
     rb.appendRange(first);
     rb.append(QPointF(3.0, 3.0));  // overflow → evicts (0,0)
@@ -150,11 +155,13 @@ void TestRingBuffer::overflowEvictsOldest() {
     QCOMPARE(rb.pointAt(2), QPointF(3.0, 3.0));  // newest
 }
 
-void TestRingBuffer::appendLargerThanCapacityKeepsTail() {
-    std::vector<QPointF> pts = {
-        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0),
-        QPointF(3.0, 3.0), QPointF(4.0, 4.0)
-    };
+void TestRingBuffer::appendLargerThanCapacityKeepsTail()
+{
+    std::vector<QPointF> pts = {QPointF(0.0, 0.0),
+                                QPointF(1.0, 1.0),
+                                QPointF(2.0, 2.0),
+                                QPointF(3.0, 3.0),
+                                QPointF(4.0, 4.0)};
     QRingBufferSeriesModel rb(3);
     rb.appendRange(pts);  // batch > capacity
 
@@ -167,7 +174,8 @@ void TestRingBuffer::appendLargerThanCapacityKeepsTail() {
 // Queries
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::pointAtReturnsLogicalOrder() {
+void TestRingBuffer::pointAtReturnsLogicalOrder()
+{
     QRingBufferSeriesModel rb(3);
     rb.append(QPointF(10.0, 0.0));
     rb.append(QPointF(20.0, 0.0));
@@ -180,10 +188,10 @@ void TestRingBuffer::pointAtReturnsLogicalOrder() {
     QCOMPARE(rb.pointAt(2).x(), 40.0);
 }
 
-void TestRingBuffer::pointsRangeNonWrapping() {
+void TestRingBuffer::pointsRangeNonWrapping()
+{
     std::vector<QPointF> pts = {
-        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)
-    };
+        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)};
     QRingBufferSeriesModel rb(8);
     rb.appendRange(pts);
 
@@ -193,7 +201,8 @@ void TestRingBuffer::pointsRangeNonWrapping() {
     QCOMPARE(span[1], QPointF(2.0, 2.0));
 }
 
-void TestRingBuffer::pointsRangeWrapping() {
+void TestRingBuffer::pointsRangeWrapping()
+{
     // Fill the ring exactly, then force one eviction so the logical range
     // [0, size-1] straddles the physical wrap boundary (regression test:
     // points() used to silently truncate this to a partial span).
@@ -212,11 +221,12 @@ void TestRingBuffer::pointsRangeWrapping() {
     QCOMPARE(span[3], QPointF(4.0, 4.0));
 }
 
-void TestRingBuffer::boundsAfterEvictionRecomputed() {
+void TestRingBuffer::boundsAfterEvictionRecomputed()
+{
     QRingBufferSeriesModel rb(3);
     rb.append(QPointF(-100.0, 0.0));  // x_min
     rb.append(QPointF(0.0, 0.0));
-    rb.append(QPointF(100.0, 0.0));   // x_max
+    rb.append(QPointF(100.0, 0.0));  // x_max
     QCOMPARE(rb.bounds().left(), -100.0);
     QCOMPARE(rb.bounds().right(), 100.0);
 
@@ -230,7 +240,8 @@ void TestRingBuffer::boundsAfterEvictionRecomputed() {
 // Clear
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::clearEmptiesBuffer() {
+void TestRingBuffer::clearEmptiesBuffer()
+{
     QRingBufferSeriesModel rb(4);
     rb.append(QPointF(1.0, 1.0));
     rb.append(QPointF(2.0, 2.0));
@@ -239,7 +250,8 @@ void TestRingBuffer::clearEmptiesBuffer() {
     QVERIFY(rb.bounds().isNull());
 }
 
-void TestRingBuffer::clearPreservesCapacity() {
+void TestRingBuffer::clearPreservesCapacity()
+{
     QRingBufferSeriesModel rb(4);
     rb.append(QPointF(1.0, 1.0));
     rb.clear();
@@ -250,7 +262,8 @@ void TestRingBuffer::clearPreservesCapacity() {
 // Signals
 // ─────────────────────────────────────────────────────────────
 
-void TestRingBuffer::signalsOnAppend() {
+void TestRingBuffer::signalsOnAppend()
+{
     QRingBufferSeriesModel rb(8);
     QSignalSpy insertedSpy(&rb, &QRingBufferSeriesModel::pointsInserted);
     QSignalSpy changedSpy(&rb, &QRingBufferSeriesModel::modelChanged);
@@ -262,7 +275,8 @@ void TestRingBuffer::signalsOnAppend() {
     QCOMPARE(changedSpy.takeFirst().at(0).toLongLong(), qsizetype(1));
 }
 
-void TestRingBuffer::signalsOnOverflow() {
+void TestRingBuffer::signalsOnOverflow()
+{
     QRingBufferSeriesModel rb(2);
     rb.append(QPointF(1.0, 1.0));
     rb.append(QPointF(2.0, 2.0));
@@ -279,7 +293,8 @@ void TestRingBuffer::signalsOnOverflow() {
     QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(0));  // last removed index
 }
 
-void TestRingBuffer::noSignalsOnEmptyAppend() {
+void TestRingBuffer::noSignalsOnEmptyAppend()
+{
     QRingBufferSeriesModel rb(8);
     QSignalSpy insertedSpy(&rb, &QRingBufferSeriesModel::pointsInserted);
     QSignalSpy changedSpy(&rb, &QRingBufferSeriesModel::modelChanged);
@@ -290,7 +305,8 @@ void TestRingBuffer::noSignalsOnEmptyAppend() {
     QCOMPARE(changedSpy.count(), 0);
 }
 
-void TestRingBuffer::signalsOnClearNonEmpty() {
+void TestRingBuffer::signalsOnClearNonEmpty()
+{
     // Regression test: clear() used to always emit pointsRemoved(0, 0)
     // regardless of how many points were actually held.
     QRingBufferSeriesModel rb(8);
@@ -307,7 +323,8 @@ void TestRingBuffer::signalsOnClearNonEmpty() {
     QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(2));  // last of 3 points
 }
 
-void TestRingBuffer::noSignalsOnClearAlreadyEmpty() {
+void TestRingBuffer::noSignalsOnClearAlreadyEmpty()
+{
     QRingBufferSeriesModel rb(8);
     QSignalSpy removedSpy(&rb, &QRingBufferSeriesModel::pointsRemoved);
 

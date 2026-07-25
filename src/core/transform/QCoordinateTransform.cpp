@@ -16,27 +16,30 @@
 
 #include "QCoordinateTransform.h"
 
-#include <QtCore/QLoggingCategory>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
-namespace qgraphplot {
+#include <QtCore/QLoggingCategory>
 
-namespace {
+namespace qgraphplot
+{
+
+namespace
+{
 Q_LOGGING_CATEGORY(lcCoordinate, "qgraphplot.coordinate")
 }
 
-QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds, const QRectF& pixelRect,
-                                           bool xLog, bool yLog)
-    : m_dataBounds(dataBounds),
-      m_pixelRect(pixelRect),
-      m_xLog(xLog),
-      m_yLog(yLog)
+QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
+                                           const QRectF& pixelRect,
+                                           bool xLog,
+                                           bool yLog)
+    : m_dataBounds(dataBounds), m_pixelRect(pixelRect), m_xLog(xLog), m_yLog(yLog)
 {
     // Validate Log boundaries (AI.md §3.3)
     if (m_xLog) {
         if (m_dataBounds.left() <= 0.0 || m_dataBounds.right() <= 0.0) {
-            qCWarning(lcCoordinate) << "QCoordinateTransform: X log scale requires positive bounds. Falling back to linear.";
+            qCWarning(lcCoordinate) << "QCoordinateTransform: X log scale requires positive "
+                                       "bounds. Falling back to linear.";
             m_xLog = false;
         } else {
             m_logMinX = std::log10(m_dataBounds.left());
@@ -46,7 +49,8 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds, const QRect
     if (m_yLog) {
         // In dataBounds (QRectF), top() is minY, bottom() is maxY.
         if (m_dataBounds.top() <= 0.0 || m_dataBounds.bottom() <= 0.0) {
-            qCWarning(lcCoordinate) << "QCoordinateTransform: Y log scale requires positive bounds. Falling back to linear.";
+            qCWarning(lcCoordinate) << "QCoordinateTransform: Y log scale requires positive "
+                                       "bounds. Falling back to linear.";
             m_yLog = false;
         } else {
             m_logMinY = std::log10(m_dataBounds.top());
@@ -55,7 +59,8 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds, const QRect
     }
 }
 
-QPointF QCoordinateTransform::toPixel(const QPointF& data) const noexcept {
+QPointF QCoordinateTransform::toPixel(const QPointF& data) const noexcept
+{
     double px = m_pixelRect.left();
     double py = m_pixelRect.bottom();
 
@@ -98,7 +103,8 @@ QPointF QCoordinateTransform::toPixel(const QPointF& data) const noexcept {
     return QPointF(px, py);
 }
 
-QPointF QCoordinateTransform::toData(const QPointF& pixel) const noexcept {
+QPointF QCoordinateTransform::toData(const QPointF& pixel) const noexcept
+{
     double dx = m_dataBounds.left();
     double dy = m_dataBounds.top();
 
@@ -133,4 +139,4 @@ QPointF QCoordinateTransform::toData(const QPointF& pixel) const noexcept {
     return QPointF(dx, dy);
 }
 
-} // namespace qgraphplot
+}  // namespace qgraphplot
