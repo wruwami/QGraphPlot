@@ -135,11 +135,11 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         return nullptr;
     }
 
-    const QCoordinateTransform transform = chartView->coordinateTransform();
+    const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const qsizetype count = m_model->pointCount();
 
     // 3. Scene Graph 노드 생성 및 재활용
-    QSGGeometryNode* node = qobject_cast<QSGGeometryNode*>(oldNode);
+    QSGGeometryNode* node = static_cast<QSGGeometryNode*>(oldNode);
     QSGGeometry* geometry = nullptr;
 
     if (!node) {
@@ -169,7 +169,7 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
             geometry->allocate(static_cast<int>(count));
         }
 
-        QSGFlatColorMaterial* material = qobject_cast<QSGFlatColorMaterial*>(node->material());
+        QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
         if (material) {
             material->setColor(m_color);
             node->markDirty(QSGNode::DirtyMaterial);

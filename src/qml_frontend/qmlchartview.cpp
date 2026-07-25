@@ -82,13 +82,13 @@ void QmlChartView::setMarginBottom(double val)
     }
 }
 
-QCoordinateTransform QmlChartView::coordinateTransform() const noexcept
+qgraphplot::QCoordinateTransform QmlChartView::coordinateTransform() const noexcept
 {
     const QRectF dataBounds(m_xMin, m_yMin, m_xMax - m_xMin, m_yMax - m_yMin);
     const double pixelWidth = qMax(0.0, width() - m_marginLeft - m_marginRight);
     const double pixelHeight = qMax(0.0, height() - m_marginTop - m_marginBottom);
     const QRectF pixelRect(m_marginLeft, m_marginTop, pixelWidth, pixelHeight);
-    return QCoordinateTransform(dataBounds, pixelRect);
+    return qgraphplot::QCoordinateTransform(dataBounds, pixelRect);
 }
 
 QPointF QmlChartView::mapToPixel(double x, double y) const noexcept

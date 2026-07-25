@@ -48,7 +48,7 @@ public:
     void setMarginBottom(double val);
 
     // Helpers
-    QCoordinateTransform coordinateTransform() const noexcept;
+    qgraphplot::QCoordinateTransform coordinateTransform() const noexcept;
     Q_INVOKABLE QPointF mapToPixel(double x, double y) const noexcept;
 
 signals:

@@ -135,7 +135,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         return nullptr;
     }
 
-    const QCoordinateTransform transform = chartView->coordinateTransform();
+    const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const QRectF pixelRect = transform.pixelRect();
 
     // 렌더링 세그먼트 개수 계산
@@ -150,7 +150,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     }
     const int vertexCount = static_cast<int>(lineCount * 2);
 
-    QSGGeometryNode* node = qobject_cast<QSGGeometryNode*>(oldNode);
+    QSGGeometryNode* node = static_cast<QSGGeometryNode*>(oldNode);
     QSGGeometry* geometry = nullptr;
 
     if (!node) {
@@ -170,7 +170,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         if (geometry->vertexCount() != vertexCount) {
             geometry->allocate(vertexCount);
         }
-        QSGFlatColorMaterial* material = qobject_cast<QSGFlatColorMaterial*>(node->material());
+        QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
         if (material) {
             material->setColor(m_color);
             node->markDirty(QSGNode::DirtyMaterial);
