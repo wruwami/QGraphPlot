@@ -1,8 +1,9 @@
+#include <QtCore/QCoreApplication>
+#include <QtCore/qmath.h>
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQml/QQmlContext>
-#include <QtCore/QCoreApplication>
-#include <QtCore/qmath.h>
+
 #include "model/QRingBufferSeriesModel.h"
 
 int main(int argc, char* argv[])
@@ -31,11 +32,15 @@ int main(int argc, char* argv[])
 
     // 4. 메인 QML 파일 로드
     const QUrl url(QStringLiteral("qrc:/qml_demo/main.qml"));
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-                     &app, [url](QObject* obj, const QUrl& objUrl) {
-                         if (!obj && url == objUrl)
-                             QCoreApplication::exit(-1);
-                     }, Qt::QueuedConnection);
+    QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreated,
+        &app,
+        [url](QObject* obj, const QUrl& objUrl) {
+            if (!obj && url == objUrl)
+                QCoreApplication::exit(-1);
+        },
+        Qt::QueuedConnection);
     engine.load(url);
 
     return app.exec();

@@ -1,16 +1,19 @@
 #ifndef QMLAXIS_H
 #define QMLAXIS_H
 
-#include <QtQuick/QQuickItem>
-#include <QtGui/QColor>
 #include <QtCore/QVariantList>
+#include <QtGui/QColor>
+#include <QtQuick/QQuickItem>
+
 #include "transform/QScaleEngine.h"
 
-class QmlAxis : public QQuickItem {
+class QmlAxis : public QQuickItem
+{
     Q_OBJECT
     QML_ELEMENT
 
-    Q_PROPERTY(Qt::Orientation orientation READ orientation WRITE setOrientation NOTIFY orientationChanged)
+    Q_PROPERTY(
+        Qt::Orientation orientation READ orientation WRITE setOrientation NOTIFY orientationChanged)
     Q_PROPERTY(int tickCount READ tickCount WRITE setTickCount NOTIFY tickCountChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QColor gridColor READ gridColor WRITE setGridColor NOTIFY gridColorChanged)
@@ -58,10 +61,10 @@ private:
     Qt::Orientation m_orientation{Qt::Horizontal};
     int m_tickCount{5};
     QColor m_color{Qt::gray};
-    QColor m_gridColor{0xE0, 0xE0, 0xE0}; // 아주 연한 회색
+    QColor m_gridColor{0xE0, 0xE0, 0xE0};  // 아주 연한 회색
     bool m_showGrid{true};
 
     std::vector<qgraphplot::QScaleEngine::TickInfo> m_tickInfos;
 };
 
-#endif // QMLAXIS_H
+#endif  // QMLAXIS_H

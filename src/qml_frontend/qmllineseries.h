@@ -1,16 +1,19 @@
 #ifndef QMLLINESERIES_H
 #define QMLLINESERIES_H
 
-#include <QtQuick/QQuickItem>
-#include <QtGui/QColor>
 #include <QtCore/QString>
+#include <QtGui/QColor>
+#include <QtQuick/QQuickItem>
+
 #include "model/QAbstractSeriesModel.h"
 
-class QmlLineSeries : public QQuickItem {
+class QmlLineSeries : public QQuickItem
+{
     Q_OBJECT
     QML_ELEMENT
 
-    Q_PROPERTY(qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel NOTIFY modelChanged)
+    Q_PROPERTY(
+        qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
 
@@ -52,4 +55,4 @@ private:
     bool m_chartViewConnected{false};
 };
 
-#endif // QMLLINESERIES_H
+#endif  // QMLLINESERIES_H

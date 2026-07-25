@@ -1,11 +1,12 @@
 #include "qmlaxis.h"
-#include "qmlchartview.h"
-#include <QtQuick/QSGGeometryNode>
-#include <QtQuick/QSGFlatColorMaterial>
-#include <QtCore/QVariantMap>
 
-QmlAxis::QmlAxis(QQuickItem* parent)
-    : QQuickItem(parent)
+#include <QtCore/QVariantMap>
+#include <QtQuick/QSGFlatColorMaterial>
+#include <QtQuick/QSGGeometryNode>
+
+#include "qmlchartview.h"
+
+QmlAxis::QmlAxis(QQuickItem* parent) : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
 }
@@ -63,7 +64,7 @@ void QmlAxis::setShowGrid(bool show)
     if (m_showGrid != show) {
         m_showGrid = show;
         emit showGridChanged();
-        updateTicks(); // 틱 개수나 지오메트리 크기 영향을 재계산
+        updateTicks();  // 틱 개수나 지오메트리 크기 영향을 재계산
     }
 }
 
@@ -79,16 +80,21 @@ void QmlAxis::itemChange(ItemChange change, const ItemChangeData& value)
 void QmlAxis::connectChartViewSignals()
 {
     static QmlChartView* previousChartView = nullptr;
-    
+
     if (previousChartView) {
-        disconnect(previousChartView, &QmlChartView::transformChanged,
-                   this, &QmlAxis::handleTransformChanged);
+        disconnect(previousChartView,
+                   &QmlChartView::transformChanged,
+                   this,
+                   &QmlAxis::handleTransformChanged);
     }
-    
+
     QmlChartView* chartView = qobject_cast<QmlChartView*>(parentItem());
     if (chartView) {
-        connect(chartView, &QmlChartView::transformChanged,
-                this, &QmlAxis::handleTransformChanged, Qt::UniqueConnection);
+        connect(chartView,
+                &QmlChartView::transformChanged,
+                this,
+                &QmlAxis::handleTransformChanged,
+                Qt::UniqueConnection);
         previousChartView = chartView;
     } else {
         previousChartView = nullptr;

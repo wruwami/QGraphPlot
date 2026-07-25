@@ -1,10 +1,11 @@
 #include "qmllineseries.h"
-#include "qmlchartview.h"
-#include <QtQuick/QSGGeometryNode>
-#include <QtQuick/QSGFlatColorMaterial>
 
-QmlLineSeries::QmlLineSeries(QQuickItem* parent)
-    : QQuickItem(parent)
+#include <QtQuick/QSGFlatColorMaterial>
+#include <QtQuick/QSGGeometryNode>
+
+#include "qmlchartview.h"
+
+QmlLineSeries::QmlLineSeries(QQuickItem* parent) : QQuickItem(parent)
 {
     // updatePaintNode가 호출되도록 설정
     setFlag(ItemHasContents, true);
@@ -41,16 +42,31 @@ void QmlLineSeries::setName(const QString& name)
 void QmlLineSeries::connectModelSignals()
 {
     if (m_model) {
-        connect(m_model, &qgraphplot::QAbstractSeriesModel::dataChanged,
-                this, &QmlLineSeries::handleDataChanged, Qt::UniqueConnection);
-        connect(m_model, &qgraphplot::QAbstractSeriesModel::pointsInserted,
-                this, &QmlLineSeries::handleDataChanged, Qt::UniqueConnection);
-        connect(m_model, &qgraphplot::QAbstractSeriesModel::pointsRemoved,
-                this, &QmlLineSeries::handleDataChanged, Qt::UniqueConnection);
-        connect(m_model, &qgraphplot::QAbstractSeriesModel::boundsChanged,
-                this, &QmlLineSeries::handleDataChanged, Qt::UniqueConnection);
-        connect(m_model, &QObject::destroyed,
-                this, &QmlLineSeries::handleModelReset, Qt::UniqueConnection);
+        connect(m_model,
+                &qgraphplot::QAbstractSeriesModel::dataChanged,
+                this,
+                &QmlLineSeries::handleDataChanged,
+                Qt::UniqueConnection);
+        connect(m_model,
+                &qgraphplot::QAbstractSeriesModel::pointsInserted,
+                this,
+                &QmlLineSeries::handleDataChanged,
+                Qt::UniqueConnection);
+        connect(m_model,
+                &qgraphplot::QAbstractSeriesModel::pointsRemoved,
+                this,
+                &QmlLineSeries::handleDataChanged,
+                Qt::UniqueConnection);
+        connect(m_model,
+                &qgraphplot::QAbstractSeriesModel::boundsChanged,
+                this,
+                &QmlLineSeries::handleDataChanged,
+                Qt::UniqueConnection);
+        connect(m_model,
+                &QObject::destroyed,
+                this,
+                &QmlLineSeries::handleModelReset,
+                Qt::UniqueConnection);
     }
 }
 
@@ -84,15 +100,18 @@ void QmlLineSeries::itemChange(ItemChange change, const ItemChangeData& value)
 void QmlLineSeries::connectChartViewSignals()
 {
     static QmlChartView* previousChartView = nullptr;
-    
+
     if (previousChartView) {
-        disconnect(previousChartView, &QmlChartView::transformChanged,
-                   this, &QQuickItem::update);
+        disconnect(previousChartView, &QmlChartView::transformChanged, this, &QQuickItem::update);
     }
-    
+
     QmlChartView* chartView = qobject_cast<QmlChartView*>(parentItem());
     if (chartView) {
-        connect(chartView, &QmlChartView::transformChanged, this, &QQuickItem::update, Qt::UniqueConnection);
+        connect(chartView,
+                &QmlChartView::transformChanged,
+                this,
+                &QQuickItem::update,
+                Qt::UniqueConnection);
         previousChartView = chartView;
     } else {
         previousChartView = nullptr;
@@ -131,7 +150,8 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
             delete node;
             return nullptr;
         }
-        geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), static_cast<int>(count));
+        geometry =
+            new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), static_cast<int>(count));
         geometry->setLineWidth(2.0f);
         geometry->setDrawingMode(QSGGeometry::DrawLineStrip);
         node->setGeometry(geometry);

@@ -1,11 +1,13 @@
 #ifndef QMLCHARTVIEW_H
 #define QMLCHARTVIEW_H
 
-#include <QtQuick/QQuickItem>
 #include <QtCore/QRectF>
+#include <QtQuick/QQuickItem>
+
 #include "transform/QCoordinateTransform.h"
 
-class QmlChartView : public QQuickItem {
+class QmlChartView : public QQuickItem
+{
     Q_OBJECT
     QML_ELEMENT
 
@@ -72,4 +74,4 @@ private:
     double m_marginBottom{40.0};
 };
 
-#endif // QMLCHARTVIEW_H
+#endif  // QMLCHARTVIEW_H
