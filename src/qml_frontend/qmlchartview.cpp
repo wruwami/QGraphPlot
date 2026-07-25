@@ -11,7 +11,7 @@ QmlChartView::QmlChartView(QQuickItem* parent)
 
 void QmlChartView::setXMin(double val)
 {
-    if (!qFuzzyCompare(m_xMin, val)) {
+    if (qAbs(m_xMin - val) > 1e-10 && (qAbs(m_xMin) < 1e-10 || qAbs(val) < 1e-10 || !qFuzzyCompare(m_xMin, val))) {
         m_xMin = val;
         emit xMinChanged();
         emit transformChanged();
