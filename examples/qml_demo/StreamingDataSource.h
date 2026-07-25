@@ -20,6 +20,8 @@
 #ifndef STREAMINGDATASOURCE_H
 #define STREAMINGDATASOURCE_H
 
+#include <algorithm>
+
 #include <QtCore/QObject>
 #include <QtQml/qqmlregistration.h>
 
@@ -39,7 +41,7 @@ public:
     explicit StreamingDataSource(QObject* parent = nullptr);
 
     qgraphplot::QAbstractSeriesModel* model() noexcept { return &m_model; }
-    double xMin() const noexcept { return m_xMax - kWindowSeconds; }
+    double xMin() const noexcept { return std::max(0.0, m_xMax - kWindowSeconds); }
     double xMax() const noexcept { return m_xMax; }
     int pointCount() const noexcept { return static_cast<int>(m_model.pointCount()); }
 
