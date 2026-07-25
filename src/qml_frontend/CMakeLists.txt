@@ -9,6 +9,8 @@ set(CMAKE_AUTOMOC ON)
 qt_add_qml_module(qml_frontend
     URI QGraphPlot
     VERSION 0.1
+    DEPENDENCIES
+        QtQuick
     SOURCES
         qmlchartview.h qmlchartview.cpp
         qmllineseries.h qmllineseries.cpp

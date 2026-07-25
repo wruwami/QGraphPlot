@@ -28,7 +28,7 @@ Window {
         xAxis: horizAxis
         yAxis: vertAxis
 
-        Axis {
+        QmlAxis {
             id: horizAxis
             orientation: Qt.Horizontal
             tickCount: 11
@@ -37,7 +37,7 @@ Window {
             showGrid: true
         }
 
-        Axis {
+        QmlAxis {
             id: vertAxis
             orientation: Qt.Vertical
             tickCount: 7
