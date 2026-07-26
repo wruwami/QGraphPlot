@@ -93,9 +93,14 @@ void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 {
     QMutexLocker locker(&m_mutex);
 
+    // `snapshot` intentionally lives to the end of the function: when the
+    // input span aliases m_points, `source` must keep pointing at valid
+    // storage until the assign() below has consumed it. Reducing its scope
+    // (as cppcheck suggests) would dangle `source`.
     QSpan<const QPointF> source = pts;
+    std::vector<QPointF> snapshot;
     if (spansOverlap(pts, m_points)) {
-        std::vector<QPointF> snapshot(pts.begin(), pts.end());
+        snapshot.assign(pts.begin(), pts.end());
         source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
     }
 
@@ -128,9 +133,14 @@ void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
         return;
     }
 
+    // `snapshot` intentionally lives to the end of the function: when the
+    // input span aliases m_points, `source` must keep pointing at valid
+    // storage until the insert() below has consumed it. Reducing its scope
+    // (as cppcheck suggests) would dangle `source`.
     QSpan<const QPointF> source = pts;
+    std::vector<QPointF> snapshot;
     if (spansOverlap(pts, m_points)) {
-        std::vector<QPointF> snapshot(pts.begin(), pts.end());
+        snapshot.assign(pts.begin(), pts.end());
         source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
     }
 
