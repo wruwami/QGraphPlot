@@ -19,6 +19,7 @@
 
 #include "QAbstractSeries.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -117,12 +118,9 @@ bool QAbstractSeries::isValidDashPattern(const QList<qreal>& dashPattern)
     if (dashPattern.size() % 2 != 0) {
         return false;
     }
-    for (const qreal length : dashPattern) {
-        if (!std::isfinite(length) || length <= 0.0) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(dashPattern.cbegin(), dashPattern.cend(), [](const qreal length) {
+        return std::isfinite(length) && length > 0.0;
+    });
 }
 
 }  // namespace qgraphplot
