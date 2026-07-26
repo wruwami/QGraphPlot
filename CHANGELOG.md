@@ -39,7 +39,7 @@ chrome; full data-path rendering lands in Phase 1.
 
 #### Project infrastructure
 - AI.md, VERSIONING.md, CONTRIBUTING.md, Code of Conduct
-- 3-platform CI (Ubuntu / Windows / macOS × Qt 6.7.3)
+- 3-platform CI (Ubuntu / Windows / macOS × Qt 6.8.0)
 - cppcheck + clang-format static analysis gates
 - Code coverage collection (lcov → Codecov)
 
@@ -64,8 +64,9 @@ chrome; full data-path rendering lands in Phase 1.
 - `QmlLineSeries`: QSGGeometryNode-based line renderer with incremental
   geometry updates for real-time streaming; `lineWidth` and `dashPattern`
   (tessellated `DrawLines` segments, vertex-capped) (#12)
-- `QmlAxis`: axis ticks/labels/grid via QSGGeometryNode, with independent
-  `lineWidth` and `gridWidth` (#12)
+- `QmlAxis`: axis baseline/ticks/grid via QSGGeometryNode (tick labels are
+  QML `Text` delegates in `ChartView.qml`), with independent `lineWidth`
+  and `gridWidth` (#12)
 - `Theme` QML type (`QML_FOREIGN` re-export of `QGraphPlotTheme`) with
   `Light` / `Dark` / `Scientific` presets and a demo theme-toggle button (#12)
 
@@ -84,6 +85,8 @@ chrome; full data-path rendering lands in Phase 1.
   `TestTheme`
 
 ### Changed
+- Source files renamed so each file matches its class name in CamelCase
+  (AI.md §1.5) (#18, #19)
 - `QmlLineSeries::updatePaintNode()` reads the model's `points()` span once
   per frame instead of calling the virtual `pointAt()` per point (#36)
 - `QmlAxis::updateTicks()` skips `ticksChanged()` (and the QML `Repeater`'s
