@@ -2,7 +2,8 @@
 
 #include <QtCore/qmath.h>
 
-namespace {
+namespace
+{
 //! qFuzzyCompare is a *relative*-epsilon comparison, so it misbehaves
 //! whenever either operand is exactly (or very near) zero: any nonzero
 //! difference against 0.0 is reported as "not equal", never "fuzzy equal"

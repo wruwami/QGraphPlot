@@ -139,7 +139,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     // 렌더링 세그먼트 개수 계산. 축 기준선 + 눈금선은 m_color로, 그리드선은
     // m_gridColor로 그려야 하므로(#35) 두 개의 QSGGeometryNode로 분리한다.
     const size_t tickCount = m_tickInfos.size();
-    const size_t axisLineCount = 1 + tickCount;              // 기준선(1) + 눈금선(tickCount)
+    const size_t axisLineCount = 1 + tickCount;               // 기준선(1) + 눈금선(tickCount)
     const size_t gridLineCount = m_showGrid ? tickCount : 0;  // 그리드선
     if (axisLineCount > static_cast<size_t>(INT_MAX / 2) ||
         gridLineCount > static_cast<size_t>(INT_MAX / 2)) {
@@ -185,7 +185,8 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         if (axisGeometry->vertexCount() != axisVertexCount) {
             axisGeometry->allocate(axisVertexCount);
         }
-        QSGFlatColorMaterial* axisMaterial = static_cast<QSGFlatColorMaterial*>(axisNode->material());
+        QSGFlatColorMaterial* axisMaterial =
+            static_cast<QSGFlatColorMaterial*>(axisNode->material());
         if (axisMaterial) {
             axisMaterial->setColor(m_color);
             axisNode->markDirty(QSGNode::DirtyMaterial);
@@ -196,7 +197,8 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         if (gridGeometry->vertexCount() != gridVertexCount) {
             gridGeometry->allocate(gridVertexCount);
         }
-        QSGFlatColorMaterial* gridMaterial = static_cast<QSGFlatColorMaterial*>(gridNode->material());
+        QSGFlatColorMaterial* gridMaterial =
+            static_cast<QSGFlatColorMaterial*>(gridNode->material());
         if (gridMaterial) {
             gridMaterial->setColor(m_gridColor);
             gridNode->markDirty(QSGNode::DirtyMaterial);
