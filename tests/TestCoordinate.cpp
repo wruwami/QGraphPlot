@@ -193,18 +193,12 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     // Non-finite (NaN) width.
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
     (void)QCoordinateTransform(
-        QRectF(0.0, 0.0, std::numeric_limits<double>::quiet_NaN(), 10.0),
-        pixelRect,
-        false,
-        false);
+        QRectF(0.0, 0.0, std::numeric_limits<double>::quiet_NaN(), 10.0), pixelRect, false, false);
 
     // Non-finite (Inf) height.
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
     (void)QCoordinateTransform(
-        QRectF(0.0, 0.0, 10.0, std::numeric_limits<double>::infinity()),
-        pixelRect,
-        false,
-        false);
+        QRectF(0.0, 0.0, 10.0, std::numeric_limits<double>::infinity()), pixelRect, false, false);
 
     // The degenerate (0-width, 0-height) transform must still be safely
     // usable after the warning is printed (matches testDegenerateBoundsSafety).

@@ -99,7 +99,7 @@ void TestWidgetChartView::setXMinRejectsInvalidValues()
     for (const double invalid : {std::numeric_limits<double>::quiet_NaN(),
                                  std::numeric_limits<double>::infinity(),
                                  -std::numeric_limits<double>::infinity(),
-                                 10.0,    // == xMax: violates "must be < xMax"
+                                 10.0,     // == xMax: violates "must be < xMax"
                                  15.0}) {  // > xMax
         QTest::ignoreMessage(QtWarningMsg, pattern);
         view.setXMin(invalid);
@@ -130,7 +130,7 @@ void TestWidgetChartView::setXMaxRejectsInvalidValues()
 
     for (const double invalid : {std::numeric_limits<double>::quiet_NaN(),
                                  std::numeric_limits<double>::infinity(),
-                                 0.0,     // == xMin: violates "must be > xMin"
+                                 0.0,      // == xMin: violates "must be > xMin"
                                  -5.0}) {  // < xMin
         QTest::ignoreMessage(QtWarningMsg, pattern);
         view.setXMax(invalid);
@@ -210,7 +210,7 @@ void TestWidgetChartView::setMarginRejectsNegativeOrNonFinite()
         const QRegularExpression pattern =
             warningPrefix(QStringLiteral("WidgetChartView::%1: rejected negative or non-finite "
                                          "margin:")
-                             .arg(QString::fromLatin1(setter.name)));
+                              .arg(QString::fromLatin1(setter.name)));
 
         for (const double invalid : {-1.0,
                                      std::numeric_limits<double>::quiet_NaN(),
