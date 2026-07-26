@@ -94,9 +94,8 @@ void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
     QMutexLocker locker(&m_mutex);
 
     QSpan<const QPointF> source = pts;
-    std::vector<QPointF> snapshot;
     if (spansOverlap(pts, m_points)) {
-        snapshot.assign(pts.begin(), pts.end());
+        std::vector<QPointF> snapshot(pts.begin(), pts.end());
         source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
     }
 
@@ -130,9 +129,8 @@ void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
     }
 
     QSpan<const QPointF> source = pts;
-    std::vector<QPointF> snapshot;
     if (spansOverlap(pts, m_points)) {
-        snapshot.assign(pts.begin(), pts.end());
+        std::vector<QPointF> snapshot(pts.begin(), pts.end());
         source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
     }
 
