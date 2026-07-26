@@ -182,13 +182,20 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
     (void)QCoordinateTransform(QRectF(0.0, 0.0, 10.0, 0.0), pixelRect, false, false);
 
-    // Negative width.
+    // Negative width under log scale.
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
-    (void)QCoordinateTransform(QRectF(0.0, 0.0, -5.0, 10.0), pixelRect, false, false);
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*log scale requires positive.*"));
+    (void)QCoordinateTransform(QRectF(0.0, 0.0, -5.0, 10.0), pixelRect, true, true);
 
-    // Negative height.
+    // Non-finite (NaN) edge (left).
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
-    (void)QCoordinateTransform(QRectF(0.0, 0.0, 10.0, -5.0), pixelRect, false, false);
+    (void)QCoordinateTransform(
+        QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0), pixelRect, false, false);
+
+    // Non-finite (Inf) edge (top).
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(
+        QRectF(0.0, std::numeric_limits<double>::infinity(), 10.0, 10.0), pixelRect, false, false);
 
     // Non-finite (NaN) width.
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
@@ -200,14 +207,15 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     (void)QCoordinateTransform(
         QRectF(0.0, 0.0, 10.0, std::numeric_limits<double>::infinity()), pixelRect, false, false);
 
-    // The degenerate (0-width, 0-height) transform must still be safely
-    // usable after the warning is printed (matches testDegenerateBoundsSafety).
+    // Non-finite bounds must trigger unit-square (0,0,1,1) fallback.
+    // For pixelRect (0,0, 200,100), (0.5, 0.5) maps to (100.0, 50.0).
     {
         QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
-        QCoordinateTransform trans(QRectF(5.0, 5.0, 0.0, 0.0), pixelRect, false, false);
-        const QPointF p = trans.toPixel(QPointF(5.0, 5.0));
-        QVERIFY(qIsFinite(p.x()));
-        QVERIFY(qIsFinite(p.y()));
+        QCoordinateTransform trans(
+            QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0), pixelRect, false, false);
+        const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
+        QCOMPARE(p.x(), 100.0);
+        QCOMPARE(p.y(), 50.0);
     }
 }
 

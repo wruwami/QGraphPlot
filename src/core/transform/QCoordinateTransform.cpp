@@ -43,6 +43,7 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
                                    " dimensions or non-finite edges:"
                                 << m_dataBounds;
         if (!qIsFinite(m_dataBounds.left()) || !qIsFinite(m_dataBounds.top()) ||
+            !qIsFinite(m_dataBounds.right()) || !qIsFinite(m_dataBounds.bottom()) ||
             !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height())) {
             m_dataBounds =
                 QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square only for non-finite values
