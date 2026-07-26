@@ -210,8 +210,7 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     // Non-finite right() overflow (left + width overflow).
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
     {
-        QCoordinateTransform trans(
-            QRectF(1.7e308, 0.0, 1.7e308, 10.0), pixelRect, false, false);
+        QCoordinateTransform trans(QRectF(1.7e308, 0.0, 1.7e308, 10.0), pixelRect, false, false);
         const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
         QCOMPARE(p.x(), 100.0);
         QCOMPARE(p.y(), 50.0);
@@ -220,8 +219,7 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     // Non-finite bottom() overflow (top + height overflow).
     QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
     {
-        QCoordinateTransform trans(
-            QRectF(0.0, 1.7e308, 10.0, 1.7e308), pixelRect, false, false);
+        QCoordinateTransform trans(QRectF(0.0, 1.7e308, 10.0, 1.7e308), pixelRect, false, false);
         const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
         QCOMPARE(p.x(), 100.0);
         QCOMPARE(p.y(), 50.0);
