@@ -8,6 +8,11 @@ GP.QmlChartView {
     property GP.QmlAxis xAxis: null
     property GP.QmlAxis yAxis: null
 
+    // 라벨 스타일. theme가 지정되면 테마 값을, 아니면 기존 기본값을 사용한다.
+    readonly property color labelColor: root.theme ? root.theme.textColor : "#666666"
+    readonly property int labelPixelSize: root.theme ? root.theme.fontPixelSize : 11
+    readonly property string labelFontFamily: root.theme ? root.theme.fontFamily : ""
+
     // X축(가로축) 라벨 렌더링
     Repeater {
         model: root.xAxis ? root.xAxis.ticks : []
@@ -15,8 +20,9 @@ GP.QmlChartView {
             text: modelData.label
             x: root.mapToPixel(modelData.position, 0.0).x - width / 2
             y: root.height - root.marginBottom + 8
-            font.pixelSize: 11
-            color: "#666666"
+            font.pixelSize: root.labelPixelSize
+            font.family: root.labelFontFamily !== "" ? root.labelFontFamily : Qt.application.font.family
+            color: root.labelColor
         }
     }
 
@@ -27,8 +33,9 @@ GP.QmlChartView {
             text: modelData.label
             x: root.marginLeft - width - 8
             y: root.mapToPixel(0.0, modelData.position).y - height / 2
-            font.pixelSize: 11
-            color: "#666666"
+            font.pixelSize: root.labelPixelSize
+            font.family: root.labelFontFamily !== "" ? root.labelFontFamily : Qt.application.font.family
+            color: root.labelColor
         }
     }
 }

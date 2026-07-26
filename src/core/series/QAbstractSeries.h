@@ -34,6 +34,7 @@
 #ifndef QGRAPHPLOT_ABSTRACTSERIES_H
 #define QGRAPHPLOT_ABSTRACTSERIES_H
 
+#include <QtCore/QList>
 #include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtGui/QColor>
@@ -77,6 +78,9 @@ class QGRAPHPLOT_EXPORT QAbstractSeries : public QObject
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
     Q_PROPERTY(bool visible READ isVisible WRITE setVisible NOTIFY visibleChanged)
+    Q_PROPERTY(double lineWidth READ lineWidth WRITE setLineWidth NOTIFY lineWidthChanged)
+    Q_PROPERTY(
+        QList<qreal> dashPattern READ dashPattern WRITE setDashPattern NOTIFY dashPatternChanged)
 
 public:
     //! Constructs an empty series. @p parent follows Qt ownership (RAII,
@@ -117,11 +121,31 @@ public:
     [[nodiscard]] bool isVisible() const { return m_visible; }
     void setVisible(bool visible);
 
+    //! Stroke width in device-independent pixels. Must be finite and > 0;
+    //! invalid values are rejected with a qWarning (AI.md §3.3).
+    [[nodiscard]] double lineWidth() const { return m_lineWidth; }
+    void setLineWidth(double lineWidth);
+
+    //! Dash pattern with QPen::setDashPattern() semantics: alternating
+    //! dash/gap lengths expressed in units of lineWidth. Empty means a solid
+    //! line. Patterns with an odd number of entries or non-positive/
+    //! non-finite entries are rejected with a qWarning (AI.md §3.3) — QPen
+    //! requires an even count, and the QML frontend's dash tessellation
+    //! would not terminate on a zero-length segment.
+    [[nodiscard]] QList<qreal> dashPattern() const { return m_dashPattern; }
+    void setDashPattern(const QList<qreal>& dashPattern);
+
+    //! Whether @p dashPattern is usable as a dash pattern. Shared by both
+    //! frontends so QML and Widget reject exactly the same inputs.
+    [[nodiscard]] static bool isValidDashPattern(const QList<qreal>& dashPattern);
+
 Q_SIGNALS:
     void modelChanged(QAbstractSeriesModel* model);
     void colorChanged(QColor color);
     void nameChanged(QString name);
     void visibleChanged(bool visible);
+    void lineWidthChanged(double lineWidth);
+    void dashPatternChanged();
 
 private:
     QAbstractSeriesModel* m_model = nullptr;
@@ -129,6 +153,8 @@ private:
     QColor m_color = Qt::blue;  //!< Member-initialized (AI.md §1.4)
     QString m_name;
     bool m_visible = true;
+    double m_lineWidth = 2.0;
+    QList<qreal> m_dashPattern;
 };
 
 }  // namespace qgraphplot

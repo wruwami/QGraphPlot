@@ -20,6 +20,8 @@ class QmlAxis : public QQuickItem
     Q_PROPERTY(int tickCount READ tickCount WRITE setTickCount NOTIFY tickCountChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QColor gridColor READ gridColor WRITE setGridColor NOTIFY gridColorChanged)
+    Q_PROPERTY(double lineWidth READ lineWidth WRITE setLineWidth NOTIFY lineWidthChanged)
+    Q_PROPERTY(double gridWidth READ gridWidth WRITE setGridWidth NOTIFY gridWidthChanged)
     Q_PROPERTY(bool showGrid READ showGrid WRITE setShowGrid NOTIFY showGridChanged)
     Q_PROPERTY(QVariantList ticks READ ticks NOTIFY ticksChanged)
 
@@ -32,6 +34,13 @@ public:
     int tickCount() const noexcept { return m_tickCount; }
     QColor color() const noexcept { return m_color; }
     QColor gridColor() const noexcept { return m_gridColor; }
+
+    //! Width of the axis baseline and its tick marks, in pixels.
+    double lineWidth() const noexcept { return m_lineWidth; }
+
+    //! Width of the grid lines, in pixels.
+    double gridWidth() const noexcept { return m_gridWidth; }
+
     bool showGrid() const noexcept { return m_showGrid; }
     QVariantList ticks() const noexcept;
 
@@ -40,6 +49,8 @@ public:
     void setTickCount(int count);
     void setColor(const QColor& color);
     void setGridColor(const QColor& gridColor);
+    void setLineWidth(double lineWidth);
+    void setGridWidth(double gridWidth);
     void setShowGrid(bool show);
 
 signals:
@@ -47,6 +58,8 @@ signals:
     void tickCountChanged();
     void colorChanged();
     void gridColorChanged();
+    void lineWidthChanged();
+    void gridWidthChanged();
     void showGridChanged();
     void ticksChanged();
 
@@ -65,6 +78,8 @@ private:
     int m_tickCount{5};
     QColor m_color{Qt::gray};
     QColor m_gridColor{0xE0, 0xE0, 0xE0};  // 아주 연한 회색
+    double m_lineWidth{1.0};
+    double m_gridWidth{1.0};
     bool m_showGrid{true};
 
     std::vector<qgraphplot::QScaleEngine::TickInfo> m_tickInfos;

@@ -19,6 +19,7 @@
 
 #include "QAbstractSeries.h"
 
+#include <cmath>
 #include <utility>
 
 namespace qgraphplot
@@ -79,6 +80,49 @@ void QAbstractSeries::setVisible(bool visible)
     }
     m_visible = visible;
     Q_EMIT visibleChanged(m_visible);
+}
+
+void QAbstractSeries::setLineWidth(double lineWidth)
+{
+    if (!std::isfinite(lineWidth) || lineWidth <= 0.0) {
+        qWarning("QAbstractSeries::setLineWidth: lineWidth must be finite and > 0");
+        return;
+    }
+    if (qFuzzyCompare(m_lineWidth, lineWidth)) {
+        return;
+    }
+    m_lineWidth = lineWidth;
+    Q_EMIT lineWidthChanged(m_lineWidth);
+}
+
+void QAbstractSeries::setDashPattern(const QList<qreal>& dashPattern)
+{
+    if (!isValidDashPattern(dashPattern)) {
+        qWarning("QAbstractSeries::setDashPattern: pattern must have an even number of finite, "
+                 "positive entries");
+        return;
+    }
+    if (m_dashPattern == dashPattern) {
+        return;
+    }
+    m_dashPattern = dashPattern;
+    Q_EMIT dashPatternChanged();
+}
+
+bool QAbstractSeries::isValidDashPattern(const QList<qreal>& dashPattern)
+{
+    if (dashPattern.isEmpty()) {
+        return true;  // Solid line.
+    }
+    if (dashPattern.size() % 2 != 0) {
+        return false;
+    }
+    for (const qreal length : dashPattern) {
+        if (!std::isfinite(length) || length <= 0.0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace qgraphplot

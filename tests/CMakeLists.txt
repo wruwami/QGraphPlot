@@ -47,6 +47,12 @@ qt_add_test(TestAbstractSeries
     LIBRARIES ${_test_libs}
 )
 
+# ── TestTheme ─────────────────────────────────────────────────
+qt_add_test(TestTheme
+    SOURCES TestTheme.cpp
+    LIBRARIES ${_test_libs}
+)
+
 # The test sources include a private .moc include at the bottom which
 # expects AUTOMOC to have processed the corresponding .cpp. qt_add_test
 # enables AUTOMOC by default for the target, so no extra setup is needed.

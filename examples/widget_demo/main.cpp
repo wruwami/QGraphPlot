@@ -19,6 +19,7 @@
 
 #include <QtWidgets/QApplication>
 
+#include "theme/QGraphPlotTheme.h"
 #include "WidgetChartView.h"
 
 int main(int argc, char* argv[])
@@ -26,7 +27,14 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
 
     qgraphplot::WidgetChartView chart;
-    chart.setWindowTitle("QGraphPlot Widget Demo — Phase 0.8 Stub");
+
+    // The Widget view consumes the same core theme object as the QML demo,
+    // so canvas / plot-area colors match across frontends (AI.md §3.1).
+    qgraphplot::QGraphPlotTheme theme(&chart);
+    theme.applyPreset(qgraphplot::QGraphPlotTheme::Preset::Dark);
+    chart.setTheme(&theme);
+
+    chart.setWindowTitle("QGraphPlot Widget Demo — themed canvas");
     chart.resize(800, 600);
     chart.show();
 

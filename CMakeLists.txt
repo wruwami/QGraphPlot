@@ -62,7 +62,7 @@ endif()
 # ── Qt 찾기 (AI.md §1.3: Qt 6.7+) ────────────────────────────
 set(QT_COMPONENTS Core Gui Widgets)
 if(QGRAPHPLOT_BUILD_QML_FRONTEND)
-    list(APPEND QT_COMPONENTS Quick QuickControls2)
+    list(APPEND QT_COMPONENTS Qml Quick QuickControls2)
 endif()
 if(QGRAPHPLOT_BUILD_TESTS)
     list(APPEND QT_COMPONENTS Test)

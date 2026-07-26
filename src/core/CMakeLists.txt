@@ -39,6 +39,8 @@ set(_core_sources
     transform/QScaleEngine.cpp
     series/QAbstractSeries.h
     series/QAbstractSeries.cpp
+    theme/QGraphPlotTheme.h
+    theme/QGraphPlotTheme.cpp
 )
 
 set(_core_public_headers
@@ -48,12 +50,18 @@ set(_core_public_headers
     transform/QCoordinateTransform.h
     transform/QScaleEngine.h
     series/QAbstractSeries.h
+    theme/QGraphPlotTheme.h
 )
 
 qt_add_library(QGraphPlotCore ${_core_lib_type}
     ${_core_sources}
 )
 set_target_properties(QGraphPlotCore PROPERTIES AUTOMOC ON)
+
+# Emit the metatypes JSON for this target so the QML module can re-export core
+# types (QGraphPlotTheme) with QML_FOREIGN — qmltyperegistrar resolves foreign
+# types only from the metatypes of the libraries it links against.
+qt_extract_metatypes(QGraphPlotCore)
 
 # ── Private compile definition: BUILDING_LIB ─────────────────
 # Inside this target QGRAPHPLOT_EXPORT expands to Q_DECL_EXPORT.

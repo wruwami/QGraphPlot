@@ -1,12 +1,45 @@
 #include "qmlchartview.h"
 
 #include <QtCore/qmath.h>
+#include <QtQuick/QSGSimpleRectNode>
 
 QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
 {
-    // QQuickItem의 QSG 노드를 사용해 배경 등을 렌더링하고 싶을 경우 활용할 수 있으나,
-    // 현재는 자식 렌더 아이템들의 레이아웃 및 뷰포트 영역 정보 관리를 주 목적으로 함.
-    setFlag(ItemHasContents, false);
+    // 배경(전체 아이템)과 플롯 영역(마진 제외 영역)을 테마 색상으로 직접 렌더링한다.
+    // 테마가 없으면 updatePaintNode가 nullptr을 반환하여 투명하게 유지된다.
+    setFlag(ItemHasContents, true);
+}
+
+void QmlChartView::setTheme(qgraphplot::QGraphPlotTheme* theme)
+{
+    if (m_theme == theme) {
+        return;
+    }
+    if (m_theme) {
+        disconnect(m_theme, nullptr, this, nullptr);
+    }
+    m_theme = theme;
+    applyThemeConnections();
+    emit themeChanged();
+    update();
+}
+
+void QmlChartView::applyThemeConnections()
+{
+    if (!m_theme) {
+        return;
+    }
+    connect(m_theme,
+            &qgraphplot::QGraphPlotTheme::themeChanged,
+            this,
+            &QQuickItem::update,
+            Qt::UniqueConnection);
+    // A theme destroyed while still assigned must repaint (QPointer nulls
+    // itself, so the next updatePaintNode drops the background nodes).
+    connect(m_theme, &QObject::destroyed, this, [this]() {
+        emit themeChanged();
+        update();
+    });
 }
 
 void QmlChartView::setXMin(double val)
@@ -52,6 +85,7 @@ void QmlChartView::setMarginLeft(double val)
         m_marginLeft = val;
         emit marginsChanged();
         emit transformChanged();
+        update();
     }
 }
 
@@ -61,6 +95,7 @@ void QmlChartView::setMarginRight(double val)
         m_marginRight = val;
         emit marginsChanged();
         emit transformChanged();
+        update();
     }
 }
 
@@ -70,6 +105,7 @@ void QmlChartView::setMarginTop(double val)
         m_marginTop = val;
         emit marginsChanged();
         emit transformChanged();
+        update();
     }
 }
 
@@ -79,6 +115,7 @@ void QmlChartView::setMarginBottom(double val)
         m_marginBottom = val;
         emit marginsChanged();
         emit transformChanged();
+        update();
     }
 }
 
@@ -101,5 +138,41 @@ void QmlChartView::geometryChange(const QRectF& newGeometry, const QRectF& oldGe
     QQuickItem::geometryChange(newGeometry, oldGeometry);
     if (newGeometry.size() != oldGeometry.size()) {
         emit transformChanged();
+        update();
     }
+}
+
+QSGNode* QmlChartView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData)
+{
+    Q_UNUSED(updateData);
+
+    if (!m_theme || width() <= 0.0 || height() <= 0.0) {
+        delete oldNode;
+        return nullptr;
+    }
+
+    // 노드 트리: root ─┬─ background (아이템 전체)
+    //                  └─ plotArea   (마진 제외 영역)
+    QSGNode* root = oldNode;
+    QSGSimpleRectNode* background = nullptr;
+    QSGSimpleRectNode* plotAreaNode = nullptr;
+
+    if (!root) {
+        root = new QSGNode();
+        background = new QSGSimpleRectNode();
+        plotAreaNode = new QSGSimpleRectNode();
+        root->appendChildNode(background);
+        root->appendChildNode(plotAreaNode);
+    } else {
+        background = static_cast<QSGSimpleRectNode*>(root->firstChild());
+        plotAreaNode = static_cast<QSGSimpleRectNode*>(root->lastChild());
+    }
+
+    background->setRect(QRectF(0.0, 0.0, width(), height()));
+    background->setColor(m_theme->backgroundColor());
+
+    plotAreaNode->setRect(plotArea());
+    plotAreaNode->setColor(m_theme->plotAreaColor());
+
+    return root;
 }

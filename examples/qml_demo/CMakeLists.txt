@@ -31,4 +31,5 @@ qt_add_qml_module(qml_demo
         StreamingDataSource.cpp
     QML_FILES
         main.qml
+        DemoButton.qml
 )

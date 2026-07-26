@@ -1,9 +1,76 @@
 #include "qmllineseries.h"
 
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
 #include <QtQuick/QSGFlatColorMaterial>
 #include <QtQuick/QSGGeometryNode>
 
 #include "qmlchartview.h"
+#include "series/QAbstractSeries.h"
+
+namespace
+{
+
+//! Upper bound on the vertices a dashed line may expand to. A very short
+//! dash pattern over a long polyline could otherwise allocate unboundedly;
+//! beyond this the tail is dropped rather than stalling the render thread.
+constexpr size_t kMaxDashVertices = 1u << 21;
+
+//! Splits @p pixels into dash segments (2 vertices per segment).
+//!
+//! Pattern lengths follow QPen::setDashPattern(): they are multiples of the
+//! stroke width, so the same pattern looks identical at any lineWidth — and
+//! identical to what QPen will draw in the Widget frontend (AI.md §3.1).
+std::vector<QSGGeometry::Point2D>
+tessellateDashes(const std::vector<QPointF>& pixels, const QList<qreal>& pattern, double lineWidth)
+{
+    std::vector<QSGGeometry::Point2D> vertices;
+    if (pixels.size() < 2 || pattern.isEmpty()) {
+        return vertices;
+    }
+
+    qsizetype patternIndex = 0;
+    bool penDown = true;  // Even pattern entries are dashes, odd ones are gaps.
+    double remaining = pattern.at(0) * lineWidth;
+
+    for (size_t i = 1; i < pixels.size(); ++i) {
+        QPointF from = pixels[i - 1];
+        const QPointF to = pixels[i];
+        double segmentLength = std::hypot(to.x() - from.x(), to.y() - from.y());
+        if (!std::isfinite(segmentLength) || segmentLength <= 0.0) {
+            continue;
+        }
+
+        while (segmentLength > 0.0) {
+            if (vertices.size() + 2 > kMaxDashVertices) {
+                return vertices;
+            }
+            const double step = std::min(remaining, segmentLength);
+            const double ratio = step / segmentLength;
+            const QPointF next = from + (to - from) * ratio;
+
+            if (penDown) {
+                vertices.push_back({static_cast<float>(from.x()), static_cast<float>(from.y())});
+                vertices.push_back({static_cast<float>(next.x()), static_cast<float>(next.y())});
+            }
+
+            segmentLength -= step;
+            remaining -= step;
+            from = next;
+
+            if (remaining <= 0.0) {
+                patternIndex = (patternIndex + 1) % pattern.size();
+                penDown = (patternIndex % 2 == 0);
+                remaining = pattern.at(patternIndex) * lineWidth;
+            }
+        }
+    }
+    return vertices;
+}
+
+}  // namespace
 
 QmlLineSeries::QmlLineSeries(QQuickItem* parent) : QQuickItem(parent)
 {
@@ -36,6 +103,33 @@ void QmlLineSeries::setName(const QString& name)
     if (m_name != name) {
         m_name = name;
         emit nameChanged();
+    }
+}
+
+void QmlLineSeries::setLineWidth(double lineWidth)
+{
+    if (!std::isfinite(lineWidth) || lineWidth <= 0.0) {
+        qWarning("QmlLineSeries::setLineWidth: lineWidth must be finite and > 0");
+        return;
+    }
+    if (!qFuzzyCompare(m_lineWidth, lineWidth)) {
+        m_lineWidth = lineWidth;
+        emit lineWidthChanged();
+        update();
+    }
+}
+
+void QmlLineSeries::setDashPattern(const QList<qreal>& dashPattern)
+{
+    if (!qgraphplot::QAbstractSeries::isValidDashPattern(dashPattern)) {
+        qWarning("QmlLineSeries::setDashPattern: pattern must have an even number of finite, "
+                 "positive entries");
+        return;
+    }
+    if (m_dashPattern != dashPattern) {
+        m_dashPattern = dashPattern;
+        emit dashPatternChanged();
+        update();
     }
 }
 
@@ -135,23 +229,44 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
 
     const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const qsizetype count = m_model->pointCount();
+    if (count > INT_MAX) {
+        delete oldNode;
+        return nullptr;
+    }
 
-    // 3. Scene Graph 노드 생성 및 재활용
+    // 3. dash 패턴이 있을 때만 픽셀 좌표를 모아 선분 단위로 분할한다.
+    //    solid는 중간 버퍼 없이 정점에 지점 쓴다 (60fps hot path).
+    const bool dashed = !m_dashPattern.isEmpty();
+    std::vector<QSGGeometry::Point2D> dashVertices;
+    if (dashed) {
+        std::vector<QPointF> pixels;
+        pixels.reserve(static_cast<size_t>(count));
+        for (qsizetype i = 0; i < count; ++i) {
+            pixels.push_back(transform.toPixel(m_model->pointAt(i)));
+        }
+        dashVertices = tessellateDashes(pixels, m_dashPattern, m_lineWidth);
+        if (dashVertices.empty()) {
+            delete oldNode;
+            return nullptr;
+        }
+    }
+
+    const size_t vertexCount = dashed ? dashVertices.size() : static_cast<size_t>(count);
+    if (vertexCount > static_cast<size_t>(INT_MAX)) {
+        delete oldNode;
+        return nullptr;
+    }
+    const QSGGeometry::DrawingMode drawingMode =
+        dashed ? QSGGeometry::DrawLines : QSGGeometry::DrawLineStrip;
+
+    // 5. Scene Graph 노드 생성 및 재활용
     QSGGeometryNode* node = static_cast<QSGGeometryNode*>(oldNode);
     QSGGeometry* geometry = nullptr;
 
     if (!node) {
         node = new QSGGeometryNode();
-
-        // 2D 포인트 포맷 사용, 라인 스트립으로 연속 선 그리기
-        if (count > INT_MAX) {
-            delete node;
-            return nullptr;
-        }
-        geometry =
-            new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), static_cast<int>(count));
-        geometry->setLineWidth(2.0f);
-        geometry->setDrawingMode(QSGGeometry::DrawLineStrip);
+        geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(),
+                                   static_cast<int>(vertexCount));
         node->setGeometry(geometry);
         node->setFlag(QSGNode::OwnsGeometry);
 
@@ -163,23 +278,29 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     } else {
         geometry = node->geometry();
         // 포인트 개수 변화 대응
-        if (geometry->vertexCount() != static_cast<int>(count)) {
-            geometry->allocate(static_cast<int>(count));
+        if (geometry->vertexCount() != static_cast<int>(vertexCount)) {
+            geometry->allocate(static_cast<int>(vertexCount));
         }
 
         QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
-        if (material) {
+        if (material && material->color() != m_color) {
             material->setColor(m_color);
             node->markDirty(QSGNode::DirtyMaterial);
         }
     }
 
-    // 4. 버퍼 좌표 대입 및 스케일링
+    geometry->setLineWidth(static_cast<float>(m_lineWidth));
+    geometry->setDrawingMode(static_cast<unsigned int>(drawingMode));
+
+    // 6. 버퍼 좌표 대입
     QSGGeometry::Point2D* vertices = geometry->vertexDataAsPoint2D();
-    for (qsizetype i = 0; i < count; ++i) {
-        const QPointF dataPt = m_model->pointAt(i);
-        const QPointF pixelPt = transform.toPixel(dataPt);
-        vertices[i].set(static_cast<float>(pixelPt.x()), static_cast<float>(pixelPt.y()));
+    if (dashed) {
+        std::copy(dashVertices.begin(), dashVertices.end(), vertices);
+    } else {
+        for (qsizetype i = 0; i < count; ++i) {
+            const QPointF pixelPt = transform.toPixel(m_model->pointAt(i));
+            vertices[i].set(static_cast<float>(pixelPt.x()), static_cast<float>(pixelPt.y()));
+        }
     }
 
     node->markDirty(QSGNode::DirtyGeometry);

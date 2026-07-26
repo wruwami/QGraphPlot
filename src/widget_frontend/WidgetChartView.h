@@ -22,9 +22,11 @@
 
 #include <QtCore/QHash>
 #include <QtCore/QMetaObject>
+#include <QtCore/QPointer>
 #include <QtWidgets/QWidget>
 
 #include "series/QAbstractSeries.h"
+#include "theme/QGraphPlotTheme.h"
 #include "transform/QCoordinateTransform.h"
 
 namespace qgraphplot
@@ -50,6 +52,8 @@ class WidgetChartView : public QWidget
     Q_PROPERTY(double marginTop READ marginTop WRITE setMarginTop NOTIFY marginsChanged)
     Q_PROPERTY(double marginBottom READ marginBottom WRITE setMarginBottom NOTIFY marginsChanged)
 
+    Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
+
 public:
     explicit WidgetChartView(QWidget* parent = nullptr);
     ~WidgetChartView() override;
@@ -70,6 +74,10 @@ public:
     [[nodiscard]] double marginTop() const noexcept { return m_marginTop; }
     [[nodiscard]] double marginBottom() const noexcept { return m_marginBottom; }
 
+    //! Visual style, the very same type the QML frontend consumes (AI.md
+    //! §3.1). Null (the default) keeps the widget's palette background.
+    [[nodiscard]] QGraphPlotTheme* theme() const noexcept { return m_theme; }
+
     // Setters
     void setXMin(double val);
     void setXMax(double val);
@@ -80,6 +88,8 @@ public:
     void setMarginRight(double val);
     void setMarginTop(double val);
     void setMarginBottom(double val);
+
+    void setTheme(QGraphPlotTheme* theme);
 
     // Child series management (stub)
     void addSeries(QAbstractSeries* aSeries);
@@ -98,6 +108,7 @@ signals:
     void yMaxChanged();
     void marginsChanged();
     void transformChanged();
+    void themeChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
 
@@ -106,6 +117,10 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
+    // QPointer: the theme is typically owned by the application, not by the
+    // view, so either object may be destroyed first.
+    QPointer<QGraphPlotTheme> m_theme;
+
     double m_xMin{0.0};
     double m_xMax{10.0};
     double m_yMin{0.0};
