@@ -154,7 +154,8 @@ void QmlAxis::updateTicks()
     const bool ticksEqual = tickInfosEqual(newTicks, m_tickInfos);
     // Use absolute epsilon comparison for range equality (simpler and more
     // robust than qFuzzyCompare, which fails when values are near zero).
-    const bool rangeEqual = (qAbs(min - m_previousMin) < 1e-10) && (qAbs(max - m_previousMax) < 1e-10);
+    const bool rangeEqual =
+        (qAbs(min - m_previousMin) < 1e-10) && (qAbs(max - m_previousMax) < 1e-10);
     const bool geometryOnlyChange = (ticksEqual && rangeEqual && !m_tickInfos.empty());
 
     if (!ticksEqual || geometryOnlyChange) {
