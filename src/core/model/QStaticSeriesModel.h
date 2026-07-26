@@ -34,8 +34,8 @@
 #ifndef QGRAPHPLOT_STATICSERIESMODEL_H
 #define QGRAPHPLOT_STATICSERIESMODEL_H
 
-#include <vector>
 #include <iterator>
+#include <vector>
 
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>

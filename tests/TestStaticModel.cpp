@@ -20,8 +20,8 @@
 //! Covers setPoints, append, appendBatch, replacePoint, clear, reserve,
 //! bounds tracking, and signal emission (issue #62).
 
-#include <list>
 #include <limits>
+#include <list>
 #include <vector>
 
 #include <QtTest/QtTest>
@@ -297,7 +297,8 @@ void TestStaticModel::pointAtReturnsCorrectValue()
 void TestStaticModel::pointsRangeReturnsContiguousSpan()
 {
     QStaticSeriesModel model;
-    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)};
+    std::vector<QPointF> pts = {
+        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)};
     model.setPoints(pts);
 
     auto span = model.points(1, 2);
