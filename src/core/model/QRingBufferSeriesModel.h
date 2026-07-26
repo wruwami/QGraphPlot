@@ -35,6 +35,7 @@
 #ifndef QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 #define QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 
+#include <deque>
 #include <memory>
 #include <vector>
 
@@ -134,14 +135,28 @@ public:
     }
 
 private:
-    //! Recompute m_bounds from scratch (O(n)). Called when incremental
-    //! bound tracking would be more expensive than a full rescan
-    //! (e.g. after clear or large eviction).
-    void recomputeBounds() noexcept;
+    //! One candidate for a running min/max: the value, tagged with the
+    //! point's global push order (see m_nextPushIndex) so a stale entry
+    //! evicted from the ring can be recognized and dropped from the deque.
+    struct BoundCandidate
+    {
+        qint64 pushIndex;
+        qreal value;
+    };
 
-    //! Adjusts m_bounds incrementally to include @p pt. Cheap when the
-    //! new point lies within or just outside the current bounds.
-    void expandBounds(QPointF pt) noexcept;
+    //! Sliding-window min/max tracking (#37): each deque stays monotonic
+    //! (increasing for the min-trackers, decreasing for the max-trackers) so
+    //! the current min/max is always the front. Pushing a point pops any
+    //! back entries it invalidates; evicting points pops any front entries
+    //! whose pushIndex has fallen out of the live window. Every point enters
+    //! and leaves each deque at most once, so a batch of N appends/evictions
+    //! costs O(N) total instead of an O(capacity) rescan.
+    static void pushMinCandidate(std::deque<BoundCandidate>& dq, qint64 pushIndex, qreal value);
+    static void pushMaxCandidate(std::deque<BoundCandidate>& dq, qint64 pushIndex, qreal value);
+    void evictStaleCandidates(std::deque<BoundCandidate>& dq) noexcept;
+
+    //! Recomputes m_bounds from the four deques' front elements (O(1)).
+    void updateBoundsCache() noexcept;
 
     const qsizetype m_capacity;
     const ThreadSafety m_threadSafety;
@@ -155,6 +170,15 @@ private:
     //! Number of live points (<= capacity).
     qsizetype m_size = 0;
     QRectF m_bounds;
+
+    //! Total points ever appended (monotonically increasing, never wraps
+    //! back with the ring); used as a stable identity for bound candidates
+    //! independent of physical/logical ring position.
+    qint64 m_nextPushIndex = 0;
+    std::deque<BoundCandidate> m_minXCandidates;
+    std::deque<BoundCandidate> m_maxXCandidates;
+    std::deque<BoundCandidate> m_minYCandidates;
+    std::deque<BoundCandidate> m_maxYCandidates;
 };
 
 }  // namespace qgraphplot

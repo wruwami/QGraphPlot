@@ -20,6 +20,9 @@
 //! Covers append, overflow eviction, range queries, bounds tracking, clear,
 //! and signal emission. Companion to Phase 0.2 (issue #3).
 
+#include <algorithm>
+#include <deque>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -71,6 +74,9 @@ private slots:
 
     // ─ Thread safety (#33) ─────────────────────────────────
     void threadSafeAppendFromMultipleThreads();
+
+    // ─ Incremental bounds (#37) ────────────────────────────
+    void boundsIncrementalMatchesBruteForceUnderEviction();
 };
 
 void TestRingBuffer::initTestCase()
@@ -365,6 +371,52 @@ void TestRingBuffer::threadSafeAppendFromMultipleThreads()
     }
 
     QCOMPARE(rb.pointCount(), qsizetype(kThreadCount * kAppendsPerThread));
+}
+
+void TestRingBuffer::boundsIncrementalMatchesBruteForceUnderEviction()
+{
+    // Regression test for #37: cross-validates the O(1) incremental
+    // min/max tracking (monotonic deques) against a brute-force scan over
+    // a shadow FIFO, across many pushes and evictions -- including cases
+    // where the evicted point was the current min or max, which is
+    // exactly the scenario the old O(capacity) recomputeBounds() existed
+    // to handle correctly.
+    constexpr qsizetype kCapacity = 37;  // deliberately not a power of two
+    QRingBufferSeriesModel rb(kCapacity);
+    std::deque<QPointF> shadow;
+
+    // Simple deterministic PRNG (LCG) instead of <random> so the test is
+    // reproducible across platforms/toolchains without seeding concerns.
+    quint32 state = 12345u;
+    auto nextValue = [&state]() -> double {
+        state = state * 1664525u + 1013904223u;
+        return (static_cast<double>(state) / static_cast<double>(std::numeric_limits<quint32>::max()))
+                   * 200.0 -
+               100.0;  // range roughly [-100, 100]
+    };
+
+    for (int i = 0; i < 500; ++i) {
+        const QPointF pt(nextValue(), nextValue());
+        rb.append(pt);
+
+        shadow.push_back(pt);
+        if (shadow.size() > static_cast<size_t>(kCapacity)) {
+            shadow.pop_front();
+        }
+
+        qreal minX = shadow.front().x();
+        qreal maxX = minX;
+        qreal minY = shadow.front().y();
+        qreal maxY = minY;
+        for (const QPointF& p : shadow) {
+            minX = std::min(minX, p.x());
+            maxX = std::max(maxX, p.x());
+            minY = std::min(minY, p.y());
+            maxY = std::max(maxY, p.y());
+        }
+        const QRectF expected(minX, minY, maxX - minX, maxY - minY);
+        QCOMPARE(rb.bounds(), expected);
+    }
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)
