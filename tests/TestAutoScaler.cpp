@@ -39,11 +39,11 @@ namespace
 
 //! Builds a series backed by a QStaticSeriesModel loaded with @p points.
 //! Both objects are parented to @p owner for RAII cleanup.
-QLineSeries* makeSeries(QObject& owner, const QList<QPointF>& points)
+QLineSeries* makeSeries(QObject* owner, const QList<QPointF>& points)
 {
-    auto* model = new QStaticSeriesModel(&owner);
+    auto* model = new QStaticSeriesModel(owner);
     model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
-    auto* series = new QLineSeries(&owner);
+    auto* series = new QLineSeries(owner);
     series->setModel(model);
     return series;
 }
