@@ -212,7 +212,10 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     {
         QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
         QCoordinateTransform trans(
-            QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0), pixelRect, false, false);
+            QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0),
+            pixelRect,
+            false,
+            false);
         const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
         QCOMPARE(p.x(), 100.0);
         QCOMPARE(p.y(), 50.0);
