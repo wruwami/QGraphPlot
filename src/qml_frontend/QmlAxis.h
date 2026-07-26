@@ -1,5 +1,5 @@
-#ifndef QMLAXIS_H
-#define QMLAXIS_H
+#ifndef QGRAPHPLOT_QMLAXIS_H
+#define QGRAPHPLOT_QMLAXIS_H
 
 #include <QtCore/QPointer>
 #include <QtCore/QVariantList>
@@ -102,4 +102,4 @@ private:
 
 }  // namespace qgraphplot
 
-#endif  // QMLAXIS_H
+#endif  // QGRAPHPLOT_QMLAXIS_H

@@ -12,9 +12,9 @@ qt_add_qml_module(qml_frontend
     DEPENDENCIES
         QtQuick
     SOURCES
-        qmlchartview.h qmlchartview.cpp
-        qmllineseries.h qmllineseries.cpp
-        qmlaxis.h qmlaxis.cpp
+        QmlChartView.h QmlChartView.cpp
+        QmlLineSeries.h QmlLineSeries.cpp
+        QmlAxis.h QmlAxis.cpp
         QmlTheme.h
     QML_FILES
         qml/QGraphPlot/ChartView.qml

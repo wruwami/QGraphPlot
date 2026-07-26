@@ -1,4 +1,4 @@
-#include "qmllineseries.h"
+#include "QmlLineSeries.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,8 +7,7 @@
 #include <QtQuick/QSGFlatColorMaterial>
 #include <QtQuick/QSGGeometryNode>
 
-#include "qmlchartview.h"
-#include "series/QAbstractSeries.h"
+#include "QmlChartView.h"
 
 namespace qgraphplot
 {
@@ -75,10 +74,35 @@ tessellateDashes(const std::vector<QPointF>& pixels, const QList<qreal>& pattern
 
 }  // namespace
 
-QmlLineSeries::QmlLineSeries(QQuickItem* parent) : QQuickItem(parent)
+QmlLineSeries::QmlLineSeries(QQuickItem* parent)
+    : QQuickItem(parent), m_series(new QLineSeries(this))
 {
     // updatePaintNode가 호출되도록 설정
     setFlag(ItemHasContents, true);
+
+    // Core 시리즈의 NOTIFY 시그널을 이 QML 항목으로 전달(forward)한다.
+    // Q_PROPERTY NOTIFY는 아래 무인자 시그널을 가리키며, Qt는 인자가 있는
+    // 시그널을 인자가 없는 시그널에 연결하는 것을 허용하므로 기존 QML
+    // 핸들러(onColorChanged: 등)와 하위 호환된다. 검증·change-guard는
+    // core 한 곳에서만 수행된다 (#57).
+    connectForwardingSignals();
+
+    // 프로퍼티 변경 시 씬그래프 노드를 다시 그린다. 컴포지션 구조에서는
+    // setter가 core에 위임하므로, 렌더 갱신 트거도 core 시그널에서 발생한다.
+    connect(m_series, &QLineSeries::colorChanged, this, [this]() { update(); });
+    connect(m_series, &QLineSeries::lineWidthChanged, this, [this]() { update(); });
+    connect(m_series, &QLineSeries::dashPatternChanged, this, [this]() { update(); });
+    connect(m_series, &QLineSeries::visibleChanged, this, [this]() { update(); });
+    connect(m_series, &QLineSeries::opacityChanged, this, [this]() { update(); });
+    // modelChanged는 모델 시그널 재연결까지 담당하므로 별도 처리.
+    connect(m_series, &QLineSeries::modelChanged, this, [this]() {
+        disconnectModelSignals();
+        connectModelSignals();
+        update();
+    });
+
+    // 초기 모델(있다면)의 데이터 시그널을 연결한다.
+    connectModelSignals();
 }
 
 QmlLineSeries::~QmlLineSeries()
@@ -89,104 +113,54 @@ QmlLineSeries::~QmlLineSeries()
     }
 }
 
-void QmlLineSeries::setModel(qgraphplot::QAbstractSeriesModel* model)
+void QmlLineSeries::connectForwardingSignals()
 {
-    if (m_model != model) {
-        disconnectModelSignals();
-        m_model = model;
-        connectModelSignals();
-        emit modelChanged();
-        update();
-    }
-}
-
-void QmlLineSeries::setColor(const QColor& color)
-{
-    if (m_color != color) {
-        m_color = color;
-        emit colorChanged();
-        update();
-    }
-}
-
-void QmlLineSeries::setName(const QString& name)
-{
-    if (m_name != name) {
-        m_name = name;
-        emit nameChanged();
-    }
-}
-
-void QmlLineSeries::setLineWidth(double lineWidth)
-{
-    if (!std::isfinite(lineWidth) || lineWidth <= 0.0) {
-        qWarning("QmlLineSeries::setLineWidth: lineWidth must be finite and > 0");
-        return;
-    }
-    if (!qFuzzyCompare(m_lineWidth, lineWidth)) {
-        m_lineWidth = lineWidth;
-        emit lineWidthChanged();
-        update();
-    }
-}
-
-void QmlLineSeries::setDashPattern(const QList<qreal>& dashPattern)
-{
-    if (!qgraphplot::QAbstractSeries::isValidDashPattern(dashPattern)) {
-        qWarning("QmlLineSeries::setDashPattern: pattern must have an even number of finite, "
-                 "positive entries");
-        return;
-    }
-    if (m_dashPattern != dashPattern) {
-        m_dashPattern = dashPattern;
-        emit dashPatternChanged();
-        update();
-    }
+    // Core QLineSeries 시그널 → QmlLineSeries NOTIFY 시그널 전달.
+    // 인자형 시그널을 무인자 시그널로 연결(Qt 허용).
+    connect(m_series, &QLineSeries::modelChanged, this, &QmlLineSeries::modelChanged);
+    connect(m_series, &QLineSeries::colorChanged, this, &QmlLineSeries::colorChanged);
+    connect(m_series, &QLineSeries::nameChanged, this, &QmlLineSeries::nameChanged);
+    connect(m_series, &QLineSeries::lineWidthChanged, this, &QmlLineSeries::lineWidthChanged);
+    connect(m_series, &QLineSeries::dashPatternChanged, this, &QmlLineSeries::dashPatternChanged);
+    connect(m_series, &QLineSeries::opacityChanged, this, &QmlLineSeries::opacityChanged);
 }
 
 void QmlLineSeries::connectModelSignals()
 {
-    if (m_model) {
-        connect(m_model,
+    auto* model = m_series->model();
+    if (model) {
+        connect(model,
                 &qgraphplot::QAbstractSeriesModel::dataChanged,
                 this,
                 &QmlLineSeries::handleDataChanged,
                 Qt::UniqueConnection);
-        connect(m_model,
+        connect(model,
                 &qgraphplot::QAbstractSeriesModel::pointsInserted,
                 this,
                 &QmlLineSeries::handleDataChanged,
                 Qt::UniqueConnection);
-        connect(m_model,
+        connect(model,
                 &qgraphplot::QAbstractSeriesModel::pointsRemoved,
                 this,
                 &QmlLineSeries::handleDataChanged,
                 Qt::UniqueConnection);
-        connect(m_model,
+        connect(model,
                 &qgraphplot::QAbstractSeriesModel::boundsChanged,
                 this,
                 &QmlLineSeries::handleDataChanged,
                 Qt::UniqueConnection);
-        connect(m_model,
-                &QObject::destroyed,
-                this,
-                &QmlLineSeries::handleModelReset,
-                Qt::UniqueConnection);
+        // NOTE: model destroyed 처리는 core QAbstractSeries::setModel 이 이미
+        // 수행한다(m_model 포인터 null화 + modelChanged emit). 여기서는 중복
+        // 연결하지 않는다.
     }
 }
 
 void QmlLineSeries::disconnectModelSignals()
 {
-    if (m_model) {
-        disconnect(m_model, nullptr, this, nullptr);
+    auto* model = m_series->model();
+    if (model) {
+        disconnect(model, nullptr, this, nullptr);
     }
-}
-
-void QmlLineSeries::handleModelReset()
-{
-    m_model = nullptr;
-    emit modelChanged();
-    update();
 }
 
 void QmlLineSeries::handleDataChanged()
@@ -225,8 +199,26 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
 {
     Q_UNUSED(updateData);
 
+    // 0. core 시리즈가 보이지 않으면 렌더링하지 않는다 (#57 완료기준).
+    //    QQuickItem::isVisible() 와 별개로, core visible=false 인 시리즈는
+    //    축 autoscale 에는 참여하되 그려지지 않는다 (QAbstractSeries 문서 참고).
+    if (!m_series->isVisible()) {
+        delete oldNode;
+        return nullptr;
+    }
+
+    // 핫패스 반복 호출을 피해 core 프로퍼티를 한 번 캐시한다.
+    auto* model = m_series->model();
+    const double lineWidth = m_series->lineWidth();
+    const QList<qreal>& dashPattern = m_series->dashPattern();
+    // opacity(0.0–1.0)를 색 알파에 곱한다 (#71). QSGFlatColorMaterial 은
+    // QColor 의 알파 채널을 그대로 사용하며, 노드에 Opaque 플래그가 없으므로
+    // 알파 합성이 적용된다. 겹치는 시리즈가 예측 가능하게 섞인다.
+    QColor color = m_series->color();
+    color.setAlphaF(color.alphaF() * m_series->opacity());
+
     // 1. 그릴 데이터가 없는 경우
-    if (!m_model || m_model->pointCount() == 0) {
+    if (!model || model->pointCount() == 0) {
         delete oldNode;
         return nullptr;
     }
@@ -239,7 +231,7 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     }
 
     const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
-    const qsizetype count = m_model->pointCount();
+    const qsizetype count = model->pointCount();
     if (count > INT_MAX) {
         delete oldNode;
         return nullptr;
@@ -248,11 +240,11 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     // 3. points()는 링 버퍼가 wrap된 경우에도 항상 하나의 연속된 span을 반환하도록
     //    설계되어 있으므로(QRingBufferSeriesModel 참고), 매 포인트마다 가상함수인
     //    pointAt()을 호출하는 대신 span을 한 번만 가져와 순회한다(#36).
-    const qgraphplot::PointSpan points = m_model->points(0, count - 1);
+    const qgraphplot::PointSpan points = model->points(0, count - 1);
 
     // 4. dash 패턴이 있을 때만 픽셀 좌표를 모아 선분 단위로 분할한다.
     //    solid는 중간 버퍼 없이 정점 버퍼에 바로 쓴다 (60fps hot path).
-    const bool dashed = !m_dashPattern.isEmpty();
+    const bool dashed = !dashPattern.isEmpty();
     std::vector<QSGGeometry::Point2D> dashVertices;
     if (dashed) {
         std::vector<QPointF> pixels;
@@ -260,7 +252,7 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         for (qsizetype i = 0; i < count; ++i) {
             pixels.push_back(transform.toPixel(points[i]));
         }
-        dashVertices = tessellateDashes(pixels, m_dashPattern, m_lineWidth);
+        dashVertices = tessellateDashes(pixels, dashPattern, lineWidth);
         if (dashVertices.empty()) {
             delete oldNode;
             return nullptr;
@@ -288,7 +280,7 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
 
         // 단색 마테리얼 적용
         QSGFlatColorMaterial* material = new QSGFlatColorMaterial();
-        material->setColor(m_color);
+        material->setColor(color);
         node->setMaterial(material);
         node->setFlag(QSGNode::OwnsMaterial);
     } else {
@@ -300,13 +292,13 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         }
 
         QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
-        if (material && material->color() != m_color) {
-            material->setColor(m_color);
+        if (material && material->color() != color) {
+            material->setColor(color);
             node->markDirty(QSGNode::DirtyMaterial);
         }
     }
 
-    geometry->setLineWidth(static_cast<float>(m_lineWidth));
+    geometry->setLineWidth(static_cast<float>(lineWidth));
     geometry->setDrawingMode(static_cast<unsigned int>(drawingMode));
 
     // 6. 버퍼 좌표 대입 및 스케일링

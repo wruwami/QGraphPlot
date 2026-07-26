@@ -1,4 +1,4 @@
-#include "qmlaxis.h"
+#include "QmlAxis.h"
 
 #include <cmath>
 
@@ -6,7 +6,7 @@
 #include <QtQuick/QSGFlatColorMaterial>
 #include <QtQuick/QSGGeometryNode>
 
-#include "qmlchartview.h"
+#include "QmlChartView.h"
 
 namespace qgraphplot
 {

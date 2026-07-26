@@ -39,6 +39,8 @@ set(_core_sources
     transform/QScaleEngine.cpp
     series/QAbstractSeries.h
     series/QAbstractSeries.cpp
+    series/QLineSeries.h
+    series/QLineSeries.cpp
     theme/QGraphPlotTheme.h
     theme/QGraphPlotTheme.cpp
 )
@@ -50,6 +52,7 @@ set(_core_public_headers
     transform/QCoordinateTransform.h
     transform/QScaleEngine.h
     series/QAbstractSeries.h
+    series/QLineSeries.h
     theme/QGraphPlotTheme.h
 )
 
