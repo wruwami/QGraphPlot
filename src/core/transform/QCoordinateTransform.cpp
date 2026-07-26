@@ -38,7 +38,8 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
     if (m_dataBounds.width() <= 0.0 || m_dataBounds.height() <= 0.0 ||
         !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height())) {
         qCWarning(lcCoordinate) << "QCoordinateTransform: invalid or non-positive dataBounds"
-                                   " dimensions:" << m_dataBounds;
+                                   " dimensions:"
+                                << m_dataBounds;
     }
 
     // Validate Log boundaries (AI.md §3.3)

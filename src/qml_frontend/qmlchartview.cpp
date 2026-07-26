@@ -54,7 +54,9 @@ void QmlChartView::applyThemeConnections()
 void QmlChartView::setXMin(double val)
 {
     if (!qIsFinite(val) || val >= m_xMax) {
-        qCWarning(lcChartView) << "QmlChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_xMin, val)) {
@@ -67,7 +69,9 @@ void QmlChartView::setXMin(double val)
 void QmlChartView::setXMax(double val)
 {
     if (!qIsFinite(val) || val <= m_xMin) {
-        qCWarning(lcChartView) << "QmlChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_xMax, val)) {
@@ -80,7 +84,9 @@ void QmlChartView::setXMax(double val)
 void QmlChartView::setYMin(double val)
 {
     if (!qIsFinite(val) || val >= m_yMax) {
-        qCWarning(lcChartView) << "QmlChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_yMin, val)) {
@@ -93,7 +99,9 @@ void QmlChartView::setYMin(double val)
 void QmlChartView::setYMax(double val)
 {
     if (!qIsFinite(val) || val <= m_yMin) {
-        qCWarning(lcChartView) << "QmlChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_yMax, val)) {
@@ -106,7 +114,8 @@ void QmlChartView::setYMax(double val)
 void QmlChartView::setMarginLeft(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcChartView) << "QmlChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
@@ -120,7 +129,8 @@ void QmlChartView::setMarginLeft(double val)
 void QmlChartView::setMarginRight(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcChartView) << "QmlChartView::setMarginRight: rejected negative or non-finite margin:" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginRight: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginRight, val)) {
@@ -134,7 +144,8 @@ void QmlChartView::setMarginRight(double val)
 void QmlChartView::setMarginTop(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcChartView) << "QmlChartView::setMarginTop: rejected negative or non-finite margin:" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginTop: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginTop, val)) {
@@ -148,7 +159,8 @@ void QmlChartView::setMarginTop(double val)
 void QmlChartView::setMarginBottom(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcChartView) << "QmlChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginBottom, val)) {

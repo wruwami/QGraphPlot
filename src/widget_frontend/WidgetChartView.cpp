@@ -72,7 +72,9 @@ void WidgetChartView::setTheme(QGraphPlotTheme* theme)
 void WidgetChartView::setXMin(double val)
 {
     if (!qIsFinite(val) || val >= m_xMax) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_xMin, val)) {
@@ -86,7 +88,9 @@ void WidgetChartView::setXMin(double val)
 void WidgetChartView::setXMax(double val)
 {
     if (!qIsFinite(val) || val <= m_xMin) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_xMax, val)) {
@@ -100,7 +104,9 @@ void WidgetChartView::setXMax(double val)
 void WidgetChartView::setYMin(double val)
 {
     if (!qIsFinite(val) || val >= m_yMax) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_yMin, val)) {
@@ -114,7 +120,9 @@ void WidgetChartView::setYMin(double val)
 void WidgetChartView::setYMax(double val)
 {
     if (!qIsFinite(val) || val <= m_yMin) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):"
+            << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_yMax, val)) {
@@ -128,7 +136,8 @@ void WidgetChartView::setYMax(double val)
 void WidgetChartView::setMarginLeft(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
@@ -142,7 +151,8 @@ void WidgetChartView::setMarginLeft(double val)
 void WidgetChartView::setMarginRight(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginRight: rejected negative or non-finite margin:" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setMarginRight: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginRight, val)) {
@@ -156,7 +166,8 @@ void WidgetChartView::setMarginRight(double val)
 void WidgetChartView::setMarginTop(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginTop: rejected negative or non-finite margin:" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setMarginTop: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginTop, val)) {
@@ -170,7 +181,8 @@ void WidgetChartView::setMarginTop(double val)
 void WidgetChartView::setMarginBottom(double val)
 {
     if (!qIsFinite(val) || val < 0.0) {
-        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
         return;
     }
     if (qgraphplot::fuzzyValuesDiffer(m_marginBottom, val)) {
