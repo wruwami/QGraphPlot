@@ -151,7 +151,7 @@ jobs:
         run: >
           cmake -S examples/consumer_test -B build/consumer_build
           -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install_pkg"
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install_pkg;${QT_ROOT_DIR}"
 
       - name: Build Consumer Smoke Test
         run: cmake --build build/consumer_build --config Debug
