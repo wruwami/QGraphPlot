@@ -2,6 +2,24 @@
 
 #include <QtCore/qmath.h>
 
+namespace {
+//! qFuzzyCompare is a *relative*-epsilon comparison, so it misbehaves
+//! whenever either operand is exactly (or very near) zero: any nonzero
+//! difference against 0.0 is reported as "not equal", never "fuzzy equal"
+//! (see Qt's own docs: "comparing values where either p1 or p2 is 0.0 will
+//! not work"). QmlChartView's axes commonly start at/near 0 (e.g. the
+//! streaming demo's xMin), so every setter needs this near-zero-safe rule,
+//! not just one of them (#35).
+bool valuesDiffer(double a, double b) noexcept
+{
+    constexpr double kNearZeroEpsilon = 1e-10;
+    if (qAbs(a) < kNearZeroEpsilon || qAbs(b) < kNearZeroEpsilon) {
+        return qAbs(a - b) > kNearZeroEpsilon;
+    }
+    return !qFuzzyCompare(a, b);
+}
+}  // namespace
+
 QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
 {
     // QQuickItem의 QSG 노드를 사용해 배경 등을 렌더링하고 싶을 경우 활용할 수 있으나,
@@ -11,8 +29,7 @@ QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
 
 void QmlChartView::setXMin(double val)
 {
-    if (qAbs(m_xMin - val) > 1e-10 &&
-        (qAbs(m_xMin) < 1e-10 || qAbs(val) < 1e-10 || !qFuzzyCompare(m_xMin, val))) {
+    if (valuesDiffer(m_xMin, val)) {
         m_xMin = val;
         emit xMinChanged();
         emit transformChanged();
@@ -21,7 +38,7 @@ void QmlChartView::setXMin(double val)
 
 void QmlChartView::setXMax(double val)
 {
-    if (!qFuzzyCompare(m_xMax, val)) {
+    if (valuesDiffer(m_xMax, val)) {
         m_xMax = val;
         emit xMaxChanged();
         emit transformChanged();
@@ -30,7 +47,7 @@ void QmlChartView::setXMax(double val)
 
 void QmlChartView::setYMin(double val)
 {
-    if (!qFuzzyCompare(m_yMin, val)) {
+    if (valuesDiffer(m_yMin, val)) {
         m_yMin = val;
         emit yMinChanged();
         emit transformChanged();
@@ -39,7 +56,7 @@ void QmlChartView::setYMin(double val)
 
 void QmlChartView::setYMax(double val)
 {
-    if (!qFuzzyCompare(m_yMax, val)) {
+    if (valuesDiffer(m_yMax, val)) {
         m_yMax = val;
         emit yMaxChanged();
         emit transformChanged();
@@ -48,7 +65,7 @@ void QmlChartView::setYMax(double val)
 
 void QmlChartView::setMarginLeft(double val)
 {
-    if (!qFuzzyCompare(m_marginLeft, val)) {
+    if (valuesDiffer(m_marginLeft, val)) {
         m_marginLeft = val;
         emit marginsChanged();
         emit transformChanged();
@@ -57,7 +74,7 @@ void QmlChartView::setMarginLeft(double val)
 
 void QmlChartView::setMarginRight(double val)
 {
-    if (!qFuzzyCompare(m_marginRight, val)) {
+    if (valuesDiffer(m_marginRight, val)) {
         m_marginRight = val;
         emit marginsChanged();
         emit transformChanged();
@@ -66,7 +83,7 @@ void QmlChartView::setMarginRight(double val)
 
 void QmlChartView::setMarginTop(double val)
 {
-    if (!qFuzzyCompare(m_marginTop, val)) {
+    if (valuesDiffer(m_marginTop, val)) {
         m_marginTop = val;
         emit marginsChanged();
         emit transformChanged();
@@ -75,7 +92,7 @@ void QmlChartView::setMarginTop(double val)
 
 void QmlChartView::setMarginBottom(double val)
 {
-    if (!qFuzzyCompare(m_marginBottom, val)) {
+    if (valuesDiffer(m_marginBottom, val)) {
         m_marginBottom = val;
         emit marginsChanged();
         emit transformChanged();
