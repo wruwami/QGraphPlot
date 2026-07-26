@@ -47,6 +47,12 @@ qt_add_test(TestAbstractSeries
     LIBRARIES ${_test_libs}
 )
 
+# ── TestStaticModel ───────────────────────────────────────────
+qt_add_test(TestStaticModel
+    SOURCES TestStaticModel.cpp
+    LIBRARIES ${_test_libs}
+)
+
 # ── TestTheme ─────────────────────────────────────────────────
 qt_add_test(TestTheme
     SOURCES TestTheme.cpp

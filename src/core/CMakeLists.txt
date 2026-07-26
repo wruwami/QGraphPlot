@@ -33,6 +33,8 @@ set(_core_sources
     model/QAbstractSeriesModel.h
     model/QRingBufferSeriesModel.h
     model/QRingBufferSeriesModel.cpp
+    model/QStaticSeriesModel.h
+    model/QStaticSeriesModel.cpp
     transform/QCoordinateTransform.h
     transform/QCoordinateTransform.cpp
     transform/QScaleEngine.h
@@ -51,6 +53,7 @@ set(_core_public_headers
     qgraphplot_global.h
     model/QAbstractSeriesModel.h
     model/QRingBufferSeriesModel.h
+    model/QStaticSeriesModel.h
     transform/QCoordinateTransform.h
     transform/QScaleEngine.h
     series/QAbstractSeries.h
@@ -125,10 +128,10 @@ install(FILES qgraphplot_global.h
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/qgraphplot/qgraphplot_version.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot
 )
-install(FILES model/QAbstractSeriesModel.h model/QRingBufferSeriesModel.h
+install(FILES model/QAbstractSeriesModel.h model/QRingBufferSeriesModel.h model/QStaticSeriesModel.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/model
 )
-install(FILES series/QAbstractSeries.h series/QLineSeries.h
+install(FILES series/QAbstractSeries.h series/QLineSeries.h series/QScatterSeries.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/series
 )
 install(FILES transform/QCoordinateTransform.h transform/QScaleEngine.h
