@@ -36,6 +36,15 @@ Q_LOGGING_CATEGORY(lcRingBuffer, "qgraphplot.ringbuffer")
 // Helper RAII mutex that is a no-op when ThreadSafety::Disabled.
 // A pointer (possibly null) avoids even the atomic cost of a QMutex
 // member when locking is off.
+//
+// Every call site below declares its instance as
+// `[[maybe_unused]] const QRingBufferSeriesModelLock lock(...);` — the
+// object is never read, only relied on for its constructor/destructor
+// side effects (lock/unlock), which static analyzers (cppcheck's
+// unreadVariable) don't credit as a "use". Do not remove the attribute
+// or the variable name: an unnamed temporary would be destroyed (and
+// the mutex released) at the end of the declaration statement instead
+// of at the end of the enclosing scope.
 // ─────────────────────────────────────────────────────────────
 class QRingBufferSeriesModelLock
 {
@@ -76,20 +85,20 @@ QRingBufferSeriesModel::~QRingBufferSeriesModel() = default;
 
 qsizetype QRingBufferSeriesModel::pointCount() const
 {
-    const QRingBufferSeriesModelLock lock(m_mutex.get());
+    [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
     return m_size;
 }
 
 QPointF QRingBufferSeriesModel::pointAt(qsizetype index) const
 {
-    const QRingBufferSeriesModelLock lock(m_mutex.get());
+    [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
     Q_ASSERT(index >= 0 && index < m_size);
     return m_buffer[static_cast<size_t>((m_head + index) % m_capacity)];
 }
 
 PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const
 {
-    const QRingBufferSeriesModelLock lock(m_mutex.get());
+    [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
     Q_ASSERT(first >= 0 && last >= first && last < m_size);
 
     const qsizetype count = last - first + 1;
@@ -110,7 +119,7 @@ PointSpan QRingBufferSeriesModel::points(qsizetype first, qsizetype last) const
 
 QRectF QRingBufferSeriesModel::bounds() const
 {
-    const QRingBufferSeriesModelLock lock(m_mutex.get());
+    [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
     return m_bounds;
 }
 
@@ -125,7 +134,7 @@ void QRingBufferSeriesModel::clear()
     // object (QMutex is non-recursive), even in the single-threaded case.
     qsizetype oldSize = 0;
     {
-        const QRingBufferSeriesModelLock lock(m_mutex.get());
+        [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
         oldSize = m_size;
         m_head = 0;
         m_size = 0;
@@ -152,7 +161,7 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
     qsizetype newLast = 0;
     qsizetype newSize = 0;
     {
-        const QRingBufferSeriesModelLock lock(m_mutex.get());
+        [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
 
         // If the batch is larger than the whole buffer, only keep the tail.
         QSpan<const QPointF> src = pts;
