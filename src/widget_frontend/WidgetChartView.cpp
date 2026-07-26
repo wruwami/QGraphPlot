@@ -134,49 +134,49 @@ void WidgetChartView::setMarginBottom(double val)
     }
 }
 
-void WidgetChartView::addSeries(QAbstractSeries* series)
+void WidgetChartView::addSeries(QAbstractSeries* aSeries)
 {
-    if (!series || m_series.contains(series)) {
+    if (!aSeries || m_series.contains(aSeries)) {
         return;
     }
-    m_series.append(series);
-    series->setParent(this);
-    m_seriesDestroyedConnections[series] =
-        connect(series, &QObject::destroyed, this, [this, series](QObject*) {
-            m_series.removeAll(series);
-            m_seriesDestroyedConnections.remove(series);
+    m_series.append(aSeries);
+    aSeries->setParent(this);
+    m_seriesDestroyedConnections[aSeries] =
+        connect(aSeries, &QObject::destroyed, this, [this, aSeries](QObject*) {
+            m_series.removeAll(aSeries);
+            m_seriesDestroyedConnections.remove(aSeries);
         });
-    emit seriesAdded(series);
+    emit seriesAdded(aSeries);
     update();
 }
 
-void WidgetChartView::removeSeries(QAbstractSeries* series)
+void WidgetChartView::removeSeries(QAbstractSeries* aSeries)
 {
-    if (!m_series.contains(series)) {
+    if (!m_series.contains(aSeries)) {
         return;
     }
-    if (m_seriesDestroyedConnections.contains(series)) {
-        disconnect(m_seriesDestroyedConnections.take(series));
+    if (m_seriesDestroyedConnections.contains(aSeries)) {
+        disconnect(m_seriesDestroyedConnections.take(aSeries));
     }
-    m_series.removeOne(series);
-    if (series) {
-        series->setParent(nullptr);
+    m_series.removeOne(aSeries);
+    if (aSeries) {
+        aSeries->setParent(nullptr);
     }
-    emit seriesRemoved(series);
+    emit seriesRemoved(aSeries);
     update();
 }
 
 void WidgetChartView::clearSeries()
 {
     while (!m_series.isEmpty()) {
-        QAbstractSeries* series = m_series.takeLast();
-        if (m_seriesDestroyedConnections.contains(series)) {
-            disconnect(m_seriesDestroyedConnections.take(series));
+        QAbstractSeries* aSeries = m_series.takeLast();
+        if (m_seriesDestroyedConnections.contains(aSeries)) {
+            disconnect(m_seriesDestroyedConnections.take(aSeries));
         }
-        if (series) {
-            series->setParent(nullptr);
+        if (aSeries) {
+            aSeries->setParent(nullptr);
         }
-        emit seriesRemoved(series);
+        emit seriesRemoved(aSeries);
     }
     update();
 }

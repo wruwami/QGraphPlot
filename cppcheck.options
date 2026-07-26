@@ -33,6 +33,12 @@
 -DQ_DECL_DEPRECATED=
 -DQT_VERSION=0x060700
 -DQGRAPHPLOT_EXPORT=
+-Demit=
+-DQ_EMIT=
+-Dsignals=protected
+-DQ_SIGNALS=protected
+-Dslots=
+-DQ_SLOTS=
 
 # 억제 파일
 --suppress-xml=.cppcheck-suppressions

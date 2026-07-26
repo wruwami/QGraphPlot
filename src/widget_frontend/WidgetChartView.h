@@ -82,8 +82,8 @@ public:
     void setMarginBottom(double val);
 
     // Child series management (stub)
-    void addSeries(QAbstractSeries* series);
-    void removeSeries(QAbstractSeries* series);
+    void addSeries(QAbstractSeries* aSeries);
+    void removeSeries(QAbstractSeries* aSeries);
     void clearSeries();
     [[nodiscard]] QList<QAbstractSeries*> series() const noexcept { return m_series; }
 
@@ -98,8 +98,8 @@ signals:
     void yMaxChanged();
     void marginsChanged();
     void transformChanged();
-    void seriesAdded(qgraphplot::QAbstractSeries* series);
-    void seriesRemoved(qgraphplot::QAbstractSeries* series);
+    void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
+    void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
