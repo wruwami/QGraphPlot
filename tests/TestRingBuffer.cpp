@@ -77,6 +77,13 @@ private slots:
 
     // ─ Incremental bounds (#37) ────────────────────────────
     void boundsIncrementalMatchesBruteForceUnderEviction();
+    void boundsWithDuplicateExtremeValuesMatchesBruteForce();
+    void boundsAllPointsIdenticalStaysZeroArea();
+    void boundsWithCapacityOneAlwaysMatchesLatestPoint();
+    void clearResetsIncrementalBoundsState();
+    void boundsAfterEvictingBothMinAndMaxSimultaneously();
+    void appendBatchDuplicateExtremesWithinSingleBatch();
+    void boundsAfterBatchPartialEviction();
 };
 
 void TestRingBuffer::initTestCase()
@@ -418,6 +425,150 @@ void TestRingBuffer::boundsIncrementalMatchesBruteForceUnderEviction()
         const QRectF expected(minX, minY, maxX - minX, maxY - minY);
         QCOMPARE(rb.bounds(), expected);
     }
+}
+
+void TestRingBuffer::boundsWithDuplicateExtremeValuesMatchesBruteForce()
+{
+    // Small integer range forces frequent duplicate min/max values, which
+    // stresses the >= / <= tie-breaking in pushMinCandidate()/
+    // pushMaxCandidate(): a naive strict > / < comparison would keep a
+    // stale duplicate around that is about to be evicted, instead of
+    // discarding it in favor of the newer, equally-extreme point that will
+    // remain live longer.
+    constexpr qsizetype kCapacity = 5;
+    QRingBufferSeriesModel rb(kCapacity);
+    std::deque<QPointF> shadow;
+
+    quint32 state = 987u;
+    auto nextValue = [&state]() -> double {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<double>(state % 7) - 3.0;  // integers in [-3, 3]
+    };
+
+    for (int i = 0; i < 300; ++i) {
+        const QPointF pt(nextValue(), nextValue());
+        rb.append(pt);
+
+        shadow.push_back(pt);
+        if (shadow.size() > static_cast<size_t>(kCapacity)) {
+            shadow.pop_front();
+        }
+
+        qreal minX = shadow.front().x();
+        qreal maxX = minX;
+        qreal minY = shadow.front().y();
+        qreal maxY = minY;
+        for (const QPointF& p : shadow) {
+            minX = std::min(minX, p.x());
+            maxX = std::max(maxX, p.x());
+            minY = std::min(minY, p.y());
+            maxY = std::max(maxY, p.y());
+        }
+        const QRectF expected(minX, minY, maxX - minX, maxY - minY);
+        QCOMPARE(rb.bounds(), expected);
+    }
+}
+
+void TestRingBuffer::boundsAllPointsIdenticalStaysZeroArea()
+{
+    // Every candidate deque should collapse to a single repeated value
+    // without ever mis-evicting it, keeping a stable zero-area rect.
+    QRingBufferSeriesModel rb(4);
+    for (int i = 0; i < 10; ++i) {
+        rb.append(QPointF(7.0, -2.0));
+    }
+    QCOMPARE(rb.bounds(), QRectF(7.0, -2.0, 0.0, 0.0));
+}
+
+void TestRingBuffer::boundsWithCapacityOneAlwaysMatchesLatestPoint()
+{
+    // Capacity 1 means every append evicts the previous point, exercising
+    // evictStaleCandidates() on every single call.
+    QRingBufferSeriesModel rb(1);
+    rb.append(QPointF(1.0, 1.0));
+    QCOMPARE(rb.bounds(), QRectF(1.0, 1.0, 0.0, 0.0));
+
+    rb.append(QPointF(-5.0, 20.0));
+    QCOMPARE(rb.bounds(), QRectF(-5.0, 20.0, 0.0, 0.0));
+
+    rb.append(QPointF(3.0, 3.0));
+    QCOMPARE(rb.bounds(), QRectF(3.0, 3.0, 0.0, 0.0));
+}
+
+void TestRingBuffer::clearResetsIncrementalBoundsState()
+{
+    // Regression test: clear() must reset m_nextPushIndex and empty all
+    // four candidate deques. If it didn't, stale pushIndex values from
+    // before the clear could be misinterpreted against the push-index
+    // sequence restarting at 0 after the buffer is refilled.
+    QRingBufferSeriesModel rb(3);
+    rb.append(QPointF(-100.0, -100.0));
+    rb.append(QPointF(100.0, 100.0));
+    rb.append(QPointF(0.0, 0.0));
+    rb.append(QPointF(50.0, 50.0));  // triggers eviction, advances m_nextPushIndex
+
+    rb.clear();
+    QVERIFY(rb.bounds().isNull());
+
+    rb.append(QPointF(1.0, 2.0));
+    rb.append(QPointF(3.0, 4.0));
+    QCOMPARE(rb.bounds(), QRectF(1.0, 2.0, 2.0, 2.0));
+}
+
+void TestRingBuffer::boundsAfterEvictingBothMinAndMaxSimultaneously()
+{
+    // The evicted point is simultaneously the current minX AND maxY
+    // candidate, so a single eviction must pop the front of two different
+    // deques in the same appendBatch() call.
+    QRingBufferSeriesModel rb(2);
+    rb.append(QPointF(-10.0, 100.0));  // minX and maxY candidate
+    rb.append(QPointF(5.0, 5.0));
+    QCOMPARE(rb.bounds(), QRectF(-10.0, 5.0, 15.0, 95.0));
+
+    rb.append(QPointF(0.0, 0.0));  // evicts (-10, 100): both minX and maxY leaders
+    QCOMPARE(rb.bounds(), QRectF(0.0, 0.0, 5.0, 5.0));
+}
+
+void TestRingBuffer::appendBatchDuplicateExtremesWithinSingleBatch()
+{
+    // Duplicate min/max values arriving together in ONE appendBatch() call
+    // (as opposed to across separate append() calls) exercise the
+    // per-batch push loop, where all four deques are updated for the whole
+    // batch before any eviction is applied.
+    std::vector<QPointF> pts = {QPointF(2.0, 2.0),
+                                QPointF(2.0, 2.0),    // duplicate of running max so far
+                                QPointF(-2.0, -2.0),
+                                QPointF(-2.0, -2.0)};  // duplicate of new running min
+    QRingBufferSeriesModel rb(8);
+    rb.appendRange(pts);
+
+    QCOMPARE(rb.pointCount(), qsizetype(4));
+    QCOMPARE(rb.bounds(), QRectF(-2.0, -2.0, 4.0, 4.0));
+}
+
+void TestRingBuffer::boundsAfterBatchPartialEviction()
+{
+    // A single appendBatch() call whose size is smaller than capacity but
+    // still forces eviction of previously-held points (evicted > 0 and
+    // appended < capacity in the same call), including eviction of the
+    // current min/max, which is a less common path than the
+    // append-one-at-a-time regression tests above.
+    QRingBufferSeriesModel rb(4);
+    std::vector<QPointF> seed = {QPointF(-1.0, -1.0),
+                                 QPointF(-2.0, -2.0),
+                                 QPointF(10.0, 10.0),
+                                 QPointF(3.0, 3.0)};
+    rb.appendRange(seed);
+    QCOMPARE(rb.bounds(), QRectF(-2.0, -2.0, 12.0, 12.0));
+
+    // Remaining free space is 0, so this batch of 2 evicts the two oldest
+    // points (-1,-1) and (-2,-2) -- including the current min.
+    std::vector<QPointF> batch = {QPointF(0.0, 0.0), QPointF(1.0, 1.0)};
+    rb.appendRange(batch);
+
+    QCOMPARE(rb.pointCount(), qsizetype(4));
+    // Remaining points: (10,10), (3,3), (0,0), (1,1).
+    QCOMPARE(rb.bounds(), QRectF(0.0, 0.0, 10.0, 10.0));
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)
