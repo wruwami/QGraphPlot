@@ -146,7 +146,11 @@ void TestQmlChartView::setYMinRejectsInvalidValues()
     const QRegularExpression pattern = warningPrefix(QStringLiteral(
         "QmlChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):"));
 
-    for (const double invalid : {std::numeric_limits<double>::quiet_NaN(), 10.0, 12.0}) {
+    for (const double invalid : {std::numeric_limits<double>::quiet_NaN(),
+                                 std::numeric_limits<double>::infinity(),
+                                 -std::numeric_limits<double>::infinity(),
+                                 10.0,     // == yMax: violates "must be < yMax"
+                                 12.0}) {  // > yMax
         QTest::ignoreMessage(QtWarningMsg, pattern);
         view.setYMin(invalid);
         QCOMPARE(view.yMin(), 0.0);
@@ -166,7 +170,11 @@ void TestQmlChartView::setYMaxRejectsInvalidValues()
     const QRegularExpression pattern = warningPrefix(QStringLiteral(
         "QmlChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):"));
 
-    for (const double invalid : {std::numeric_limits<double>::quiet_NaN(), 0.0, -1.0}) {
+    for (const double invalid : {std::numeric_limits<double>::quiet_NaN(),
+                                 std::numeric_limits<double>::infinity(),
+                                 -std::numeric_limits<double>::infinity(),
+                                 0.0,      // == yMin: violates "must be > yMin"
+                                 -1.0}) {  // < yMin
         QTest::ignoreMessage(QtWarningMsg, pattern);
         view.setYMax(invalid);
         QCOMPARE(view.yMax(), 10.0);
@@ -214,6 +222,7 @@ void TestQmlChartView::setMarginRejectsNegativeOrNonFinite()
 
         for (const double invalid : {-1.0,
                                      std::numeric_limits<double>::quiet_NaN(),
+                                     std::numeric_limits<double>::infinity(),
                                      -std::numeric_limits<double>::infinity()}) {
             QTest::ignoreMessage(QtWarningMsg, pattern);
             (view.*setter.fn)(invalid);
