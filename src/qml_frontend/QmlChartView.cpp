@@ -4,6 +4,9 @@
 #include <QtCore/qmath.h>
 #include <QtQuick/QSGSimpleRectNode>
 
+#include "QmlLineSeries.h"
+#include "QmlScatterSeries.h"
+
 namespace qgraphplot
 {
 
@@ -17,6 +20,20 @@ QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
     // 배경(전체 아이템)과 플롯 영역(마진 제외 영역)을 테마 색상으로 직접 렌더링한다.
     // 테마가 없으면 updatePaintNode가 nullptr을 반환하여 투명하게 유지된다.
     setFlag(ItemHasContents, true);
+}
+
+QmlChartView::~QmlChartView()
+{
+    // Disconnect external-destroy tracking before ~QObject deletes children,
+    // otherwise the destroyed handlers would access already-destroyed members.
+    // The QML wrappers own the core series; the chart only observes, so it
+    // must not reparent or delete them (issue #58).
+    for (auto it = m_seriesDestroyedConnections.constBegin();
+         it != m_seriesDestroyedConnections.constEnd();
+         ++it) {
+        disconnect(it.value());
+    }
+    m_seriesDestroyedConnections.clear();
 }
 
 void QmlChartView::setTheme(qgraphplot::QGraphPlotTheme* theme)
@@ -49,6 +66,93 @@ void QmlChartView::applyThemeConnections()
         emit themeChanged();
         update();
     });
+}
+
+void QmlChartView::addSeries(qgraphplot::QAbstractSeries* aSeries)
+{
+    if (!aSeries || m_series.contains(aSeries)) {
+        return;
+    }
+    m_series.append(aSeries);
+    // The QML wrappers (QmlLineSeries/QmlScatterSeries) own the core series
+    // via Qt parent/child, so the chart does NOT reparent or delete it — it
+    // only observes destruction to drop stale entries. This differs from
+    // WidgetChartView::addSeries, which takes ownership via setParent(this),
+    // because in QML the wrapper item is the declarative owner (issue #58).
+    m_seriesDestroyedConnections[aSeries] =
+        connect(aSeries, &QObject::destroyed, this, [this](QObject* obj) {
+            auto* series = static_cast<qgraphplot::QAbstractSeries*>(obj);
+            m_series.removeAll(series);
+            m_seriesDestroyedConnections.remove(series);
+        });
+    emit seriesAdded(aSeries);
+}
+
+void QmlChartView::removeSeries(qgraphplot::QAbstractSeries* aSeries)
+{
+    if (!m_series.contains(aSeries)) {
+        return;
+    }
+    if (m_seriesDestroyedConnections.contains(aSeries)) {
+        disconnect(m_seriesDestroyedConnections.take(aSeries));
+    }
+    m_series.removeOne(aSeries);
+    emit seriesRemoved(aSeries);
+}
+
+void QmlChartView::clearSeries()
+{
+    while (!m_series.isEmpty()) {
+        qgraphplot::QAbstractSeries* aSeries = m_series.takeLast();
+        if (m_seriesDestroyedConnections.contains(aSeries)) {
+            disconnect(m_seriesDestroyedConnections.take(aSeries));
+        }
+        emit seriesRemoved(aSeries);
+    }
+}
+
+qgraphplot::QAbstractSeries* QmlChartView::seriesAt(qsizetype index) const noexcept
+{
+    if (index < 0 || index >= m_series.size()) {
+        return nullptr;
+    }
+    return m_series.at(index);
+}
+
+qgraphplot::QAbstractSeries* QmlChartView::coreSeriesFromItem(QQuickItem* item) const noexcept
+{
+    if (!item) {
+        return nullptr;
+    }
+    // The QML wrappers compose a core series; ask each known wrapper type
+    // for its core. qobject_cast keeps this safe against arbitrary children
+    // (axes, labels, plain QQuickItems) that are not series wrappers.
+    if (auto* line = qobject_cast<qgraphplot::QmlLineSeries*>(item)) {
+        return line->coreSeries();
+    }
+    if (auto* scatter = qobject_cast<qgraphplot::QmlScatterSeries*>(item)) {
+        return scatter->coreSeries();
+    }
+    return nullptr;
+}
+
+void QmlChartView::itemChange(ItemChange change, const ItemChangeData& value)
+{
+    QQuickItem::itemChange(change, value);
+    // Declarative QML adds series as children of the ChartView
+    // (ChartView { LineSeries {...} }). Detect such children and register
+    // their core QAbstractSeries* into the collection (issue #58).
+    // ItemChildRemovedChange mirrors the same lifecycle so reparenting and
+    // explicit removal both keep the collection in sync.
+    if (change == ItemChildAddedChange && value.item) {
+        if (auto* core = coreSeriesFromItem(value.item)) {
+            addSeries(core);
+        }
+    } else if (change == ItemChildRemovedChange && value.item) {
+        if (auto* core = coreSeriesFromItem(value.item)) {
+            removeSeries(core);
+        }
+    }
 }
 
 void QmlChartView::setXMin(double val)

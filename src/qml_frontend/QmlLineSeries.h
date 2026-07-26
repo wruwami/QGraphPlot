@@ -27,7 +27,7 @@ class QmlChartView;
 //! AI.md §3.1 (parity) and §3.2 (no duplicated logic). See issue #57.
 //!
 //! @sa QLineSeries, QAbstractSeries
-class QmlLineSeries : public QQuickItem
+class QGRAPHPLOT_QML_EXPORT QmlLineSeries : public QQuickItem
 {
     Q_OBJECT
     QML_ELEMENT
@@ -52,6 +52,12 @@ public:
     // Getters — delegate to the core series so there is a single source of
     // truth for every property value.
     qgraphplot::QAbstractSeriesModel* model() const noexcept { return m_series->model(); }
+
+    //! The composed core series that owns all property state. Exposed so a
+    //! parent QmlChartView can register the core QAbstractSeries* in its
+    //! series collection (issue #58) — the chart tracks core objects, not
+    //! QQuickItem wrappers, matching WidgetChartView's API (AI.md §3.1).
+    qgraphplot::QAbstractSeries* coreSeries() const noexcept { return m_series; }
     QColor color() const noexcept { return m_series->color(); }
     QString name() const noexcept { return m_series->name(); }
 

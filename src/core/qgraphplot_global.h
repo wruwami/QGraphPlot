@@ -44,6 +44,23 @@
 #endif
 
 // ─────────────────────────────────────────────────────────────
+// QGRAPHPLOT_QML_EXPORT: symbol visibility for the qml_frontend shared
+// library (the QML module backing library). Separate from
+// QGRAPHPLOT_EXPORT (which belongs to QGraphPlotCore) because the two
+// libraries build independently and must not share a single
+// QGRAPHPLOT_BUILDING_LIB define — otherwise a frontend translation unit
+// that includes core headers would treat core symbols as exported-from-
+// self and fail to link their definitions. When building qml_frontend,
+// CMake defines QGRAPHPLOT_BUILDING_QML_LIB (Q_DECL_EXPORT); consumers
+// see Q_DECL_IMPORT. The Widget frontend is STATIC and uses neither.
+// ─────────────────────────────────────────────────────────────
+#if defined(QGRAPHPLOT_BUILDING_QML_LIB)
+#define QGRAPHPLOT_QML_EXPORT Q_DECL_EXPORT
+#else
+#define QGRAPHPLOT_QML_EXPORT Q_DECL_IMPORT
+#endif
+
+// ─────────────────────────────────────────────────────────────
 // QGRAPHPLOT_API_VERSION: short-hand for compile-time API checks.
 //
 // Encoded as 0xMMmmpp (MAJOR.MINOR.PATCH) using the values configured
