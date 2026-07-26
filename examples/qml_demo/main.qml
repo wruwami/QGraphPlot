@@ -108,7 +108,7 @@ Window {
             model: dataSource.model
             color: chartTheme.seriesColor(1)
             markerSize: 6.0
-            markerShape: rootWindow.scatterShapeSquare ? MarkerShape.Square : MarkerShape.Circle
+            markerShape: rootWindow.scatterShapeSquare ? QScatterSeries.Square : QScatterSeries.Circle
             opacity: rootWindow.opacityLevel
             visible: rootWindow.showScatter
             name: "Scatter Overlay"

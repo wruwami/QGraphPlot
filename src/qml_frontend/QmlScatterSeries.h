@@ -32,8 +32,6 @@ class QmlScatterSeries : public QQuickItem
 {
     Q_OBJECT
     QML_ELEMENT
-    // Re-export MarkerShape so QML can write `markerShape: MarkerShape.Square`.
-    Q_ENUM(qgraphplot::MarkerShape)
 
     Q_PROPERTY(
         qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel NOTIFY modelChanged)
