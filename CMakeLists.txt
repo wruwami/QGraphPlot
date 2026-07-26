@@ -92,6 +92,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# ── 설치 경로 초기화 (하위 디렉토리 추가 전) ──────────────
+include(GNUInstallDirs)
+
 # ── 하위 디렉토리 ────────────────────────────────────────────
 # Phase 0 구현에 따라 순차 활성화.
 #
@@ -119,7 +122,6 @@ if(QGRAPHPLOT_BUILD_TESTS)
 endif()
 
 # ── 설치 규칙 & CMake 패키지 내보내기 ──────────────────────
-include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 set(QGRAPHPLOT_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/QGraphPlot")
