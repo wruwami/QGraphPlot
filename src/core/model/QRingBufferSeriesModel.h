@@ -132,8 +132,10 @@ public:
     template <typename Container>
     void appendRange(const Container& c)
     {
-        std::vector<QPointF> points(std::begin(c), std::end(c));
-        appendBatch(QSpan<const QPointF>(points.data(), static_cast<qsizetype>(points.size())));
+        // Named `snapshot` (not `points`) to avoid shadowing the points()
+        // member (cppcheck shadowing warning). Mirrors QStaticSeriesModel.
+        std::vector<QPointF> snapshot(std::begin(c), std::end(c));
+        appendBatch(QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size())));
     }
 
 private:
