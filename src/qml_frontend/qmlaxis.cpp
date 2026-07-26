@@ -8,6 +8,9 @@
 
 #include "qmlchartview.h"
 
+namespace qgraphplot
+{
+
 namespace
 {
 //! Whether two computed tick sets are identical. Ticks are recomputed
@@ -338,3 +341,5 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     gridNode->markDirty(QSGNode::DirtyGeometry);
     return axisNode;
 }
+
+}  // namespace qgraphplot

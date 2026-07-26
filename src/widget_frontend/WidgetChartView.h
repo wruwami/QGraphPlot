@@ -53,6 +53,7 @@ class WidgetChartView : public QWidget
     Q_PROPERTY(double marginBottom READ marginBottom WRITE setMarginBottom NOTIFY marginsChanged)
 
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
+    Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
 
 public:
     explicit WidgetChartView(QWidget* parent = nullptr);
@@ -77,6 +78,10 @@ public:
     //! Visual style, the very same type the QML frontend consumes (AI.md
     //! §3.1). Null (the default) keeps the widget's palette background.
     [[nodiscard]] QGraphPlotTheme* theme() const noexcept { return m_theme; }
+
+    //! The plot rectangle in widget pixels (widget rect minus the margins).
+    //! Matches QmlChartView's plotArea (AI.md §3.1).
+    [[nodiscard]] QRectF plotArea() const noexcept { return coordinateTransform().pixelRect(); }
 
     // Setters
     void setXMin(double val);

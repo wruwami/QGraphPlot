@@ -10,6 +10,9 @@
 #include "qmlchartview.h"
 #include "series/QAbstractSeries.h"
 
+namespace qgraphplot
+{
+
 namespace
 {
 
@@ -76,6 +79,14 @@ QmlLineSeries::QmlLineSeries(QQuickItem* parent) : QQuickItem(parent)
 {
     // updatePaintNode가 호출되도록 설정
     setFlag(ItemHasContents, true);
+}
+
+QmlLineSeries::~QmlLineSeries()
+{
+    disconnectModelSignals();
+    if (m_previousChartView) {
+        disconnect(m_previousChartView, nullptr, this, nullptr);
+    }
 }
 
 void QmlLineSeries::setModel(qgraphplot::QAbstractSeriesModel* model)
@@ -312,3 +323,5 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     node->markDirty(QSGNode::DirtyGeometry);
     return node;
 }
+
+}  // namespace qgraphplot

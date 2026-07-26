@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/wruwami/QGraphPlot/actions/workflows/ci.yml/badge.svg)](https://github.com/wruwami/QGraphPlot/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/wruwami/QGraphPlot/branch/main/graph/badge.svg)](https://codecov.io/gh/wruwami/QGraphPlot)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/wruwami/QGraphPlot?utm_source=oss&utm_medium=github&utm_campaign=wruwami%2FQGraphPlot&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 > **Notice:** This is a temporary personal project, developed with the
 > assistance of AI. Feel free to try it out, but it's still early-stage

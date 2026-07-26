@@ -1,9 +1,11 @@
 #include "qmlchartview.h"
 
+#include <QtCore/QLoggingCategory>
 #include <QtCore/qmath.h>
 #include <QtQuick/QSGSimpleRectNode>
 
-#include <QtCore/QLoggingCategory>
+namespace qgraphplot
+{
 
 namespace
 {
@@ -214,3 +216,5 @@ QSGNode* QmlChartView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* up
 
     return root;
 }
+
+}  // namespace qgraphplot

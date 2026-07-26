@@ -8,6 +8,9 @@
 
 #include "transform/QScaleEngine.h"
 
+namespace qgraphplot
+{
+
 class QmlChartView;
 
 class QmlAxis : public QQuickItem
@@ -96,5 +99,7 @@ private:
     double m_previousMin{0.0};
     double m_previousMax{0.0};
 };
+
+}  // namespace qgraphplot
 
 #endif  // QMLAXIS_H
