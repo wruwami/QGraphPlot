@@ -80,9 +80,10 @@ void QmlChartView::addSeries(qgraphplot::QAbstractSeries* aSeries)
     // WidgetChartView::addSeries, which takes ownership via setParent(this),
     // because in QML the wrapper item is the declarative owner (issue #58).
     m_seriesDestroyedConnections[aSeries] =
-        connect(aSeries, &QObject::destroyed, this, [this, aSeries](QObject*) {
-            m_series.removeAll(aSeries);
-            m_seriesDestroyedConnections.remove(aSeries);
+        connect(aSeries, &QObject::destroyed, this, [this](QObject* obj) {
+            auto* series = static_cast<qgraphplot::QAbstractSeries*>(obj);
+            m_series.removeAll(series);
+            m_seriesDestroyedConnections.remove(series);
         });
     emit seriesAdded(aSeries);
 }
