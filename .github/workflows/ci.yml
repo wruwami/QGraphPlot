@@ -50,6 +50,9 @@ jobs:
             --xml --xml-version=2 \
             -DQ_OBJECT= '-DQ_PROPERTY(x)=' '-DQ_ENUMS(x)=' '-DQ_FLAGS(x)=' '-DQ_DECLARE_METATYPE(x)=' \
             -DQGRAPHPLOT_EXPORT= \
+            -Demit= '-DQ_EMIT=' \
+            -Dsignals=protected '-DQ_SIGNALS=protected' \
+            -Dslots= '-DQ_SLOTS=' \
             -I src/core \
             src tests 2> cppcheck.xml
             
