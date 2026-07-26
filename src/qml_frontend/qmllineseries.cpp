@@ -278,6 +278,7 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     } else {
         geometry = node->geometry();
         // 포인트 개수 변화 대응
+        // (오버플로 가드는 노드 생성/재사용 공통으로 위에서 처리한다)
         if (geometry->vertexCount() != static_cast<int>(vertexCount)) {
             geometry->allocate(static_cast<int>(vertexCount));
         }
