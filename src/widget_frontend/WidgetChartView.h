@@ -25,9 +25,9 @@
 #include <QtCore/QPointer>
 #include <QtWidgets/QWidget>
 
-#include "series/QAbstractSeries.h"
-#include "theme/QGraphPlotTheme.h"
-#include "transform/QCoordinateTransform.h"
+#include "../series/QAbstractSeries.h"
+#include "../theme/QGraphPlotTheme.h"
+#include "../transform/QCoordinateTransform.h"
 
 namespace qgraphplot
 {

@@ -85,6 +85,7 @@ target_include_directories(QGraphPlotCore
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/qgraphplot>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot>
 )
 
 # ── Qt dependencies ───────────────────────────────────────────

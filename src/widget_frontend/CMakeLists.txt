@@ -24,6 +24,7 @@ target_include_directories(widget_frontend
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot>
 )
 
 if(NOT TARGET QGraphPlot::Widget)
