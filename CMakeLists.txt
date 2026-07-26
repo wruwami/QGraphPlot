@@ -118,10 +118,39 @@ if(QGRAPHPLOT_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-# ── 설치 규칙 (Phase 1+ 적용 예정) ──────────────────────────
-# include(GNUInstallDirs)
-# include(CMakePackageConfigHelpers)
-# (라이브러리가 구현된 뒤 추가)
+# ── 설치 규칙 & CMake 패키지 내보내기 ──────────────────────
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(QGRAPHPLOT_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/QGraphPlot")
+
+# 1. Targets Export
+install(EXPORT QGraphPlotTargets
+    FILE QGraphPlotTargets.cmake
+    NAMESPACE QGraphPlot::
+    DESTINATION ${QGRAPHPLOT_INSTALL_CMAKEDIR}
+)
+
+# 2. Package Version File (VERSIONING.md §3 단일 소스 연동)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/QGraphPlotConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# 3. Package Config File
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/QGraphPlotConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/QGraphPlotConfig.cmake"
+    INSTALL_DESTINATION ${QGRAPHPLOT_INSTALL_CMAKEDIR}
+)
+
+# 4. Install Config & Version Files
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/QGraphPlotConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/QGraphPlotConfigVersion.cmake"
+    DESTINATION ${QGRAPHPLOT_INSTALL_CMAKEDIR}
+)
 
 message(STATUS "")
 message(STATUS "═══ QGraphPlot ${PROJECT_VERSION} ═══")

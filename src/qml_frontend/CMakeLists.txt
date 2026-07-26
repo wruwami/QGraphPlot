@@ -40,3 +40,15 @@ target_include_directories(qml_frontend
 
 # Windows 빌드용 AUTOMOC 활성화
 set_target_properties(qml_frontend PROPERTIES AUTOMOC ON)
+
+if(NOT TARGET QGraphPlot::Qml)
+    add_library(QGraphPlot::Qml ALIAS qml_frontend)
+endif()
+
+install(TARGETS qml_frontend
+    EXPORT QGraphPlotTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

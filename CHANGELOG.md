@@ -15,6 +15,10 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 ## [Unreleased]
 
 ### Added
+- CMake `install()` targets and `QGraphPlotConfig.cmake` package export support,
+  allowing external CMake projects to consume QGraphPlot via `find_package(QGraphPlot 0.1 REQUIRED)`
+  and link against `QGraphPlot::Core`, `QGraphPlot::Qml`, and `QGraphPlot::Widget` (#61).
+- Consumer smoke test project (`examples/consumer_test`) and CI automated package install verification (#61).
 - `qgraphplot::QScatterSeries` & `QmlScatterSeries` — concrete discrete-marker
   series implementation (`SeriesType::Scatter`); proves the DoD claim ("1 core
   subclass + 1 frontend renderer per type") with portable Scene-Graph

@@ -144,6 +144,18 @@ jobs:
             ctest --test-dir build --output-on-failure -C Debug
           fi
 
+      - name: Install QGraphPlot package
+        run: cmake --install build --prefix build/install_pkg --config Debug
+
+      - name: Configure Consumer Smoke Test
+        run: >
+          cmake -S examples/consumer_test -B build/consumer_build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install_pkg"
+
+      - name: Build Consumer Smoke Test
+        run: cmake --build build/consumer_build --config Debug
+
       - name: Collect coverage
         if: matrix.os == 'ubuntu-latest' && startsWith(matrix.qt-version, '6')
         run: |

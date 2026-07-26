@@ -20,8 +20,21 @@ target_link_libraries(widget_frontend
 target_include_directories(widget_frontend
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 if(NOT TARGET QGraphPlot::Widget)
     add_library(QGraphPlot::Widget ALIAS widget_frontend)
 endif()
+
+install(TARGETS widget_frontend
+    EXPORT QGraphPlotTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(FILES WidgetChartView.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/widget_frontend
+)
