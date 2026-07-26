@@ -6,7 +6,8 @@
 
 #include "qmlchartview.h"
 
-namespace {
+namespace
+{
 //! Whether two computed tick sets are identical. Ticks are recomputed
 //! deterministically from (min, max, tickCount), so an unchanged input
 //! range/count produces bit-identical output -- plain equality (not a
