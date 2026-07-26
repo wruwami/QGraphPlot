@@ -258,8 +258,6 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     }
 
     axisNode->markDirty(QSGNode::DirtyGeometry);
-    if (gridVertexCount > 0) {
-        gridNode->markDirty(QSGNode::DirtyGeometry);
-    }
+    gridNode->markDirty(QSGNode::DirtyGeometry);
     return axisNode;
 }

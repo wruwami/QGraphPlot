@@ -14,6 +14,9 @@ namespace
 bool valuesDiffer(double a, double b) noexcept
 {
     constexpr double kNearZeroEpsilon = 1e-10;
+    if (!qIsFinite(a) || !qIsFinite(b)) {
+        return true;  // Treat NaN/Inf as always different
+    }
     if (qAbs(a) < kNearZeroEpsilon || qAbs(b) < kNearZeroEpsilon) {
         return qAbs(a - b) > kNearZeroEpsilon;
     }
