@@ -37,6 +37,7 @@
 #include <iterator>
 #include <vector>
 
+#include <QtCore/QMutex>
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
 #include <QtCore/QSpan>
@@ -99,8 +100,8 @@ public:
     template <typename Container>
     void appendRange(const Container& c)
     {
-        std::vector<QPointF> points(std::begin(c), std::end(c));
-        appendBatch(QSpan<const QPointF>(points.data(), static_cast<qsizetype>(points.size())));
+        std::vector<QPointF> snapshot(std::begin(c), std::end(c));
+        appendBatch(QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size())));
     }
 
     //! Replaces the point at @p index with @p pt. Emits:
@@ -128,6 +129,7 @@ private:
     //! Incrementally expands m_bounds to include @p pt. O(1).
     void expandBounds(QPointF pt) noexcept;
 
+    mutable QMutex m_mutex;
     std::vector<QPointF> m_points;
     QRectF m_bounds;
 };
