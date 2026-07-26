@@ -187,14 +187,10 @@ void QmlScatterSeries::connectChartViewSignals()
 
     QmlChartView* chartView = qobject_cast<QmlChartView*>(parentItem());
     if (chartView) {
-        connect(
-            chartView,
-            &QmlChartView::transformChanged,
-            this,
-            [this]() {
-                m_geometryDirty = true;
-                update();
-            });
+        connect(chartView, &QmlChartView::transformChanged, this, [this]() {
+            m_geometryDirty = true;
+            update();
+        });
         m_previousChartView = chartView;
     } else {
         m_previousChartView = nullptr;

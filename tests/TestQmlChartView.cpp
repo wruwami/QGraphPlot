@@ -578,9 +578,10 @@ void TestQmlChartView::reparentedScatterSeriesMovesBetweenCharts()
     QQmlEngine engine;
     QString error;
     QScopedPointer<QObject> root(createQmlObject(
-        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
-                          "objectName: \"sourceView\"; QmlScatterSeries { objectName: \"scatter\" } } "
-                          "QmlChartView { objectName: \"targetView\" } }"),
+        QByteArrayLiteral(
+            "import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
+            "objectName: \"sourceView\"; QmlScatterSeries { objectName: \"scatter\" } } "
+            "QmlChartView { objectName: \"targetView\" } }"),
         engine,
         &error));
     QVERIFY2(root, qPrintable(error));
