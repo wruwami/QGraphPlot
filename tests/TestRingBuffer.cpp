@@ -400,8 +400,8 @@ void TestRingBuffer::concurrentAppendAndRead()
     for (int t = 0; t < kProducerCount; ++t) {
         producers.emplace_back([&rb, t]() {
             for (int i = 0; i < kOpsPerThread; ++i) {
-                rb.append(QPointF(static_cast<double>(t * kOpsPerThread + i),
-                                  static_cast<double>(i)));
+                rb.append(
+                    QPointF(static_cast<double>(t * kOpsPerThread + i), static_cast<double>(i)));
             }
         });
     }
