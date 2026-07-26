@@ -175,10 +175,13 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     }
 
     // 4. 버퍼 좌표 대입 및 스케일링
+    // points()는 링 버퍼가 wrap된 경우에도 항상 하나의 연속된 span을 반환하도록
+    // 설계되어 있으므로(QRingBufferSeriesModel 참고), 매 포인트마다 가상함수인
+    // pointAt()을 호출하는 대신 span을 한 번만 가져와 순회한다(#36).
+    const qgraphplot::PointSpan points = m_model->points(0, count - 1);
     QSGGeometry::Point2D* vertices = geometry->vertexDataAsPoint2D();
     for (qsizetype i = 0; i < count; ++i) {
-        const QPointF dataPt = m_model->pointAt(i);
-        const QPointF pixelPt = transform.toPixel(dataPt);
+        const QPointF pixelPt = transform.toPixel(points[i]);
         vertices[i].set(static_cast<float>(pixelPt.x()), static_cast<float>(pixelPt.y()));
     }
 
