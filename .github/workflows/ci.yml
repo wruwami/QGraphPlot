@@ -153,6 +153,11 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/install_pkg;${QT_ROOT_DIR}"
 
+      - name: Patch generated build files for Consumer Smoke Test on macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          find build/consumer_build -name "build.ninja" -exec sed -i '' 's/-Wl,-framework,AGL//g' {} + || true
+
       - name: Build Consumer Smoke Test
         run: cmake --build build/consumer_build --config Debug
 
