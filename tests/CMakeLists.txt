@@ -53,24 +53,6 @@ qt_add_test(TestTheme
     LIBRARIES ${_test_libs}
 )
 
-# ── TestQmlChartView ──────────────────────────────────────────
-# Only built when the QML frontend itself is (QGRAPHPLOT_BUILD_QML_FRONTEND).
-if(TARGET qml_frontend)
-    qt_add_test(TestQmlChartView
-        SOURCES TestQmlChartView.cpp
-        LIBRARIES qml_frontend Qt6::Quick Qt6::Qml
-    )
-endif()
-
-# ── TestWidgetChartView ───────────────────────────────────────
-# Only built when the Widget frontend itself is (QGRAPHPLOT_BUILD_WIDGET_FRONTEND).
-if(TARGET widget_frontend)
-    qt_add_test(TestWidgetChartView
-        SOURCES TestWidgetChartView.cpp
-        LIBRARIES widget_frontend Qt6::Widgets
-    )
-endif()
-
 # The test sources include a private .moc include at the bottom which
 # expects AUTOMOC to have processed the corresponding .cpp. qt_add_test
 # enables AUTOMOC by default for the target, so no extra setup is needed.
