@@ -36,6 +36,7 @@
 #define QGRAPHPLOT_RINGBUFFERSERIESMODEL_H
 
 #include <deque>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -131,7 +132,8 @@ public:
     template <typename Container>
     void appendRange(const Container& c)
     {
-        appendBatch(QSpan<const QPointF>(c.data(), static_cast<qsizetype>(c.size())));
+        std::vector<QPointF> points(std::begin(c), std::end(c));
+        appendBatch(QSpan<const QPointF>(points.data(), static_cast<qsizetype>(points.size())));
     }
 
 private:

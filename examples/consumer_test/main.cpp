@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <qgraphplot/model/QRingBufferSeriesModel.h>
+#include <qgraphplot/model/QStaticSeriesModel.h>
 #include <qgraphplot/qgraphplot_global.h>
 #include <qgraphplot/qgraphplot_version.h>
 #include <qgraphplot/series/QLineSeries.h>
@@ -15,6 +16,10 @@ int main()
     qgraphplot::QRingBufferSeriesModel model(100);
     qgraphplot::QLineSeries series;
     series.setModel(&model);
+
+    qgraphplot::QStaticSeriesModel staticModel;
+    staticModel.append(QPointF(1.0, 2.0));
+    std::cout << "Static model point count: " << staticModel.pointCount() << std::endl;
 
     qgraphplot::QCoordinateTransform transform(
         QRectF(0, 0, 10, 10), QRectF(0, 0, 800, 600), false, false);
