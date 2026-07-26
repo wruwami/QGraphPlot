@@ -33,6 +33,7 @@ private slots:
     void testLogInverseTransform();
     void testLogFallbackOnInvalidBounds();
     void testDegenerateBoundsSafety();
+    void testFuzzyValuesDiffer();
 };
 
 void TestCoordinate::initTestCase() {}
@@ -161,6 +162,23 @@ void TestCoordinate::testDegenerateBoundsSafety()
 
     QCOMPARE(p.x(), 300.0);
     QCOMPARE(p.y(), 150.0);
+}
+
+void TestCoordinate::testFuzzyValuesDiffer()
+{
+    // Test fuzzyValuesDiffer helper from qgraphplot_global.h (#59)
+    QVERIFY(!fuzzyValuesDiffer(0.0, 0.0));
+    QVERIFY(!fuzzyValuesDiffer(0.0, 1e-12));
+    QVERIFY(!fuzzyValuesDiffer(1e-12, 0.0));
+    QVERIFY(fuzzyValuesDiffer(0.0, 1e-8));
+
+    // NaN / Inf behavior
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    double inf = std::numeric_limits<double>::infinity();
+    QVERIFY(fuzzyValuesDiffer(nan, 0.0));
+    QVERIFY(fuzzyValuesDiffer(0.0, nan));
+    QVERIFY(fuzzyValuesDiffer(nan, nan));
+    QVERIFY(fuzzyValuesDiffer(inf, 0.0));
 }
 
 QTEST_GUILESS_MAIN(TestCoordinate)

@@ -19,6 +19,7 @@
 
 #include "WidgetChartView.h"
 
+#include <QtCore/QLoggingCategory>
 #include <QtCore/qmath.h>
 #include <QtGui/QPainter>
 
@@ -27,18 +28,7 @@ namespace qgraphplot
 
 namespace
 {
-constexpr double kFuzzyEpsilon = 1e-10;
-
-bool fuzzyDifferent(double oldValue, double newValue)
-{
-    if (qAbs(oldValue - newValue) <= kFuzzyEpsilon) {
-        return false;
-    }
-    if (qAbs(oldValue) < kFuzzyEpsilon || qAbs(newValue) < kFuzzyEpsilon) {
-        return true;
-    }
-    return !qFuzzyCompare(oldValue, newValue);
-}
+Q_LOGGING_CATEGORY(lcWidgetChartView, "qgraphplot.widgetchartview")
 }  // namespace
 
 WidgetChartView::WidgetChartView(QWidget* parent) : QWidget(parent) {}
@@ -81,7 +71,11 @@ void WidgetChartView::setTheme(QGraphPlotTheme* theme)
 
 void WidgetChartView::setXMin(double val)
 {
-    if (fuzzyDifferent(m_xMin, val)) {
+    if (!qIsFinite(val) || val >= m_xMax) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMin, val)) {
         m_xMin = val;
         emit xMinChanged();
         emit transformChanged();
@@ -91,7 +85,11 @@ void WidgetChartView::setXMin(double val)
 
 void WidgetChartView::setXMax(double val)
 {
-    if (fuzzyDifferent(m_xMax, val)) {
+    if (!qIsFinite(val) || val <= m_xMin) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMax, val)) {
         m_xMax = val;
         emit xMaxChanged();
         emit transformChanged();
@@ -101,7 +99,11 @@ void WidgetChartView::setXMax(double val)
 
 void WidgetChartView::setYMin(double val)
 {
-    if (fuzzyDifferent(m_yMin, val)) {
+    if (!qIsFinite(val) || val >= m_yMax) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMin, val)) {
         m_yMin = val;
         emit yMinChanged();
         emit transformChanged();
@@ -111,7 +113,11 @@ void WidgetChartView::setYMin(double val)
 
 void WidgetChartView::setYMax(double val)
 {
-    if (fuzzyDifferent(m_yMax, val)) {
+    if (!qIsFinite(val) || val <= m_yMin) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMax, val)) {
         m_yMax = val;
         emit yMaxChanged();
         emit transformChanged();
@@ -121,7 +127,11 @@ void WidgetChartView::setYMax(double val)
 
 void WidgetChartView::setMarginLeft(double val)
 {
-    if (!qFuzzyCompare(m_marginLeft, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
         m_marginLeft = val;
         emit marginsChanged();
         emit transformChanged();
@@ -131,7 +141,11 @@ void WidgetChartView::setMarginLeft(double val)
 
 void WidgetChartView::setMarginRight(double val)
 {
-    if (!qFuzzyCompare(m_marginRight, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginRight: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginRight, val)) {
         m_marginRight = val;
         emit marginsChanged();
         emit transformChanged();
@@ -141,7 +155,11 @@ void WidgetChartView::setMarginRight(double val)
 
 void WidgetChartView::setMarginTop(double val)
 {
-    if (!qFuzzyCompare(m_marginTop, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginTop: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginTop, val)) {
         m_marginTop = val;
         emit marginsChanged();
         emit transformChanged();
@@ -151,7 +169,11 @@ void WidgetChartView::setMarginTop(double val)
 
 void WidgetChartView::setMarginBottom(double val)
 {
-    if (!qFuzzyCompare(m_marginBottom, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginBottom, val)) {
         m_marginBottom = val;
         emit marginsChanged();
         emit transformChanged();
