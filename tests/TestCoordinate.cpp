@@ -207,6 +207,24 @@ void TestCoordinate::testInvalidDataBoundsWarning()
     (void)QCoordinateTransform(
         QRectF(0.0, 0.0, 10.0, std::numeric_limits<double>::infinity()), pixelRect, false, false);
 
+    // Non-finite right() overflow (left + width overflow).
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    {
+        QCoordinateTransform trans(QRectF(1.7e308, 0.0, 1.7e308, 10.0), pixelRect, false, false);
+        const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
+        QCOMPARE(p.x(), 100.0);
+        QCOMPARE(p.y(), 50.0);
+    }
+
+    // Non-finite bottom() overflow (top + height overflow).
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    {
+        QCoordinateTransform trans(QRectF(0.0, 1.7e308, 10.0, 1.7e308), pixelRect, false, false);
+        const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
+        QCOMPARE(p.x(), 100.0);
+        QCOMPARE(p.y(), 50.0);
+    }
+
     // Non-finite bounds must trigger unit-square (0,0,1,1) fallback.
     // For pixelRect (0,0, 200,100), (0.5, 0.5) maps to (100.0, 50.0).
     {
