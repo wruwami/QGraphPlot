@@ -111,6 +111,12 @@ public:
     //!   - modelChanged(pointCount())
     //!   - boundsChanged() if bounds shifted
     //!
+    //! @note Signal ranges are authoritative when appends originate from a
+    //!       single producer thread. Under concurrent appends from multiple
+    //!       producer threads, signal delivery order may differ from mutation
+    //!       order and captured indices may become stale before slots receive
+    //!       them (treat ranges as advisory hints in this scenario).
+    //!
     //! Validation (AI.md §3.3):
     //!   - Empty @p pts: no-op, no signals. Returns immediately.
     //!   - @p pts.size() > capacity: only the last @p capacity points are
