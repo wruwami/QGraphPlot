@@ -194,7 +194,7 @@ QSGNode* QmlScatterSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
     const MarkerShape markerShape = m_series->markerShape();
     // opacity(0.0–1.0)를 색 알파에 곱한다 (#71).
     QColor color = m_series->color();
-    color.setAlphaF(color.alphaF() * m_series->opacity());
+    color.setAlphaF(static_cast<float>(color.alphaF() * m_series->opacity()));
 
     // 1. 그릴 데이터가 없는 경우
     if (!model || model->pointCount() == 0) {

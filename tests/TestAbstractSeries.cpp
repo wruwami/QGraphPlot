@@ -427,7 +427,7 @@ void TestAbstractSeriesFixture::qScatterSeriesInheritsPropertyDefaults()
 {
     QScatterSeries scatter;
     QCOMPARE(scatter.color(), QColor(Qt::blue));
-    QCOMPARE(scatter.visible(), true);
+    QCOMPARE(scatter.isVisible(), true);
     QCOMPARE(scatter.opacity(), 1.0);
     QCOMPARE(scatter.markerSize(), 8.0);
     QCOMPARE(scatter.markerShape(), MarkerShape::Circle);
