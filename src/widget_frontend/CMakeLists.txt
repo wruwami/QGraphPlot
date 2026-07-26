@@ -9,7 +9,10 @@ qt_add_library(widget_frontend STATIC
     WidgetChartView.cpp
 )
 
-set_target_properties(widget_frontend PROPERTIES AUTOMOC ON)
+set_target_properties(widget_frontend PROPERTIES
+    AUTOMOC ON
+    EXPORT_NAME Widget
+)
 
 target_link_libraries(widget_frontend
     PUBLIC

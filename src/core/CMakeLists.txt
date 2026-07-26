@@ -62,7 +62,10 @@ set(_core_public_headers
 qt_add_library(QGraphPlotCore ${_core_lib_type}
     ${_core_sources}
 )
-set_target_properties(QGraphPlotCore PROPERTIES AUTOMOC ON)
+set_target_properties(QGraphPlotCore PROPERTIES
+    AUTOMOC ON
+    EXPORT_NAME Core
+)
 
 # Emit the metatypes JSON for this target so the QML module can re-export core
 # types (QGraphPlotTheme) with QML_FOREIGN — qmltyperegistrar resolves foreign
