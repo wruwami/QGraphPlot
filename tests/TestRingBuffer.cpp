@@ -21,6 +21,7 @@
 //! and signal emission. Companion to Phase 0.2 (issue #3).
 
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <limits>
 #include <thread>
@@ -72,8 +73,9 @@ private slots:
     void signalsOnClearNonEmpty();
     void noSignalsOnClearAlreadyEmpty();
 
-    // ─ Thread safety (#33) ─────────────────────────────────
+    // ─ Thread safety (#33, #51) ────────────────────────────
     void threadSafeAppendFromMultipleThreads();
+    void concurrentAppendAndRead();
 
     // ─ Incremental bounds (#37) ────────────────────────────
     void boundsIncrementalMatchesBruteForceUnderEviction();
@@ -377,7 +379,65 @@ void TestRingBuffer::threadSafeAppendFromMultipleThreads()
         thread.join();
     }
 
-    QCOMPARE(rb.pointCount(), qsizetype(kThreadCount * kAppendsPerThread));
+    QCOMPARE(rb.pointCount(), static_cast<qsizetype>(kThreadCount * kAppendsPerThread));
+}
+
+void TestRingBuffer::concurrentAppendAndRead()
+{
+    // Fixes #51: Verify multi-threaded safety under concurrent reads and writes
+    // when ThreadSafety::Enabled is specified. Producer threads append points
+    // while Consumer threads continuously query pointCount(), bounds(), and pointAt().
+    constexpr int kProducerCount = 4;
+    constexpr int kConsumerCount = 4;
+    constexpr int kOpsPerThread = 1500;
+
+    QRingBufferSeriesModel rb(5000, ThreadSafety::Enabled);
+    std::atomic<bool> producersDone{false};
+    std::atomic<int> readErrors{0};
+
+    std::vector<std::thread> producers;
+    producers.reserve(kProducerCount);
+    for (int t = 0; t < kProducerCount; ++t) {
+        producers.emplace_back([&rb, t]() {
+            for (int i = 0; i < kOpsPerThread; ++i) {
+                rb.append(
+                    QPointF(static_cast<double>(t * kOpsPerThread + i), static_cast<double>(i)));
+            }
+        });
+    }
+
+    std::vector<std::thread> consumers;
+    consumers.reserve(kConsumerCount);
+    for (int c = 0; c < kConsumerCount; ++c) {
+        consumers.emplace_back([&rb, &producersDone, &readErrors]() {
+            while (!producersDone.load(std::memory_order_relaxed)) {
+                qsizetype count = rb.pointCount();
+                if (count > 0) {
+                    QPointF pt = rb.pointAt(count - 1);
+                    if (!qIsFinite(pt.x()) || !qIsFinite(pt.y())) {
+                        readErrors.fetch_add(1, std::memory_order_relaxed);
+                    }
+                    QRectF b = rb.bounds();
+                    if (!b.isValid() && !b.isNull() && count > 1) {
+                        readErrors.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
+                std::this_thread::yield();
+            }
+        });
+    }
+
+    for (auto& producer : producers) {
+        producer.join();
+    }
+    producersDone.store(true, std::memory_order_relaxed);
+
+    for (auto& consumer : consumers) {
+        consumer.join();
+    }
+
+    QCOMPARE(readErrors.load(), 0);
+    QCOMPARE(rb.pointCount(), static_cast<qsizetype>(5000));
 }
 
 void TestRingBuffer::boundsIncrementalMatchesBruteForceUnderEviction()
