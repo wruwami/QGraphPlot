@@ -31,6 +31,7 @@
 #include "../src/core/model/QRingBufferSeriesModel.h"
 #include "../src/core/series/QAbstractSeries.h"
 #include "../src/core/series/QLineSeries.h"
+#include "../src/core/series/QScatterSeries.h"
 
 using namespace qgraphplot;
 
@@ -68,6 +69,13 @@ private slots:
     void qLineSeriesTypeReturnsLine();
     void qLineSeriesInheritsPropertyDefaults();
     void qLineSeriesColorSettersWork();
+
+    // ─ QScatterSeries concrete type (#67) ─────────────────────
+    void qScatterSeriesTypeReturnsScatter();
+    void qScatterSeriesInheritsPropertyDefaults();
+    void setMarkerSizeRejectsInvalid();
+    void setMarkerSizeAcceptsValid();
+    void setMarkerShapeEmitsOnChange();
 
     // ─ Validation paths (single source of truth, #57) ────────
     void setLineWidthRejectsInvalid();
@@ -407,6 +415,74 @@ void TestAbstractSeriesFixture::nonCopyable()
     QVERIFY(!std::is_copy_assignable<TestSeries>::value);
     QVERIFY(!std::is_move_constructible<TestSeries>::value);
     QVERIFY(!std::is_move_assignable<TestSeries>::value);
+}
+
+void TestAbstractSeriesFixture::qScatterSeriesTypeReturnsScatter()
+{
+    QScatterSeries scatter;
+    QCOMPARE(scatter.type(), SeriesType::Scatter);
+}
+
+void TestAbstractSeriesFixture::qScatterSeriesInheritsPropertyDefaults()
+{
+    QScatterSeries scatter;
+    QCOMPARE(scatter.color(), QColor(Qt::blue));
+    QCOMPARE(scatter.isVisible(), true);
+    QCOMPARE(scatter.opacity(), 1.0);
+    QCOMPARE(scatter.markerSize(), 8.0);
+    QCOMPARE(scatter.markerShape(), MarkerShape::Circle);
+}
+
+void TestAbstractSeriesFixture::setMarkerSizeRejectsInvalid()
+{
+    QScatterSeries scatter;
+    QSignalSpy spy(&scatter, &QScatterSeries::markerSizeChanged);
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    scatter.setMarkerSize(-5.0);
+    QCOMPARE(scatter.markerSize(), 8.0);
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    scatter.setMarkerSize(0.0);
+    QCOMPARE(scatter.markerSize(), 8.0);
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    scatter.setMarkerSize(std::numeric_limits<double>::quiet_NaN());
+    QCOMPARE(scatter.markerSize(), 8.0);
+
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestAbstractSeriesFixture::setMarkerSizeAcceptsValid()
+{
+    QScatterSeries scatter;
+    QSignalSpy spy(&scatter, &QScatterSeries::markerSizeChanged);
+
+    scatter.setMarkerSize(12.5);
+    QCOMPARE(scatter.markerSize(), 12.5);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(0).toDouble(), 12.5);
+
+    // Same value -> no signal
+    scatter.setMarkerSize(12.5);
+    QCOMPARE(spy.count(), 1);
+}
+
+void TestAbstractSeriesFixture::setMarkerShapeEmitsOnChange()
+{
+    QScatterSeries scatter;
+    QSignalSpy spy(&scatter, &QScatterSeries::markerShapeChanged);
+
+    scatter.setMarkerShape(MarkerShape::Square);
+    QCOMPARE(scatter.markerShape(), MarkerShape::Square);
+    QCOMPARE(spy.count(), 1);
+
+    // Same shape -> no signal
+    scatter.setMarkerShape(MarkerShape::Square);
+    QCOMPARE(spy.count(), 1);
 }
 
 QTEST_GUILESS_MAIN(TestAbstractSeriesFixture)

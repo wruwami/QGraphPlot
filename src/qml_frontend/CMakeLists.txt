@@ -14,11 +14,13 @@ qt_add_qml_module(qml_frontend
     SOURCES
         QmlChartView.h QmlChartView.cpp
         QmlLineSeries.h QmlLineSeries.cpp
+        QmlScatterSeries.h QmlScatterSeries.cpp
         QmlAxis.h QmlAxis.cpp
         QmlTheme.h
     QML_FILES
         qml/QGraphPlot/ChartView.qml
         qml/QGraphPlot/LineSeries.qml
+        qml/QGraphPlot/ScatterSeries.qml
 )
 
 # QML 모듈이 QtQuick과 공유 C++ 코어(QGraphPlotCore)를 참조하도록 링크 설정

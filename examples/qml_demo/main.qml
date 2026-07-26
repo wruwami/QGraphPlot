@@ -102,6 +102,17 @@ Window {
             opacity: rootWindow.opacityLevel
             name: "Streaming Signal"
         }
+
+        ScatterSeries {
+            id: scatterSeries
+            model: dataSource.model
+            color: chartTheme.seriesColor(1)
+            markerSize: 6.0
+            markerShape: rootWindow.scatterShapeSquare ? QScatterSeries.Square : QScatterSeries.Circle
+            opacity: rootWindow.opacityLevel
+            visible: rootWindow.showScatter
+            name: "Scatter Overlay"
+        }
     }
 
     // 라인 두께 슬라이더 대신 버튼으로 배수를 토글 (QtQuick.Controls 의존성 회피)
@@ -109,6 +120,8 @@ Window {
     property bool dashed: false
     // 시리즈 투명도 토글 (#71): 1.0 → 0.75 → 0.5 → 0.25 → 1.0
     property real opacityLevel: 1.0
+    property bool showScatter: false
+    property bool scatterShapeSquare: false
 
     Row {
         anchors.top: parent.top
@@ -152,6 +165,20 @@ Window {
             theme: chartTheme
             onClicked: rootWindow.opacityLevel =
                        rootWindow.opacityLevel <= 0.25 ? 1.0 : rootWindow.opacityLevel - 0.25
+        }
+
+        DemoButton {
+            text: rootWindow.showScatter ? "Scatter: ON" : "Scatter: OFF"
+            highlighted: rootWindow.showScatter
+            theme: chartTheme
+            onClicked: rootWindow.showScatter = !rootWindow.showScatter
+        }
+
+        DemoButton {
+            text: rootWindow.scatterShapeSquare ? "Shape: Square" : "Shape: Circle"
+            visible: rootWindow.showScatter
+            theme: chartTheme
+            onClicked: rootWindow.scatterShapeSquare = !rootWindow.scatterShapeSquare
         }
     }
 

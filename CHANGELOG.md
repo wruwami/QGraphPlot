@@ -15,6 +15,16 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 ## [Unreleased]
 
 ### Added
+- `qgraphplot::QScatterSeries` & `QmlScatterSeries` — concrete discrete-marker
+  series implementation (`SeriesType::Scatter`); proves the DoD claim ("1 core
+  subclass + 1 frontend renderer per type") with portable Scene-Graph
+  tessellation (`QSGGeometry::DrawTriangles`, Circle/Square shapes) (#67).
+- `markerSize` (pixels > 0) and `markerShape` (Circle / Square enum)
+  properties with validation and change-guarded NOTIFY signals.
+- Unit tests covering `QScatterSeries` identity, defaults, and `setMarkerSize`
+  validation in `TestAbstractSeries.cpp`.
+- 60fps streaming demo controls for Scatter overlay ON/OFF and shape toggle in
+  `examples/qml_demo/main.qml`.
 - `qgraphplot::QLineSeries` — first shipped concrete `QAbstractSeries`
   subclass (`type() == SeriesType::Line`); serves as the core composition
   backend for the frontend line renderers (#57).
