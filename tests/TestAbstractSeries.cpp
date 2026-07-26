@@ -281,10 +281,12 @@ void TestAbstractSeriesFixture::setOpacityAcceptsValid()
     s.setOpacity(0.5);
     QCOMPARE(spy.count(), 1);
     QCOMPARE(s.opacity(), 0.5);
-    // Boundaries are valid.
+    // Boundaries are valid and each change emits exactly once.
     s.setOpacity(0.0);
+    QCOMPARE(spy.count(), 2);
     QCOMPARE(s.opacity(), 0.0);
     s.setOpacity(1.0);
+    QCOMPARE(spy.count(), 3);
     QCOMPARE(s.opacity(), 1.0);
 }
 
@@ -296,6 +298,13 @@ void TestAbstractSeriesFixture::setOpacityDoesNotEmitOnSameValue()
     s.setOpacity(0.5);  // identical — no-op
     QCOMPARE(spy.count(), 0);
     QCOMPARE(s.opacity(), 0.5);
+    // Regression guard: qFuzzyCompare misbehaves at 0.0, so re-setting 0.0
+    // must still be a no-op (the +1.0 shift idiom in setOpacity).
+    s.setOpacity(0.0);
+    QCOMPARE(spy.count(), 1);
+    s.setOpacity(0.0);  // identical 0.0 — must NOT emit
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(s.opacity(), 0.0);
 }
 
 // ─────────────────────────────────────────────────────────────
