@@ -110,6 +110,12 @@ private:
     // already-destroyed chart (reparented away without going through
     // itemChange) is a safe no-op instead of dangling-pointer UB.
     QPointer<QmlChartView> m_previousChartView;
+
+    // Dirty-flag to avoid full per-frame vertex regeneration (issue #1).
+    // Set to true whenever data, size, shape, color, or transform changes;
+    // cleared after geometry rebuild. Guards against redundant calls to
+    // updatePaintNode() when no visual state has actually changed.
+    bool m_geometryDirty = true;
 };
 
 }  // namespace qgraphplot

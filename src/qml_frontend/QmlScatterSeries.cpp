@@ -14,6 +14,10 @@ namespace qgraphplot
 namespace
 {
 
+//! Standard mathematical constant pi (3.14159...). Replaces non-standard
+//! pi macro to ensure portability across all platforms.
+constexpr double pi = 3.14159265358979323846;
+
 //! Triangle count per circle marker. A 12-gon (12 triangles in a fan,
 //! unrolled into an indexed-less triangle list) is visually smooth enough
 //! at typical marker sizes without bloating the vertex buffer.
@@ -41,8 +45,8 @@ void appendMarker(std::vector<QSGGeometry::Point2D>& vertices,
 
     if (shape == MarkerShape::Circle) {
         for (int i = 0; i < kCircleSegments; ++i) {
-            const double a0 = (2.0 * M_PI * i) / kCircleSegments;
-            const double a1 = (2.0 * M_PI * (i + 1)) / kCircleSegments;
+            const double a0 = (2.0 * pi * i) / kCircleSegments;
+            const double a1 = (2.0 * pi * (i + 1)) / kCircleSegments;
             vertices.push_back({cx, cy});
             vertices.push_back({cx + r * static_cast<float>(std::cos(a0)),
                                 cy + r * static_cast<float>(std::sin(a0))});
@@ -75,15 +79,30 @@ QmlScatterSeries::QmlScatterSeries(QQuickItem* parent)
 
     // 프로퍼티 변경 시 씬그래프 노드를 다시 그린다. 컴포지션 구조에서는
     // setter가 core에 위임하므로, 렌더 갱신 트거도 core 시그널에서 발생한다.
-    connect(m_series, &QScatterSeries::colorChanged, this, [this]() { update(); });
+    // Geometry-affecting changes set m_geometryDirty to avoid full vertex
+    // regeneration on every frame (issue #1).
+    connect(m_series, &QScatterSeries::colorChanged, this, [this]() {
+        m_geometryDirty = true;
+        update();
+    });
     connect(m_series, &QScatterSeries::visibleChanged, this, [this]() { update(); });
-    connect(m_series, &QScatterSeries::opacityChanged, this, [this]() { update(); });
-    connect(m_series, &QScatterSeries::markerSizeChanged, this, [this]() { update(); });
-    connect(m_series, &QScatterSeries::markerShapeChanged, this, [this]() { update(); });
+    connect(m_series, &QScatterSeries::opacityChanged, this, [this]() {
+        m_geometryDirty = true;
+        update();
+    });
+    connect(m_series, &QScatterSeries::markerSizeChanged, this, [this]() {
+        m_geometryDirty = true;
+        update();
+    });
+    connect(m_series, &QScatterSeries::markerShapeChanged, this, [this]() {
+        m_geometryDirty = true;
+        update();
+    });
     // modelChanged는 모델 시그널 재연결까지 담당하므로 별도 처리.
     connect(m_series, &QScatterSeries::modelChanged, this, [this]() {
         disconnectModelSignals();
         connectModelSignals();
+        m_geometryDirty = true;
         update();
     });
 
@@ -148,6 +167,7 @@ void QmlScatterSeries::disconnectModelSignals()
 
 void QmlScatterSeries::handleDataChanged()
 {
+    m_geometryDirty = true;
     update();
 }
 
@@ -162,16 +182,20 @@ void QmlScatterSeries::itemChange(ItemChange change, const ItemChangeData& value
 void QmlScatterSeries::connectChartViewSignals()
 {
     if (m_previousChartView) {
-        disconnect(m_previousChartView, &QmlChartView::transformChanged, this, &QQuickItem::update);
+        disconnect(m_previousChartView, &QmlChartView::transformChanged, this, nullptr);
     }
 
     QmlChartView* chartView = qobject_cast<QmlChartView*>(parentItem());
     if (chartView) {
-        connect(chartView,
-                &QmlChartView::transformChanged,
-                this,
-                &QQuickItem::update,
-                Qt::UniqueConnection);
+        connect(
+            chartView,
+            &QmlChartView::transformChanged,
+            this,
+            [this]() {
+                m_geometryDirty = true;
+                update();
+            },
+            Qt::UniqueConnection);
         m_previousChartView = chartView;
     } else {
         m_previousChartView = nullptr;
@@ -209,6 +233,20 @@ QSGNode* QmlScatterSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         return nullptr;
     }
 
+    // 3. Dirty-flag guard: skip full vertex regeneration when no data,
+    //    property, or transform has changed (issue #1). Avoids tessellating
+    //    60K points on every frame when only repainting.
+    if (oldNode && !m_geometryDirty) {
+        // Even without geometry changes, material (color/opacity) might need update.
+        QSGGeometryNode* node = static_cast<QSGGeometryNode*>(oldNode);
+        QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
+        if (material && material->color() != color) {
+            material->setColor(color);
+            node->markDirty(QSGNode::DirtyMaterial);
+        }
+        return oldNode;
+    }
+
     const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const qsizetype count = model->pointCount();
     if (count > INT_MAX) {
@@ -216,10 +254,10 @@ QSGNode* QmlScatterSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         return nullptr;
     }
 
-    // 3. 점 데이터를 한 번에 가져온다 (#36 span-based traversal).
+    // 4. 점 데이터를 한 번에 가져온다 (#36 span-based traversal).
     const qgraphplot::PointSpan points = model->points(0, count - 1);
 
-    // 4. 마커를 삼각형으로 테셀레이션한다. 마커당 정점 수 = 삼각형 수 * 3.
+    // 5. 마커를 삼각형으로 테셀레이션한다. 마커당 정점 수 = 삼각형 수 * 3.
     //    DrawPoints 는 일부 RHI 백엔드에서 크기 제한이 있어 DrawTriangles
     //    방식을 사용한다 (#67).
     const int tris = trianglesPerMarker(markerShape);
@@ -236,7 +274,7 @@ QSGNode* QmlScatterSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         appendMarker(markerVertices, transform.toPixel(points[i]), markerSize, markerShape);
     }
 
-    // 5. Scene Graph 노드 생성 및 재활용
+    // 6. Scene Graph 노드 생성 및 재활용
     QSGGeometryNode* node = static_cast<QSGGeometryNode*>(oldNode);
     QSGGeometry* geometry = nullptr;
 
@@ -265,11 +303,15 @@ QSGNode* QmlScatterSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
 
     geometry->setDrawingMode(QSGGeometry::DrawTriangles);
 
-    // 6. 정점 좌표 대입
+    // 7. 정점 좌표 대입
     QSGGeometry::Point2D* vertices = geometry->vertexDataAsPoint2D();
     std::copy(markerVertices.begin(), markerVertices.end(), vertices);
 
     node->markDirty(QSGNode::DirtyGeometry);
+
+    // 8. Clear dirty flag after successful regeneration (issue #1).
+    m_geometryDirty = false;
+
     return node;
 }
 
