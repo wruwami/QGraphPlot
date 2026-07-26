@@ -165,8 +165,10 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
     qsizetype newFirst = 0;
     qsizetype newLast = 0;
     qsizetype newSize = 0;
+    bool boundsShifted = false;
     {
         [[maybe_unused]] const QRingBufferSeriesModelLock lock(m_mutex.get());
+        const QRectF oldBounds = m_bounds;
 
         // If the batch is larger than the whole buffer, only keep the tail.
         QSpan<const QPointF> src = pts;
@@ -234,6 +236,7 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
             evictStaleCandidates(m_maxYCandidates);
         }
         updateBoundsCache();
+        boundsShifted = (m_bounds != oldBounds);
 
         newFirst = m_size - appended;
         newLast = m_size - 1;
@@ -245,7 +248,9 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
         Q_EMIT pointsRemoved(0, evicted - 1);
     }
     Q_EMIT pointsInserted(newFirst, newLast);
-    Q_EMIT boundsChanged();
+    if (boundsShifted) {
+        Q_EMIT boundsChanged();
+    }
     Q_EMIT modelChanged(newSize);
 }
 

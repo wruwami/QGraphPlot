@@ -3,6 +3,9 @@
 #include <QtCore/qmath.h>
 #include <QtQuick/QSGSimpleRectNode>
 
+namespace qgraphplot
+{
+
 namespace
 {
 //! qFuzzyCompare is a *relative*-epsilon comparison, so it misbehaves
@@ -197,3 +200,5 @@ QSGNode* QmlChartView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* up
 
     return root;
 }
+
+}  // namespace qgraphplot
