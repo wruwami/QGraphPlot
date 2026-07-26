@@ -9,7 +9,7 @@
 
 int main()
 {
-    std::cout << "Consumer Test Application for QGraphPlot v" << QGRAPHPLOT_VERSION_STRING
+    std::cout << "Consumer Test Application for QGraphPlot v" << QGRAPHPLOT_VERSION_STR
               << std::endl;
 
     qgraphplot::QRingBufferSeriesModel model(100);
