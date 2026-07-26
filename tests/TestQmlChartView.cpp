@@ -24,7 +24,7 @@
 #include <QtCore/QRegularExpression>
 #include <QtTest/QtTest>
 
-#include "../src/qml_frontend/qmlchartview.h"
+#include "../src/qml_frontend/QmlChartView.h"
 
 using qgraphplot::QmlChartView;
 
