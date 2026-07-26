@@ -170,8 +170,8 @@ void TestCoordinate::testInvalidDataBoundsWarning()
 {
     // Constructor must warn (but not throw/crash) when dataBounds has a
     // non-positive or non-finite width/height, regardless of log mode.
-    const QRegularExpression kWarningPattern(
-        "^QCoordinateTransform: invalid or non-positive dataBounds dimensions or non-finite edges:");
+    const QRegularExpression kWarningPattern("^QCoordinateTransform: invalid or non-positive "
+                                             "dataBounds dimensions or non-finite edges:");
     const QRectF pixelRect(0.0, 0.0, 200.0, 100.0);
 
     // Zero width.
