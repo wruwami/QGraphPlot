@@ -536,7 +536,7 @@ void TestRingBuffer::appendBatchDuplicateExtremesWithinSingleBatch()
     // per-batch push loop, where all four deques are updated for the whole
     // batch before any eviction is applied.
     std::vector<QPointF> pts = {QPointF(2.0, 2.0),
-                                QPointF(2.0, 2.0),    // duplicate of running max so far
+                                QPointF(2.0, 2.0),  // duplicate of running max so far
                                 QPointF(-2.0, -2.0),
                                 QPointF(-2.0, -2.0)};  // duplicate of new running min
     QRingBufferSeriesModel rb(8);
@@ -554,10 +554,8 @@ void TestRingBuffer::boundsAfterBatchPartialEviction()
     // current min/max, which is a less common path than the
     // append-one-at-a-time regression tests above.
     QRingBufferSeriesModel rb(4);
-    std::vector<QPointF> seed = {QPointF(-1.0, -1.0),
-                                 QPointF(-2.0, -2.0),
-                                 QPointF(10.0, 10.0),
-                                 QPointF(3.0, 3.0)};
+    std::vector<QPointF> seed = {
+        QPointF(-1.0, -1.0), QPointF(-2.0, -2.0), QPointF(10.0, 10.0), QPointF(3.0, 3.0)};
     rb.appendRange(seed);
     QCOMPARE(rb.bounds(), QRectF(-2.0, -2.0, 12.0, 12.0));
 
