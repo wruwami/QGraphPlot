@@ -143,16 +143,17 @@ void WidgetChartView::setYMax(double val)
 
 void WidgetChartView::setMarginLeft(double val)
 {
-    qCWarning(lcWidgetChartView)
-        << "WidgetChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
-    return;
-}
-if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
-    m_marginLeft = val;
-    emit marginsChanged();
-    emit transformChanged();
-    update();
-}
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcWidgetChartView)
+            << "WidgetChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
+        m_marginLeft = val;
+        emit marginsChanged();
+        emit transformChanged();
+        update();
+    }
 }
 
 void WidgetChartView::setMarginRight(double val)

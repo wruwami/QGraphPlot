@@ -98,7 +98,7 @@ void TestAutoScaler::nullModelSeriesAreSkipped()
 void TestAutoScaler::emptyModelSeriesAreSkipped()
 {
     QObject owner;
-    auto* emptyModelSeries = makeSeries(&owner, {});  // 0 points → skipped
+    auto* emptyModelSeries = makeSeries(&owner, QList<QPointF>{});  // 0 points → skipped
     QList<QAbstractSeries*> series{emptyModelSeries};
     const QRectF r = QAutoScaler::computePaddedBounds(series, 0.05);
     QCOMPARE(r, QRectF(0.0, 0.0, 1.0, 1.0));
