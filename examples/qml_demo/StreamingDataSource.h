@@ -41,8 +41,11 @@ public:
     explicit StreamingDataSource(QObject* parent = nullptr);
 
     qgraphplot::QAbstractSeriesModel* model() noexcept { return &m_model; }
-    double xMin() const noexcept { return std::max(0.0, m_xMax - kWindowSeconds); }
-    double xMax() const noexcept { return m_xMax; }
+    double xMin() const noexcept { return std::max(0.0, xMax() - kWindowSeconds); }
+    // Derived from the sample counter rather than an accumulated double: a
+    // running `x += dt` compounds rounding error over a long-lived demo
+    // session, while index * dt has bounded error (issue #38).
+    double xMax() const noexcept { return static_cast<double>(m_sampleIndex) * kSampleDt; }
     int pointCount() const noexcept { return static_cast<int>(m_model.pointCount()); }
 
     //! Appends one frame's worth of samples (kPointsPerFrame). Driven by a
@@ -66,7 +69,7 @@ private:
     static constexpr double kTwoPi = 6.283185307179586;
 
     qgraphplot::QRingBufferSeriesModel m_model{kCapacity};
-    double m_xMax = 0.0;
+    qint64 m_sampleIndex = 0;
 };
 
 #endif  // STREAMINGDATASOURCE_H
