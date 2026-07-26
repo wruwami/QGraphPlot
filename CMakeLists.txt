@@ -75,7 +75,12 @@ if(QGRAPHPLOT_BUILD_COVERAGE)
         message(FATAL_ERROR "Coverage requires GCC or Clang. Set QGRAPHPLOT_BUILD_COVERAGE=OFF.")
     endif()
     message(STATUS "Coverage enabled: ${CMAKE_CXX_COMPILER_ID}")
-    add_compile_options(--coverage -O0 -g)
+    # -fprofile-update=atomic: gcov's default counter increments are not
+    # thread-safe. Multi-threaded tests (e.g. TestRingBuffer's
+    # ThreadSafety::Enabled stress test) can otherwise race on the same
+    # counter and produce corrupted (negative) counts that make
+    # lcov/geninfo fail outright instead of just under-reporting coverage.
+    add_compile_options(--coverage -O0 -g -fprofile-update=atomic)
     add_link_options(--coverage)
 endif()
 

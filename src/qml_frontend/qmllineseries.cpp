@@ -99,10 +99,8 @@ void QmlLineSeries::itemChange(ItemChange change, const ItemChangeData& value)
 
 void QmlLineSeries::connectChartViewSignals()
 {
-    static QmlChartView* previousChartView = nullptr;
-
-    if (previousChartView) {
-        disconnect(previousChartView, &QmlChartView::transformChanged, this, &QQuickItem::update);
+    if (m_previousChartView) {
+        disconnect(m_previousChartView, &QmlChartView::transformChanged, this, &QQuickItem::update);
     }
 
     QmlChartView* chartView = qobject_cast<QmlChartView*>(parentItem());
@@ -112,9 +110,9 @@ void QmlLineSeries::connectChartViewSignals()
                 this,
                 &QQuickItem::update,
                 Qt::UniqueConnection);
-        previousChartView = chartView;
+        m_previousChartView = chartView;
     } else {
-        previousChartView = nullptr;
+        m_previousChartView = nullptr;
     }
 }
 

@@ -20,6 +20,7 @@
 //! Covers append, overflow eviction, range queries, bounds tracking, clear,
 //! and signal emission. Companion to Phase 0.2 (issue #3).
 
+#include <thread>
 #include <vector>
 
 #include <QtTest/QtTest>
@@ -67,6 +68,9 @@ private slots:
     void noSignalsOnEmptyAppend();
     void signalsOnClearNonEmpty();
     void noSignalsOnClearAlreadyEmpty();
+
+    // ─ Thread safety (#33) ─────────────────────────────────
+    void threadSafeAppendFromMultipleThreads();
 };
 
 void TestRingBuffer::initTestCase()
@@ -331,6 +335,36 @@ void TestRingBuffer::noSignalsOnClearAlreadyEmpty()
     rb.clear();
 
     QCOMPARE(removedSpy.count(), 0);
+}
+
+void TestRingBuffer::threadSafeAppendFromMultipleThreads()
+{
+    // Regression test for #33: ThreadSafety::Enabled used to take no lock
+    // at all, so concurrent appendBatch() calls raced on m_head/m_size/
+    // m_buffer. With capacity large enough to avoid eviction, every point
+    // from every thread must survive; a broken lock tends to corrupt
+    // bookkeeping and lose points (or crash) well before this count is
+    // reached in practice.
+    constexpr int kThreadCount = 8;
+    constexpr int kAppendsPerThread = 2000;
+
+    QRingBufferSeriesModel rb(kThreadCount * kAppendsPerThread, ThreadSafety::Enabled);
+    QCOMPARE(rb.threadSafety(), ThreadSafety::Enabled);
+
+    std::vector<std::thread> threads;
+    threads.reserve(kThreadCount);
+    for (int t = 0; t < kThreadCount; ++t) {
+        threads.emplace_back([&rb, t]() {
+            for (int i = 0; i < kAppendsPerThread; ++i) {
+                rb.append(QPointF(static_cast<double>(t), static_cast<double>(i)));
+            }
+        });
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    QCOMPARE(rb.pointCount(), qsizetype(kThreadCount * kAppendsPerThread));
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)

@@ -1,11 +1,14 @@
 #ifndef QMLAXIS_H
 #define QMLAXIS_H
 
+#include <QtCore/QPointer>
 #include <QtCore/QVariantList>
 #include <QtGui/QColor>
 #include <QtQuick/QQuickItem>
 
 #include "transform/QScaleEngine.h"
+
+class QmlChartView;
 
 class QmlAxis : public QQuickItem
 {
@@ -65,6 +68,12 @@ private:
     bool m_showGrid{true};
 
     std::vector<qgraphplot::QScaleEngine::TickInfo> m_tickInfos;
+
+    // Per-instance (NOT static — see #34): the ChartView this axis is
+    // currently connected to. QPointer so a disconnect() against an
+    // already-destroyed chart (reparented away without going through
+    // itemChange) is a safe no-op instead of dangling-pointer UB.
+    QPointer<QmlChartView> m_previousChartView;
 };
 
 #endif  // QMLAXIS_H

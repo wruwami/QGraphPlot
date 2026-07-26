@@ -1,11 +1,14 @@
 #ifndef QMLLINESERIES_H
 #define QMLLINESERIES_H
 
+#include <QtCore/QPointer>
 #include <QtCore/QString>
 #include <QtGui/QColor>
 #include <QtQuick/QQuickItem>
 
 #include "model/QAbstractSeriesModel.h"
+
+class QmlChartView;
 
 class QmlLineSeries : public QQuickItem
 {
@@ -52,7 +55,12 @@ private:
     qgraphplot::QAbstractSeriesModel* m_model{nullptr};
     QColor m_color{Qt::blue};
     QString m_name;
-    bool m_chartViewConnected{false};
+
+    // Per-instance (NOT static — see #34): the ChartView this series is
+    // currently connected to. QPointer so a disconnect() against an
+    // already-destroyed chart (reparented away without going through
+    // itemChange) is a safe no-op instead of dangling-pointer UB.
+    QPointer<QmlChartView> m_previousChartView;
 };
 
 #endif  // QMLLINESERIES_H
