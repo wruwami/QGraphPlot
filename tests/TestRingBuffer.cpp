@@ -586,7 +586,8 @@ void TestRingBuffer::benchmarkAppendBatchPerformance()
         batch[static_cast<size_t>(i)] = QPointF(static_cast<double>(i), std::sin(i * 0.05));
     }
 
-    QBENCHMARK {
+    QBENCHMARK
+    {
         rb.appendBatch(batch);
     }
 }
