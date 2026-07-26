@@ -1,5 +1,7 @@
 #include "qmlaxis.h"
 
+#include <cmath>
+
 #include <QtCore/QVariantMap>
 #include <QtQuick/QSGFlatColorMaterial>
 #include <QtQuick/QSGGeometryNode>
@@ -76,6 +78,32 @@ void QmlAxis::setGridColor(const QColor& gridColor)
     if (m_gridColor != gridColor) {
         m_gridColor = gridColor;
         emit gridColorChanged();
+        update();
+    }
+}
+
+void QmlAxis::setLineWidth(double lineWidth)
+{
+    if (!std::isfinite(lineWidth) || lineWidth <= 0.0) {
+        qWarning("QmlAxis::setLineWidth: lineWidth must be finite and > 0");
+        return;
+    }
+    if (!qFuzzyCompare(m_lineWidth, lineWidth)) {
+        m_lineWidth = lineWidth;
+        emit lineWidthChanged();
+        update();
+    }
+}
+
+void QmlAxis::setGridWidth(double gridWidth)
+{
+    if (!std::isfinite(gridWidth) || gridWidth <= 0.0) {
+        qWarning("QmlAxis::setGridWidth: gridWidth must be finite and > 0");
+        return;
+    }
+    if (!qFuzzyCompare(m_gridWidth, gridWidth)) {
+        m_gridWidth = gridWidth;
+        emit gridWidthChanged();
         update();
     }
 }
@@ -204,7 +232,6 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     if (!axisNode) {
         axisNode = new QSGGeometryNode();
         axisGeometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), axisVertexCount);
-        axisGeometry->setLineWidth(1.0f);
         axisGeometry->setDrawingMode(QSGGeometry::DrawLines);
         axisNode->setGeometry(axisGeometry);
         axisNode->setFlag(QSGNode::OwnsGeometry);
@@ -216,7 +243,6 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
 
         gridNode = new QSGGeometryNode();
         gridGeometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), gridVertexCount);
-        gridGeometry->setLineWidth(1.0f);
         gridGeometry->setDrawingMode(QSGGeometry::DrawLines);
         gridNode->setGeometry(gridGeometry);
         gridNode->setFlag(QSGNode::OwnsGeometry);
@@ -251,6 +277,10 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
             gridNode->markDirty(QSGNode::DirtyMaterial);
         }
     }
+
+    // 두께는 테마에서 올 수 있으므로 매 프레임 반영한다 (#12).
+    axisGeometry->setLineWidth(static_cast<float>(m_lineWidth));
+    gridGeometry->setLineWidth(static_cast<float>(m_gridWidth));
 
     QSGGeometry::Point2D* axisVertices = axisGeometry->vertexDataAsPoint2D();
     QSGGeometry::Point2D* gridVertices =

@@ -15,6 +15,7 @@ qt_add_qml_module(qml_frontend
         qmlchartview.h qmlchartview.cpp
         qmllineseries.h qmllineseries.cpp
         qmlaxis.h qmlaxis.cpp
+        QmlTheme.h
     QML_FILES
         qml/QGraphPlot/ChartView.qml
         qml/QGraphPlot/LineSeries.qml
@@ -26,6 +27,7 @@ target_link_libraries(qml_frontend
         QGraphPlot::Core
     PRIVATE
         Qt6::Quick
+        Qt6::Qml
 )
 
 # 인클루드 경로 설정 (core 소스 위치 참조를 위해)

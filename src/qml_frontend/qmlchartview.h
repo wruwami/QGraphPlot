@@ -1,9 +1,11 @@
 #ifndef QMLCHARTVIEW_H
 #define QMLCHARTVIEW_H
 
+#include <QtCore/QPointer>
 #include <QtCore/QRectF>
 #include <QtQuick/QQuickItem>
 
+#include "theme/QGraphPlotTheme.h"
 #include "transform/QCoordinateTransform.h"
 
 class QmlChartView : public QQuickItem
@@ -21,6 +23,9 @@ class QmlChartView : public QQuickItem
     Q_PROPERTY(double marginTop READ marginTop WRITE setMarginTop NOTIFY marginsChanged)
     Q_PROPERTY(double marginBottom READ marginBottom WRITE setMarginBottom NOTIFY marginsChanged)
 
+    Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
+    Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
+
 public:
     explicit QmlChartView(QQuickItem* parent = nullptr);
     ~QmlChartView() override = default;
@@ -36,6 +41,16 @@ public:
     double marginTop() const noexcept { return m_marginTop; }
     double marginBottom() const noexcept { return m_marginBottom; }
 
+    //! Visual style shared with the axes / series and with the Widget
+    //! frontend. Null (the default) means "paint no background", which keeps
+    //! the chart transparent over whatever the QML host draws.
+    qgraphplot::QGraphPlotTheme* theme() const noexcept { return m_theme; }
+
+    //! The plot rectangle in item pixels (item rect minus the margins).
+    //! Exposed so QML can position labels/legends against the same rect the
+    //! scene graph nodes use.
+    QRectF plotArea() const noexcept { return coordinateTransform().pixelRect(); }
+
     // Setters
     void setXMin(double val);
     void setXMax(double val);
@@ -46,6 +61,8 @@ public:
     void setMarginRight(double val);
     void setMarginTop(double val);
     void setMarginBottom(double val);
+
+    void setTheme(qgraphplot::QGraphPlotTheme* theme);
 
     // Helpers
     qgraphplot::QCoordinateTransform coordinateTransform() const noexcept;
@@ -58,11 +75,19 @@ signals:
     void yMaxChanged();
     void marginsChanged();
     void transformChanged();
+    void themeChanged();
 
 protected:
+    QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
     void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;
 
 private:
+    void applyThemeConnections();
+
+    // QPointer: the theme is typically owned by the QML host, not by the
+    // chart, so it can outlive or predecease the chart in either order.
+    QPointer<qgraphplot::QGraphPlotTheme> m_theme;
+
     double m_xMin{0.0};
     double m_xMax{10.0};
     double m_yMin{0.0};

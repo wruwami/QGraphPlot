@@ -20,6 +20,7 @@
 #include "WidgetChartView.h"
 
 #include <QtCore/qmath.h>
+#include <QtGui/QPainter>
 
 namespace qgraphplot
 {
@@ -52,6 +53,30 @@ WidgetChartView::~WidgetChartView()
         disconnect(it.value());
     }
     m_seriesDestroyedConnections.clear();
+}
+
+void WidgetChartView::setTheme(QGraphPlotTheme* theme)
+{
+    if (m_theme == theme) {
+        return;
+    }
+    if (m_theme) {
+        disconnect(m_theme, nullptr, this, nullptr);
+    }
+    m_theme = theme;
+    if (m_theme) {
+        connect(m_theme,
+                &QGraphPlotTheme::themeChanged,
+                this,
+                qOverload<>(&QWidget::update),
+                Qt::UniqueConnection);
+        connect(m_theme, &QObject::destroyed, this, [this]() {
+            emit themeChanged();
+            update();
+        });
+    }
+    emit themeChanged();
+    update();
 }
 
 void WidgetChartView::setXMin(double val)
@@ -199,9 +224,21 @@ QPointF WidgetChartView::mapToPixel(double x, double y) const noexcept
 
 void WidgetChartView::paintEvent(QPaintEvent* event)
 {
-    // Phase 0.8 stub: rendering intentionally left empty.
-    // Phase 1 will add QPainter/QOpenGLWidget/QRhi backend selection.
     QWidget::paintEvent(event);
+
+    // Theme chrome only: canvas + plot area, matching what QmlChartView
+    // paints for the same theme (AI.md §3.1). Grid, axes and series are
+    // still unrendered here — the Widget rendering backend is a Phase 1
+    // decision (QGraphPlot_MVP_Plan.md § 렌더링 백엔드 결정), so this
+    // deliberately stays at the chrome level instead of pre-committing to
+    // QPainter for the data path.
+    if (!m_theme) {
+        return;
+    }
+
+    QPainter painter(this);
+    painter.fillRect(rect(), m_theme->backgroundColor());
+    painter.fillRect(coordinateTransform().pixelRect(), m_theme->plotAreaColor());
 }
 
 void WidgetChartView::resizeEvent(QResizeEvent* event)
