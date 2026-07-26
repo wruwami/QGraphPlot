@@ -390,8 +390,9 @@ void TestRingBuffer::boundsIncrementalMatchesBruteForceUnderEviction()
     quint32 state = 12345u;
     auto nextValue = [&state]() -> double {
         state = state * 1664525u + 1013904223u;
-        return (static_cast<double>(state) / static_cast<double>(std::numeric_limits<quint32>::max()))
-                   * 200.0 -
+        return (static_cast<double>(state) /
+                static_cast<double>(std::numeric_limits<quint32>::max())) *
+                   200.0 -
                100.0;  // range roughly [-100, 100]
     };
 
