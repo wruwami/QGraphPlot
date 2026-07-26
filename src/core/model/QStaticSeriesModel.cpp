@@ -1,4 +1,4 @@
-// QGraphPlot — High-performance Qt chart library
+// QGraphPlot ??High-performance Qt chart library
 //
 // Copyright 2026 QGraphPlot Contributors
 //
@@ -20,20 +20,36 @@
 #include <cmath>
 #include <limits>
 
+#include <QtCore/QDebug>
+
 namespace qgraphplot
 {
 
-// ─────────────────────────────────────────────────────────────
+namespace
+{
+bool isFinitePoint(const QPointF& pt) noexcept
+{
+    return std::isfinite(pt.x()) && std::isfinite(pt.y());
+}
+
+bool hasFinitePoints(QSpan<const QPointF> pts) noexcept
+{
+    for (const QPointF& pt : pts) {
+        if (!isFinitePoint(pt)) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
 // Construction / destruction
-// ─────────────────────────────────────────────────────────────
 
 QStaticSeriesModel::QStaticSeriesModel(QObject* parent) : QAbstractSeriesModel(parent) {}
 
 QStaticSeriesModel::~QStaticSeriesModel() = default;
 
-// ─────────────────────────────────────────────────────────────
 // Queries
-// ─────────────────────────────────────────────────────────────
 
 qsizetype QStaticSeriesModel::pointCount() const
 {
@@ -58,25 +74,24 @@ QRectF QStaticSeriesModel::bounds() const
     return m_bounds;
 }
 
-// ─────────────────────────────────────────────────────────────
 // Bulk operations
-// ─────────────────────────────────────────────────────────────
 
 void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 {
+    if (!hasFinitePoints(pts)) {
+        qWarning("QStaticSeriesModel::setPoints: points must be finite");
+        return;
+    }
+
     const qsizetype oldSize = pointCount();
-
     m_points.assign(pts.begin(), pts.end());
-
     const qsizetype newSize = pointCount();
 
     recomputeBounds();
 
-    // Emit removal for old data (if any)
     if (oldSize > 0) {
         Q_EMIT pointsRemoved(0, oldSize - 1);
     }
-    // Emit insertion for new data (if any)
     if (newSize > 0) {
         Q_EMIT pointsInserted(0, newSize - 1);
     }
@@ -87,7 +102,11 @@ void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
 {
     if (pts.isEmpty()) {
-        return;  // AI.md §3.3: explicit no-op on empty input.
+        return;
+    }
+    if (!hasFinitePoints(pts)) {
+        qWarning("QStaticSeriesModel::appendBatch: points must be finite");
+        return;
     }
 
     const qsizetype oldSize = pointCount();
@@ -95,9 +114,12 @@ void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
 
     m_points.insert(m_points.end(), pts.begin(), pts.end());
 
-    // Incrementally expand bounds for new points.
-    for (const QPointF& pt : pts) {
-        expandBounds(pt);
+    if (oldSize == 0) {
+        recomputeBounds();
+    } else {
+        for (const QPointF& pt : pts) {
+            expandBounds(pt);
+        }
     }
 
     const qsizetype newSize = pointCount();
@@ -119,13 +141,14 @@ void QStaticSeriesModel::append(QPointF pt)
 void QStaticSeriesModel::replacePoint(qsizetype index, QPointF pt)
 {
     Q_ASSERT(index >= 0 && index < pointCount());
+    if (!isFinitePoint(pt)) {
+        qWarning("QStaticSeriesModel::replacePoint: point must be finite");
+        return;
+    }
 
     const QRectF oldBounds = m_bounds;
     m_points[static_cast<size_t>(index)] = pt;
 
-    // A replacement can shrink or shift the bounds (unlike append which only
-    // expands), so we must recompute from scratch. O(n) but replacePoint is
-    // expected to be infrequent compared to batch operations.
     recomputeBounds();
 
     Q_EMIT dataChanged(index, index);
@@ -156,9 +179,7 @@ void QStaticSeriesModel::reserve(qsizetype count)
     }
 }
 
-// ─────────────────────────────────────────────────────────────
 // Bounds helpers
-// ─────────────────────────────────────────────────────────────
 
 void QStaticSeriesModel::recomputeBounds() noexcept
 {
@@ -186,12 +207,6 @@ void QStaticSeriesModel::recomputeBounds() noexcept
 
 void QStaticSeriesModel::expandBounds(QPointF pt) noexcept
 {
-    if (m_bounds.isNull() && m_points.size() == 1) {
-        // First point: initialize bounds as zero-area rect at this point.
-        m_bounds = QRectF(pt.x(), pt.y(), 0.0, 0.0);
-        return;
-    }
-
     const qreal x = pt.x();
     const qreal y = pt.y();
 

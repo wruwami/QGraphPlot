@@ -1,4 +1,4 @@
-// QGraphPlot — High-performance Qt chart library
+// QGraphPlot High-performance Qt chart library
 //
 // Copyright 2026 QGraphPlot Contributors
 //
@@ -20,6 +20,8 @@
 //! Covers setPoints, append, appendBatch, replacePoint, clear, reserve,
 //! bounds tracking, and signal emission (issue #62).
 
+#include <list>
+#include <limits>
 #include <vector>
 
 #include <QtTest/QtTest>
@@ -33,40 +35,36 @@ class TestStaticModel : public QObject
     Q_OBJECT
 
 private slots:
-    // ─ Construction ────────────────────────────────────────
     void constructEmpty();
 
-    // ─ setPoints ───────────────────────────────────────────
     void setPointsFromEmpty();
     void setPointsReplacesExisting();
     void setPointsWithEmptyClears();
 
-    // ─ Append ──────────────────────────────────────────────
     void appendSingleGrowsSize();
     void appendSingleUpdatesBounds();
     void appendBatchGrowsSize();
     void appendBatchEmptyIsNoop();
     void appendRangeFromVector();
+    void appendRangeFromList();
 
-    // ─ replacePoint ────────────────────────────────────────
     void replacePointUpdatesValue();
     void replacePointUpdatesBoundsOnShrink();
     void replacePointUpdatesBoundsOnExpand();
+    void rejectNonFiniteSetPoints();
+    void rejectNonFiniteAppendBatch();
+    void rejectNonFiniteReplacePoint();
 
-    // ─ Clear ───────────────────────────────────────────────
     void clearEmptiesModel();
     void clearAlreadyEmpty();
 
-    // ─ Reserve ─────────────────────────────────────────────
     void reserveDoesNotChangeCount();
 
-    // ─ Queries ─────────────────────────────────────────────
     void pointAtReturnsCorrectValue();
     void pointsRangeReturnsContiguousSpan();
     void boundsCorrectAfterMultipleAppends();
     void boundsCorrectAfterSetPoints();
 
-    // ─ Signals ─────────────────────────────────────────────
     void signalsOnSetPointsFromEmpty();
     void signalsOnSetPointsReplace();
     void signalsOnAppend();
@@ -79,20 +77,12 @@ private slots:
     void noBoundsChangedOnReplacePointNoChange();
 };
 
-// ─────────────────────────────────────────────────────────────
-// Construction
-// ─────────────────────────────────────────────────────────────
-
 void TestStaticModel::constructEmpty()
 {
     QStaticSeriesModel model;
     QCOMPARE(model.pointCount(), qsizetype(0));
     QVERIFY(model.bounds().isNull());
 }
-
-// ─────────────────────────────────────────────────────────────
-// setPoints
-// ─────────────────────────────────────────────────────────────
 
 void TestStaticModel::setPointsFromEmpty()
 {
@@ -133,10 +123,6 @@ void TestStaticModel::setPointsWithEmptyClears()
     QVERIFY(model.bounds().isNull());
 }
 
-// ─────────────────────────────────────────────────────────────
-// Append
-// ─────────────────────────────────────────────────────────────
-
 void TestStaticModel::appendSingleGrowsSize()
 {
     QStaticSeriesModel model;
@@ -162,6 +148,7 @@ void TestStaticModel::appendBatchGrowsSize()
     model.appendBatch(pts);
     QCOMPARE(model.pointCount(), qsizetype(3));
     QCOMPARE(model.pointAt(2), QPointF(2.0, 2.0));
+    QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 2.0, 2.0));
 }
 
 void TestStaticModel::appendBatchEmptyIsNoop()
@@ -182,9 +169,17 @@ void TestStaticModel::appendRangeFromVector()
     QCOMPARE(model.pointAt(1), QPointF(3.0, 4.0));
 }
 
-// ─────────────────────────────────────────────────────────────
-// replacePoint
-// ─────────────────────────────────────────────────────────────
+void TestStaticModel::appendRangeFromList()
+{
+    QStaticSeriesModel model;
+    std::list<QPointF> pts = {QPointF(-1.0, 1.0), QPointF(2.0, -2.0)};
+    model.appendRange(pts);
+
+    QCOMPARE(model.pointCount(), qsizetype(2));
+    QCOMPARE(model.pointAt(0), QPointF(-1.0, 1.0));
+    QCOMPARE(model.pointAt(1), QPointF(2.0, -2.0));
+    QCOMPARE(model.bounds(), QRectF(-1.0, -2.0, 3.0, 3.0));
+}
 
 void TestStaticModel::replacePointUpdatesValue()
 {
@@ -194,7 +189,7 @@ void TestStaticModel::replacePointUpdatesValue()
 
     model.replacePoint(1, QPointF(10.0, 10.0));
     QCOMPARE(model.pointAt(1), QPointF(10.0, 10.0));
-    QCOMPARE(model.pointCount(), qsizetype(3));  // size unchanged
+    QCOMPARE(model.pointCount(), qsizetype(3));
 }
 
 void TestStaticModel::replacePointUpdatesBoundsOnShrink()
@@ -204,7 +199,6 @@ void TestStaticModel::replacePointUpdatesBoundsOnShrink()
     model.setPoints(pts);
     QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 10.0, 10.0));
 
-    // Replace the max point with something smaller → bounds should shrink.
     model.replacePoint(1, QPointF(5.0, 5.0));
     QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 5.0, 5.0));
 }
@@ -216,14 +210,55 @@ void TestStaticModel::replacePointUpdatesBoundsOnExpand()
     model.setPoints(pts);
     QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 1.0, 1.0));
 
-    // Replace with a larger value → bounds should expand.
     model.replacePoint(1, QPointF(100.0, 100.0));
     QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 100.0, 100.0));
 }
 
-// ─────────────────────────────────────────────────────────────
-// Clear
-// ─────────────────────────────────────────────────────────────
+void TestStaticModel::rejectNonFiniteSetPoints()
+{
+    QStaticSeriesModel model;
+    std::vector<QPointF> pts = {
+        QPointF(1.0, 2.0),
+        QPointF(std::numeric_limits<qreal>::infinity(), 4.0),
+    };
+
+    QTest::ignoreMessage(QtWarningMsg, "QStaticSeriesModel::setPoints: points must be finite");
+    model.setPoints(pts);
+
+    QCOMPARE(model.pointCount(), qsizetype(0));
+    QVERIFY(model.bounds().isNull());
+}
+
+void TestStaticModel::rejectNonFiniteAppendBatch()
+{
+    QStaticSeriesModel model;
+    model.append(QPointF(0.0, 0.0));
+
+    std::vector<QPointF> pts = {
+        QPointF(1.0, 1.0),
+        QPointF(std::numeric_limits<qreal>::quiet_NaN(), 2.0),
+    };
+
+    QTest::ignoreMessage(QtWarningMsg, "QStaticSeriesModel::appendBatch: points must be finite");
+    model.appendBatch(pts);
+
+    QCOMPARE(model.pointCount(), qsizetype(1));
+    QCOMPARE(model.pointAt(0), QPointF(0.0, 0.0));
+    QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 0.0, 0.0));
+}
+
+void TestStaticModel::rejectNonFiniteReplacePoint()
+{
+    QStaticSeriesModel model;
+    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(1.0, 1.0)};
+    model.setPoints(pts);
+
+    QTest::ignoreMessage(QtWarningMsg, "QStaticSeriesModel::replacePoint: point must be finite");
+    model.replacePoint(1, QPointF(2.0, std::numeric_limits<qreal>::infinity()));
+
+    QCOMPARE(model.pointAt(1), QPointF(1.0, 1.0));
+    QCOMPARE(model.bounds(), QRectF(0.0, 0.0, 1.0, 1.0));
+}
 
 void TestStaticModel::clearEmptiesModel()
 {
@@ -238,13 +273,9 @@ void TestStaticModel::clearEmptiesModel()
 void TestStaticModel::clearAlreadyEmpty()
 {
     QStaticSeriesModel model;
-    model.clear();  // should not crash
+    model.clear();
     QCOMPARE(model.pointCount(), qsizetype(0));
 }
-
-// ─────────────────────────────────────────────────────────────
-// Reserve
-// ─────────────────────────────────────────────────────────────
 
 void TestStaticModel::reserveDoesNotChangeCount()
 {
@@ -253,10 +284,6 @@ void TestStaticModel::reserveDoesNotChangeCount()
     QCOMPARE(model.pointCount(), qsizetype(0));
     QVERIFY(model.bounds().isNull());
 }
-
-// ─────────────────────────────────────────────────────────────
-// Queries
-// ─────────────────────────────────────────────────────────────
 
 void TestStaticModel::pointAtReturnsCorrectValue()
 {
@@ -270,8 +297,7 @@ void TestStaticModel::pointAtReturnsCorrectValue()
 void TestStaticModel::pointsRangeReturnsContiguousSpan()
 {
     QStaticSeriesModel model;
-    std::vector<QPointF> pts = {
-        QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)};
+    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(1.0, 1.0), QPointF(2.0, 2.0), QPointF(3.0, 3.0)};
     model.setPoints(pts);
 
     auto span = model.points(1, 2);
@@ -286,7 +312,6 @@ void TestStaticModel::boundsCorrectAfterMultipleAppends()
     model.append(QPointF(-5.0, 3.0));
     model.append(QPointF(10.0, -2.0));
     model.append(QPointF(0.0, 7.0));
-    // minX=-5, maxX=10, minY=-2, maxY=7
     QCOMPARE(model.bounds(), QRectF(-5.0, -2.0, 15.0, 9.0));
 }
 
@@ -297,10 +322,6 @@ void TestStaticModel::boundsCorrectAfterSetPoints()
     model.setPoints(pts);
     QCOMPARE(model.bounds(), QRectF(-1.0, -1.0, 2.0, 2.0));
 }
-
-// ─────────────────────────────────────────────────────────────
-// Signals
-// ─────────────────────────────────────────────────────────────
 
 void TestStaticModel::signalsOnSetPointsFromEmpty()
 {
@@ -313,7 +334,7 @@ void TestStaticModel::signalsOnSetPointsFromEmpty()
     std::vector<QPointF> pts = {QPointF(1.0, 2.0), QPointF(3.0, 4.0)};
     model.setPoints(pts);
 
-    QCOMPARE(removedSpy.count(), 0);  // was empty, no removal
+    QCOMPARE(removedSpy.count(), 0);
     QCOMPARE(insertedSpy.count(), 1);
     QCOMPARE(insertedSpy.takeFirst().at(0).toLongLong(), qsizetype(0));
     QCOMPARE(boundsSpy.count(), 1);
@@ -337,12 +358,12 @@ void TestStaticModel::signalsOnSetPointsReplace()
     QCOMPARE(removedSpy.count(), 1);
     auto removedArgs = removedSpy.takeFirst();
     QCOMPARE(removedArgs.at(0).toLongLong(), qsizetype(0));
-    QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(0));  // old had 1 point
+    QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(0));
 
     QCOMPARE(insertedSpy.count(), 1);
     auto insertedArgs = insertedSpy.takeFirst();
     QCOMPARE(insertedArgs.at(0).toLongLong(), qsizetype(0));
-    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(1));  // new has 2 points
+    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(1));
 
     QCOMPARE(changedSpy.count(), 1);
     QCOMPARE(changedSpy.takeFirst().at(0).toLongLong(), qsizetype(2));
@@ -358,8 +379,8 @@ void TestStaticModel::signalsOnAppend()
 
     QCOMPARE(insertedSpy.count(), 1);
     auto insertedArgs = insertedSpy.takeFirst();
-    QCOMPARE(insertedArgs.at(0).toLongLong(), qsizetype(0));  // first index
-    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(0));  // last index (same)
+    QCOMPARE(insertedArgs.at(0).toLongLong(), qsizetype(0));
+    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(0));
 
     QCOMPARE(changedSpy.count(), 1);
     QCOMPARE(changedSpy.takeFirst().at(0).toLongLong(), qsizetype(1));
@@ -368,7 +389,7 @@ void TestStaticModel::signalsOnAppend()
 void TestStaticModel::signalsOnAppendBatch()
 {
     QStaticSeriesModel model;
-    model.append(QPointF(0.0, 0.0));  // pre-fill with one point
+    model.append(QPointF(0.0, 0.0));
 
     QSignalSpy insertedSpy(&model, &QStaticSeriesModel::pointsInserted);
     QSignalSpy changedSpy(&model, &QStaticSeriesModel::modelChanged);
@@ -378,8 +399,8 @@ void TestStaticModel::signalsOnAppendBatch()
 
     QCOMPARE(insertedSpy.count(), 1);
     auto insertedArgs = insertedSpy.takeFirst();
-    QCOMPARE(insertedArgs.at(0).toLongLong(), qsizetype(1));  // first new index
-    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(2));  // last new index
+    QCOMPARE(insertedArgs.at(0).toLongLong(), qsizetype(1));
+    QCOMPARE(insertedArgs.at(1).toLongLong(), qsizetype(2));
 
     QCOMPARE(changedSpy.count(), 1);
     QCOMPARE(changedSpy.takeFirst().at(0).toLongLong(), qsizetype(3));
@@ -433,7 +454,7 @@ void TestStaticModel::signalsOnClearNonEmpty()
     QCOMPARE(removedSpy.count(), 1);
     auto removedArgs = removedSpy.takeFirst();
     QCOMPARE(removedArgs.at(0).toLongLong(), qsizetype(0));
-    QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(2));  // last of 3 points
+    QCOMPARE(removedArgs.at(1).toLongLong(), qsizetype(2));
 
     QCOMPARE(boundsSpy.count(), 1);
     QCOMPARE(changedSpy.count(), 1);
@@ -458,7 +479,7 @@ void TestStaticModel::boundsChangedOnReplacePointShrink()
 
     QSignalSpy boundsSpy(&model, &QStaticSeriesModel::boundsChanged);
 
-    model.replacePoint(1, QPointF(5.0, 5.0));  // shrinks bounds
+    model.replacePoint(1, QPointF(5.0, 5.0));
 
     QCOMPARE(boundsSpy.count(), 1);
 }
@@ -466,13 +487,12 @@ void TestStaticModel::boundsChangedOnReplacePointShrink()
 void TestStaticModel::noBoundsChangedOnReplacePointNoChange()
 {
     QStaticSeriesModel model;
-    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(10.0, 10.0)};
+    std::vector<QPointF> pts = {QPointF(0.0, 0.0), QPointF(5.0, 5.0), QPointF(10.0, 10.0)};
     model.setPoints(pts);
 
     QSignalSpy boundsSpy(&model, &QStaticSeriesModel::boundsChanged);
 
-    // Replace with a value that doesn't change bounds.
-    model.replacePoint(0, QPointF(5.0, 5.0));  // still within [0,10] x [0,10]
+    model.replacePoint(1, QPointF(6.0, 6.0));
 
     QCOMPARE(boundsSpy.count(), 0);
 }

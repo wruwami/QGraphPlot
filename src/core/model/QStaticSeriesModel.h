@@ -35,6 +35,7 @@
 #define QGRAPHPLOT_STATICSERIESMODEL_H
 
 #include <vector>
+#include <iterator>
 
 #include <QtCore/QPointF>
 #include <QtCore/QRectF>
@@ -98,7 +99,8 @@ public:
     template <typename Container>
     void appendRange(const Container& c)
     {
-        appendBatch(QSpan<const QPointF>(c.data(), static_cast<qsizetype>(c.size())));
+        std::vector<QPointF> points(std::begin(c), std::end(c));
+        appendBatch(QSpan<const QPointF>(points.data(), static_cast<qsizetype>(points.size())));
     }
 
     //! Replaces the point at @p index with @p pt. Emits:
