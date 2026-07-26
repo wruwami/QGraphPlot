@@ -42,7 +42,10 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
         qCWarning(lcCoordinate) << "QCoordinateTransform: invalid or non-positive dataBounds"
                                    " dimensions or non-finite edges:"
                                 << m_dataBounds;
-        m_dataBounds = QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square
+        if (!qIsFinite(m_dataBounds.left()) || !qIsFinite(m_dataBounds.top()) ||
+            !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height())) {
+            m_dataBounds = QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square only for non-finite values
+        }
     }
 
     // Validate Log boundaries (AI.md §3.3)
