@@ -6,6 +6,7 @@
 
 #include "QmlLineSeries.h"
 #include "QmlScatterSeries.h"
+#include "transform/QAutoScaler.h"
 
 namespace qgraphplot
 {
@@ -34,6 +35,12 @@ QmlChartView::~QmlChartView()
         disconnect(it.value());
     }
     m_seriesDestroyedConnections.clear();
+    for (auto it = m_autoScaleConnections.constBegin(); it != m_autoScaleConnections.constEnd();
+         ++it) {
+        disconnect(it.value().first);
+        disconnect(it.value().second);
+    }
+    m_autoScaleConnections.clear();
 }
 
 void QmlChartView::setTheme(qgraphplot::QGraphPlotTheme* theme)
@@ -84,7 +91,13 @@ void QmlChartView::addSeries(qgraphplot::QAbstractSeries* aSeries)
             auto* series = static_cast<qgraphplot::QAbstractSeries*>(obj);
             m_series.removeAll(series);
             m_seriesDestroyedConnections.remove(series);
+            disconnectAutoScaleModel(series);
         });
+    connectAutoScaleModel(aSeries);
+    // The newly-added series may extend the auto-scaled range: recompute now
+    // so the view follows the data immediately instead of waiting for the
+    // next boundsChanged (issue #63).
+    applyAutoScale();
     emit seriesAdded(aSeries);
 }
 
@@ -96,7 +109,11 @@ void QmlChartView::removeSeries(qgraphplot::QAbstractSeries* aSeries)
     if (m_seriesDestroyedConnections.contains(aSeries)) {
         disconnect(m_seriesDestroyedConnections.take(aSeries));
     }
+    disconnectAutoScaleModel(aSeries);
     m_series.removeOne(aSeries);
+    // A removed series may have anchored the previous range; recompute so the
+    // view tightens to the remaining data (issue #63).
+    applyAutoScale();
     emit seriesRemoved(aSeries);
 }
 
@@ -107,8 +124,10 @@ void QmlChartView::clearSeries()
         if (m_seriesDestroyedConnections.contains(aSeries)) {
             disconnect(m_seriesDestroyedConnections.take(aSeries));
         }
+        disconnectAutoScaleModel(aSeries);
         emit seriesRemoved(aSeries);
     }
+    applyAutoScale();
 }
 
 qgraphplot::QAbstractSeries* QmlChartView::seriesAt(qsizetype index) const noexcept
@@ -134,6 +153,95 @@ qgraphplot::QAbstractSeries* QmlChartView::coreSeriesFromItem(QQuickItem* item) 
         return scatter->coreSeries();
     }
     return nullptr;
+}
+
+void QmlChartView::connectAutoScaleModel(qgraphplot::QAbstractSeries* aSeries)
+{
+    if (!aSeries || m_autoScaleConnections.contains(aSeries)) {
+        return;
+    }
+    // Subscribe to modelChanged so a model assigned after addSeries still
+    // wires boundsChanged; and to the current model's boundsChanged so the
+    // auto-range follows streaming data (signal-driven, not per-frame).
+    QMetaObject::Connection modelConn =
+        connect(aSeries, &qgraphplot::QAbstractSeries::modelChanged, this, [this, aSeries]() {
+            auto it = m_autoScaleConnections.find(aSeries);
+            if (it == m_autoScaleConnections.end()) {
+                return;
+            }
+            disconnect(it.value().second);
+            it.value().second = QMetaObject::Connection();
+            if (auto* model = aSeries->model()) {
+                it.value().second = connect(model,
+                                            &qgraphplot::QAbstractSeriesModel::boundsChanged,
+                                            this,
+                                            &QmlChartView::applyAutoScale,
+                                            Qt::UniqueConnection);
+            }
+            applyAutoScale();
+        });
+    QMetaObject::Connection boundsConn;
+    if (auto* model = aSeries->model()) {
+        boundsConn = connect(model,
+                             &qgraphplot::QAbstractSeriesModel::boundsChanged,
+                             this,
+                             &QmlChartView::applyAutoScale,
+                             Qt::UniqueConnection);
+    }
+    m_autoScaleConnections.insert(aSeries, {modelConn, boundsConn});
+}
+
+void QmlChartView::disconnectAutoScaleModel(qgraphplot::QAbstractSeries* aSeries)
+{
+    auto it = m_autoScaleConnections.find(aSeries);
+    if (it == m_autoScaleConnections.end()) {
+        return;
+    }
+    disconnect(it.value().first);
+    disconnect(it.value().second);
+    m_autoScaleConnections.erase(it);
+}
+
+void QmlChartView::applyAutoScale()
+{
+    if (!m_autoScaleX && !m_autoScaleY) {
+        return;
+    }
+    const QRectF padded =
+        qgraphplot::QAutoScaler::computePaddedBounds(m_series, m_autoScalePadding);
+    // computePaddedBounds guarantees min < max on both axes, so we bypass
+    // the manual setters' "min < max" validation and write the members
+    // directly (autoScale is the source of truth while enabled — see the
+    // priority rule in QmlChartView.h).
+    bool changed = false;
+    if (m_autoScaleX) {
+        if (qgraphplot::fuzzyValuesDiffer(m_xMin, padded.left())) {
+            m_xMin = padded.left();
+            emit xMinChanged();
+            changed = true;
+        }
+        if (qgraphplot::fuzzyValuesDiffer(m_xMax, padded.right())) {
+            m_xMax = padded.right();
+            emit xMaxChanged();
+            changed = true;
+        }
+    }
+    if (m_autoScaleY) {
+        if (qgraphplot::fuzzyValuesDiffer(m_yMin, padded.top())) {
+            m_yMin = padded.top();
+            emit yMinChanged();
+            changed = true;
+        }
+        if (qgraphplot::fuzzyValuesDiffer(m_yMax, padded.bottom())) {
+            m_yMax = padded.bottom();
+            emit yMaxChanged();
+            changed = true;
+        }
+    }
+    if (changed) {
+        emit transformChanged();
+        update();
+    }
 }
 
 void QmlChartView::itemChange(ItemChange change, const ItemChangeData& value)
@@ -212,6 +320,46 @@ void QmlChartView::setYMax(double val)
         m_yMax = val;
         emit yMaxChanged();
         emit transformChanged();
+    }
+}
+
+void QmlChartView::setAutoScaleX(bool enabled)
+{
+    if (m_autoScaleX == enabled) {
+        return;
+    }
+    m_autoScaleX = enabled;
+    emit autoScaleXChanged();
+    if (enabled) {
+        applyAutoScale();
+    }
+}
+
+void QmlChartView::setAutoScaleY(bool enabled)
+{
+    if (m_autoScaleY == enabled) {
+        return;
+    }
+    m_autoScaleY = enabled;
+    emit autoScaleYChanged();
+    if (enabled) {
+        applyAutoScale();
+    }
+}
+
+void QmlChartView::setAutoScalePadding(double ratio)
+{
+    if (!qIsFinite(ratio) || ratio < 0.0) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setAutoScalePadding: rejected negative or non-finite ratio:" << ratio;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_autoScalePadding, ratio)) {
+        m_autoScalePadding = ratio;
+        emit autoScalePaddingChanged();
+        if (m_autoScaleX || m_autoScaleY) {
+            applyAutoScale();
+        }
     }
 }
 

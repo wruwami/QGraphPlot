@@ -24,6 +24,8 @@
 #include <QtCore/QRegularExpression>
 #include <QtTest/QtTest>
 
+#include "../src/core/model/QStaticSeriesModel.h"
+#include "../src/core/series/QLineSeries.h"
 #include "../src/widget_frontend/WidgetChartView.h"
 
 using qgraphplot::WidgetChartView;
@@ -61,6 +63,17 @@ private slots:
 
     void redundantWritesDoNotEmit();
     void wideningRangeAllowsPreviouslyInvalidValue();
+
+    // ── Axis auto-range (issue #63) ─────────────────────────────
+    void autoScaleDefaultsAreOff();
+    void autoScalePaddingDefaultIsFivePercent();
+    void autoScalePaddingRejectsNegativeAndNonFinite();
+    void autoScaleXRecomputesOnEnable();
+    void autoScaleYRecomputesOnEnable();
+    void autoScaleXFollowsBoundsChanged();
+    void autoScaleXRecomputesOnAddSeries();
+    void autoScaleXHandlesEmptyModel();
+    void autoScaleXHandlesSinglePoint();
 };
 
 void TestWidgetChartView::defaultsAreSane()
@@ -280,6 +293,162 @@ void TestWidgetChartView::wideningRangeAllowsPreviouslyInvalidValue()
     view.setXMax(30.0);
     view.setXMin(20.0);
     QCOMPARE(view.xMin(), 20.0);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Axis auto-range (issue #63) — parity with TestQmlChartView (AI.md §3.1)
+// ════════════════════════════════════════════════════════════════
+
+namespace
+{
+//! Builds a QLineSeries whose backing static model holds @p points, parented
+//! to @p owner so it cleans up with the owner.
+qgraphplot::QLineSeries* makeSeriesWith(QObject& owner, const QList<QPointF>& points)
+{
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
+    auto* series = new qgraphplot::QLineSeries(&owner);
+    series->setModel(model);
+    return series;
+}
+}  // namespace
+
+void TestWidgetChartView::autoScaleDefaultsAreOff()
+{
+    WidgetChartView view;
+    QCOMPARE(view.autoScaleX(), false);
+    QCOMPARE(view.autoScaleY(), false);
+}
+
+void TestWidgetChartView::autoScalePaddingDefaultIsFivePercent()
+{
+    WidgetChartView view;
+    QCOMPARE(view.autoScalePadding(), 0.05);
+}
+
+void TestWidgetChartView::autoScalePaddingRejectsNegativeAndNonFinite()
+{
+    WidgetChartView view;
+    QSignalSpy spy(&view, &WidgetChartView::autoScalePaddingChanged);
+    const QRegularExpression pattern = warningPrefix(QStringLiteral(
+        "WidgetChartView::setAutoScalePadding: rejected negative or non-finite ratio:"));
+
+    for (const double invalid : {-0.01,
+                                 -1.0,
+                                 std::numeric_limits<double>::quiet_NaN(),
+                                 std::numeric_limits<double>::infinity(),
+                                 -std::numeric_limits<double>::infinity()}) {
+        QTest::ignoreMessage(QtWarningMsg, pattern);
+        view.setAutoScalePadding(invalid);
+    }
+    QCOMPARE(view.autoScalePadding(), 0.05);  // unchanged
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestWidgetChartView::autoScaleXRecomputesOnEnable()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, -1.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+
+    QSignalSpy xMinSpy(&view, &WidgetChartView::xMinChanged);
+    QSignalSpy xMaxSpy(&view, &WidgetChartView::xMaxChanged);
+    QSignalSpy yMinSpy(&view, &WidgetChartView::yMinChanged);
+
+    view.setAutoScaleX(true);
+
+    QCOMPARE(view.xMin(), -0.5);
+    QCOMPARE(view.xMax(), 10.5);
+    QVERIFY(xMinSpy.count() >= 1);
+    QVERIFY(xMaxSpy.count() >= 1);
+    QCOMPARE(view.yMin(), 0.0);  // Y untouched
+    QCOMPARE(yMinSpy.count(), 0);
+}
+
+void TestWidgetChartView::autoScaleYRecomputesOnEnable()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, -1.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+
+    QSignalSpy yMinSpy(&view, &WidgetChartView::yMinChanged);
+    QSignalSpy yMaxSpy(&view, &WidgetChartView::yMaxChanged);
+    QSignalSpy xMinSpy(&view, &WidgetChartView::xMinChanged);
+
+    view.setAutoScaleY(true);
+
+    QCOMPARE(view.yMin(), -1.1);
+    QCOMPARE(view.yMax(), 1.1);
+    QVERIFY(yMinSpy.count() >= 1);
+    QVERIFY(yMaxSpy.count() >= 1);
+    QCOMPARE(view.xMin(), 0.0);  // X untouched
+    QCOMPARE(xMinSpy.count(), 0);
+}
+
+void TestWidgetChartView::autoScaleXFollowsBoundsChanged()
+{
+    WidgetChartView view;
+    QObject owner;
+    QList<QPointF> points{QPointF(0.0, 0.0), QPointF(2.0, 1.0)};
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
+    auto* s = new qgraphplot::QLineSeries(&owner);
+    s->setModel(model);
+    view.addSeries(s);
+    view.setAutoScaleX(true);
+
+    QCOMPARE(view.xMin(), -0.1);
+    QCOMPARE(view.xMax(), 2.1);
+
+    QSignalSpy xMaxSpy(&view, &WidgetChartView::xMaxChanged);
+    QList<QPointF> extra{QPointF(20.0, 1.0)};
+    model->appendBatch(QSpan<const QPointF>(extra.data(), extra.size()));
+    QTRY_COMPARE_WITH_TIMEOUT(view.xMax(), 21.0, 1000);
+    QVERIFY(xMaxSpy.count() >= 1);
+}
+
+void TestWidgetChartView::autoScaleXRecomputesOnAddSeries()
+{
+    WidgetChartView view;
+    QObject owner;
+    view.setAutoScaleX(true);
+    // No series yet → fallback bounds QRectF(0,0,1,1), padded to [-0.05, 1.05].
+    QCOMPARE(view.xMin(), -0.05);
+    QCOMPARE(view.xMax(), 1.05);
+
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(4.0, 1.0)});
+    view.addSeries(s);
+    QCOMPARE(view.xMin(), -0.2);
+    QCOMPARE(view.xMax(), 4.2);
+}
+
+void TestWidgetChartView::autoScaleXHandlesEmptyModel()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* emptyModel = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* s = new qgraphplot::QLineSeries(&owner);
+    s->setModel(emptyModel);
+    view.addSeries(s);
+
+    QSignalSpy xMinSpy(&view, &WidgetChartView::xMinChanged);
+    view.setAutoScaleX(true);
+    QCOMPARE(view.xMin(), -0.05);
+    QCOMPARE(view.xMax(), 1.05);
+    QVERIFY(xMinSpy.count() >= 1);
+}
+
+void TestWidgetChartView::autoScaleXHandlesSinglePoint()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(5.0, 7.0)});
+    view.addSeries(s);
+    view.setAutoScaleX(true);
+    QCOMPARE(view.xMin(), 4.0);
+    QCOMPARE(view.xMax(), 6.0);
 }
 
 QTEST_MAIN(TestWidgetChartView)

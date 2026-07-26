@@ -30,6 +30,7 @@
 #include <QtQml/QQmlEngine>
 #include <QtTest/QtTest>
 
+#include "../src/core/model/QStaticSeriesModel.h"
 #include "../src/core/series/QLineSeries.h"
 #include "../src/qml_frontend/QmlChartView.h"
 #include "../src/qml_frontend/QmlLineSeries.h"
@@ -108,6 +109,18 @@ private slots:
     void reparentedLineSeriesMovesBetweenCharts();
     void reparentedScatterSeriesMovesBetweenCharts();
     void clearSeriesOnDestructorIsSafe();
+
+    // ── Axis auto-range (issue #63) ─────────────────────────────
+    void autoScaleDefaultsAreOff();
+    void autoScalePaddingDefaultIsFivePercent();
+    void autoScalePaddingRejectsNegativeAndNonFinite();
+    void autoScaleXRecomputesOnEnable();
+    void autoScaleYRecomputesOnEnable();
+    void autoScaleXFollowsBoundsChanged();
+    void autoScaleXRecomputesOnAddSeries();
+    void autoScaleRespectsPaddingRatio();
+    void autoScaleXHandlesEmptyModel();
+    void autoScaleXHandlesSinglePoint();
 };
 
 void TestQmlChartView::defaultsAreSane()
@@ -621,6 +634,194 @@ void TestQmlChartView::clearSeriesOnDestructorIsSafe()
 
     delete view;
     QVERIFY(view.isNull());
+}
+
+// ════════════════════════════════════════════════════════════════
+// Axis auto-range (issue #63)
+//
+// QmlChartView and WidgetChartView share the same auto-scale contract:
+// autoScaleX/autoScaleY (bool, default false) + autoScalePadding (double,
+// default 0.05). The math lives in qgraphplot::QAutoScaler; here we
+// verify the QML frontend wires the signals correctly (AI.md §3.1).
+// ════════════════════════════════════════════════════════════════
+
+namespace
+{
+//! Builds a QLineSeries whose backing static model holds @p points, parented
+//! to @p owner so it cleans up with the owner (no manual delete needed).
+QLineSeries* makeSeriesWith(QObject& owner, const QList<QPointF>& points)
+{
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
+    auto* series = new QLineSeries(&owner);
+    series->setModel(model);
+    return series;
+}
+}  // namespace
+
+void TestQmlChartView::autoScaleDefaultsAreOff()
+{
+    QmlChartView view;
+    QCOMPARE(view.autoScaleX(), false);
+    QCOMPARE(view.autoScaleY(), false);
+}
+
+void TestQmlChartView::autoScalePaddingDefaultIsFivePercent()
+{
+    QmlChartView view;
+    QCOMPARE(view.autoScalePadding(), 0.05);
+}
+
+void TestQmlChartView::autoScalePaddingRejectsNegativeAndNonFinite()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::autoScalePaddingChanged);
+    const QRegularExpression pattern = warningPrefix(QStringLiteral(
+        "QmlChartView::setAutoScalePadding: rejected negative or non-finite ratio:"));
+
+    for (const double invalid : {-0.01,
+                                 -1.0,
+                                 std::numeric_limits<double>::quiet_NaN(),
+                                 std::numeric_limits<double>::infinity(),
+                                 -std::numeric_limits<double>::infinity()}) {
+        QTest::ignoreMessage(QtWarningMsg, pattern);
+        view.setAutoScalePadding(invalid);
+    }
+    QCOMPARE(view.autoScalePadding(), 0.05);  // unchanged
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestQmlChartView::autoScaleXRecomputesOnEnable()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, -1.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+
+    QSignalSpy xMinSpy(&view, &QmlChartView::xMinChanged);
+    QSignalSpy xMaxSpy(&view, &QmlChartView::xMaxChanged);
+    QSignalSpy yMinSpy(&view, &QmlChartView::yMinChanged);
+
+    view.setAutoScaleX(true);
+
+    // Bounds x∈[0, 10], padding 0.05 → ±0.5 → [-0.5, 10.5].
+    QCOMPARE(view.xMin(), -0.5);
+    QCOMPARE(view.xMax(), 10.5);
+    QVERIFY(xMinSpy.count() >= 1);
+    QVERIFY(xMaxSpy.count() >= 1);
+    // autoScaleX only — Y must be untouched.
+    QCOMPARE(view.yMin(), 0.0);
+    QCOMPARE(yMinSpy.count(), 0);
+}
+
+void TestQmlChartView::autoScaleYRecomputesOnEnable()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, -1.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+
+    QSignalSpy yMinSpy(&view, &QmlChartView::yMinChanged);
+    QSignalSpy yMaxSpy(&view, &QmlChartView::yMaxChanged);
+    QSignalSpy xMinSpy(&view, &QmlChartView::xMinChanged);
+
+    view.setAutoScaleY(true);
+
+    // Bounds y∈[-1, 1], padding 0.05 → ±0.1 → [-1.1, 1.1].
+    QCOMPARE(view.yMin(), -1.1);
+    QCOMPARE(view.yMax(), 1.1);
+    QVERIFY(yMinSpy.count() >= 1);
+    QVERIFY(yMaxSpy.count() >= 1);
+    QCOMPARE(view.xMin(), 0.0);  // X untouched
+    QCOMPARE(xMinSpy.count(), 0);
+}
+
+void TestQmlChartView::autoScaleXFollowsBoundsChanged()
+{
+    QmlChartView view;
+    QObject owner;
+    QList<QPointF> points{QPointF(0.0, 0.0), QPointF(2.0, 1.0)};
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
+    auto* s = new QLineSeries(&owner);
+    s->setModel(model);
+    view.addSeries(s);
+    view.setAutoScaleX(true);
+
+    // Initial auto range: x∈[0, 2], padding 0.05 → ±0.1 → [-0.1, 2.1].
+    QCOMPARE(view.xMin(), -0.1);
+    QCOMPARE(view.xMax(), 2.1);
+
+    // Append a point far to the right — model emits boundsChanged, view
+    // recomputes the auto-range (signal-driven, no per-frame polling).
+    QSignalSpy xMaxSpy(&view, &QmlChartView::xMaxChanged);
+    QList<QPointF> extra{QPointF(20.0, 1.0)};
+    model->appendBatch(QSpan<const QPointF>(extra.data(), extra.size()));
+    QTRY_COMPARE_WITH_TIMEOUT(view.xMax(), 21.0,
+                              1000);  // padding 0.05 of span 20 = 1.0
+    QVERIFY(xMaxSpy.count() >= 1);
+}
+
+void TestQmlChartView::autoScaleXRecomputesOnAddSeries()
+{
+    QmlChartView view;
+    QObject owner;
+    view.setAutoScaleX(true);
+    // No series yet → fallback bounds QRectF(0,0,1,1), padded to [-0.05, 1.05].
+    QCOMPARE(view.xMin(), -0.05);
+    QCOMPARE(view.xMax(), 1.05);
+
+    QSignalSpy xMinSpy(&view, &QmlChartView::xMinChanged);
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(4.0, 1.0)});
+    view.addSeries(s);
+    // Adding a series triggers an immediate recompute.
+    QCOMPARE(view.xMin(), -0.2);  // padding 0.05 of 4 = 0.2
+    QCOMPARE(view.xMax(), 4.2);
+    QVERIFY(xMinSpy.count() >= 1);
+}
+
+void TestQmlChartView::autoScaleRespectsPaddingRatio()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+    view.setAutoScalePadding(0.1);
+    view.setAutoScaleX(true);
+    // padding 0.1 of span 10 = 1.0 on each side.
+    QCOMPARE(view.xMin(), -1.0);
+    QCOMPARE(view.xMax(), 11.0);
+}
+
+void TestQmlChartView::autoScaleXHandlesEmptyModel()
+{
+    QmlChartView view;
+    QObject owner;
+    // Series with an empty model → contributes nothing; auto-range must not
+    // crash and must fall back to the prior manual range.
+    auto* emptyModel = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* s = new QLineSeries(&owner);
+    s->setModel(emptyModel);
+    view.addSeries(s);
+
+    QSignalSpy xMinSpy(&view, &QmlChartView::xMinChanged);
+    view.setAutoScaleX(true);
+    // Fallback bounds QRectF(0,0,1,1): padded by 0.05*1=0.05 → [-0.05, 1.05].
+    QCOMPARE(view.xMin(), -0.05);
+    QCOMPARE(view.xMax(), 1.05);
+    QVERIFY(xMinSpy.count() >= 1);
+}
+
+void TestQmlChartView::autoScaleXHandlesSinglePoint()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(5.0, 7.0)});  // zero-width bounds
+    view.addSeries(s);
+    view.setAutoScaleX(true);
+    // Single x coordinate → expanded by unit on each side.
+    QCOMPARE(view.xMin(), 4.0);
+    QCOMPARE(view.xMax(), 6.0);
 }
 
 QTEST_MAIN(TestQmlChartView)

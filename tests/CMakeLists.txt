@@ -40,6 +40,13 @@ qt_add_test(TestScaleEngine
     LIBRARIES ${_test_libs}
 )
 
+# ── TestAutoScaler ────────────────────────────────────────────
+# Shared axis auto-range helper (issue #63).
+qt_add_test(TestAutoScaler
+    SOURCES TestAutoScaler.cpp
+    LIBRARIES ${_test_libs}
+)
+
 # ── TestAbstractSeries ────────────────────────────────────────
 # Regression: dropped by a merge conflict resolution; restored here.
 qt_add_test(TestAbstractSeries
