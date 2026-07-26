@@ -20,6 +20,7 @@
 
 #include <limits>
 
+#include <QtCore/QRegularExpression>
 #include <QtTest/QtTest>
 
 #include "series/QAbstractSeries.h"
@@ -54,8 +55,10 @@ private slots:
     void invalidColorsAndEmptyPaletteAreRejected();
     void seriesColorWrapsAroundPalette();
     void themeChangedFiresOncePerChange();
+    void everyPresetExposesUsableValues();
     void seriesLineWidthIsValidated();
     void seriesDashPatternIsValidated();
+    void redundantSeriesStyleWritesDoNotEmit();
 };
 
 void TestTheme::defaultsToLightPreset()
@@ -132,6 +135,18 @@ void TestTheme::invalidColorsAndEmptyPaletteAreRejected()
     theme.setBackgroundColor(QColor());
     QCOMPARE(theme.backgroundColor(), background);
 
+    for (const auto& setter : {&QGraphPlotTheme::setPlotAreaColor,
+                               &QGraphPlotTheme::setGridColor,
+                               &QGraphPlotTheme::setAxisColor,
+                               &QGraphPlotTheme::setTextColor}) {
+        QTest::ignoreMessage(QtWarningMsg, QRegularExpression("invalid color ignored$"));
+        (theme.*setter)(QColor());
+    }
+    QCOMPARE(theme.plotAreaColor(), QColor(Qt::white));
+    QVERIFY(theme.gridColor().isValid());
+    QVERIFY(theme.axisColor().isValid());
+    QVERIFY(theme.textColor().isValid());
+
     QTest::ignoreMessage(QtWarningMsg, "QGraphPlotTheme::setSeriesPalette: empty palette ignored");
     theme.setSeriesPalette({});
     QCOMPARE(theme.seriesPalette(), palette);
@@ -167,6 +182,48 @@ void TestTheme::themeChangedFiresOncePerChange()
     // Setting the same value again must not emit.
     theme.setGridColor(QColor(Qt::magenta));
     QCOMPARE(changedSpy.count(), 1);
+}
+
+void TestTheme::everyPresetExposesUsableValues()
+{
+    QGraphPlotTheme theme;
+    for (const QGraphPlotTheme::Preset preset : {QGraphPlotTheme::Preset::Light,
+                                                 QGraphPlotTheme::Preset::Dark,
+                                                 QGraphPlotTheme::Preset::Scientific}) {
+        theme.applyPreset(preset);
+
+        QVERIFY(theme.backgroundColor().isValid());
+        QVERIFY(theme.plotAreaColor().isValid());
+        QVERIFY(theme.gridColor().isValid());
+        QVERIFY(theme.axisColor().isValid());
+        QVERIFY(theme.textColor().isValid());
+        QVERIFY(theme.gridWidth() > 0.0);
+        QVERIFY(theme.axisWidth() > 0.0);
+        QVERIFY(theme.seriesLineWidth() > 0.0);
+        QVERIFY(theme.fontPixelSize() > 0);
+        QCOMPARE(theme.seriesPalette().size(), 5);
+        QVERIFY(theme.seriesColor(0).isValid());
+    }
+
+    // Scientific is the only preset asking for a specific family.
+    QCOMPARE(theme.fontFamily(), QStringLiteral("Serif"));
+    theme.applyPreset(QGraphPlotTheme::Preset::Light);
+    QVERIFY(theme.fontFamily().isEmpty());
+
+    theme.setFontFamily(QStringLiteral("Monospace"));
+    QCOMPARE(theme.fontFamily(), QStringLiteral("Monospace"));
+    theme.setAxisWidth(2.5);
+    QCOMPARE(theme.axisWidth(), 2.5);
+    theme.setSeriesLineWidth(4.5);
+    QCOMPARE(theme.seriesLineWidth(), 4.5);
+    theme.setFontPixelSize(20);
+    QCOMPARE(theme.fontPixelSize(), 20);
+    theme.setPlotAreaColor(QColor(Qt::yellow));
+    QCOMPARE(theme.plotAreaColor(), QColor(Qt::yellow));
+    theme.setAxisColor(QColor(Qt::cyan));
+    QCOMPARE(theme.axisColor(), QColor(Qt::cyan));
+    theme.setTextColor(QColor(Qt::darkGray));
+    QCOMPARE(theme.textColor(), QColor(Qt::darkGray));
 }
 
 void TestTheme::seriesLineWidthIsValidated()
@@ -216,6 +273,22 @@ void TestTheme::seriesDashPatternIsValidated()
     // Back to solid.
     series.setDashPattern({});
     QVERIFY(series.dashPattern().isEmpty());
+}
+
+void TestTheme::redundantSeriesStyleWritesDoNotEmit()
+{
+    StyleTestSeries series;
+    series.setLineWidth(3.0);
+    series.setDashPattern({2.0, 2.0});
+
+    QSignalSpy widthSpy(&series, &QAbstractSeries::lineWidthChanged);
+    QSignalSpy dashSpy(&series, &QAbstractSeries::dashPatternChanged);
+
+    series.setLineWidth(3.0);
+    series.setDashPattern({2.0, 2.0});
+
+    QCOMPARE(widthSpy.count(), 0);
+    QCOMPARE(dashSpy.count(), 0);
 }
 
 QTEST_MAIN(TestTheme)

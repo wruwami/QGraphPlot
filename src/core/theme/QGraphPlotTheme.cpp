@@ -282,9 +282,8 @@ void QGraphPlotTheme::setSeriesPalette(const QList<QColor>& palette)
 
 QColor QGraphPlotTheme::seriesColor(int index) const
 {
-    if (m_seriesPalette.isEmpty()) {
-        return m_axisColor;
-    }
+    // setSeriesPalette() rejects an empty palette and the constructor installs
+    // a preset one, so the palette is never empty here.
     const qsizetype size = m_seriesPalette.size();
     const qsizetype wrapped = ((static_cast<qsizetype>(index) % size) + size) % size;
     return m_seriesPalette.at(wrapped);
