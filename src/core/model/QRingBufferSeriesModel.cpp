@@ -139,6 +139,11 @@ void QRingBufferSeriesModel::clear()
         m_head = 0;
         m_size = 0;
         m_bounds = QRectF();
+        m_nextPushIndex = 0;
+        m_minXCandidates.clear();
+        m_maxXCandidates.clear();
+        m_minYCandidates.clear();
+        m_maxYCandidates.clear();
     }
     if (oldSize > 0) {
         Q_EMIT pointsRemoved(0, oldSize - 1);
@@ -208,25 +213,27 @@ void QRingBufferSeriesModel::appendBatch(QSpan<const QPointF> pts)
             m_size += appended;
         }
 
-        // Bounds tracking. After eviction we cannot cheaply shrink the bound
-        // (the new min/max may have been evicted), so recompute from scratch.
-        // On pure-append we can incrementally expand.
-        if (evicted > 0) {
-            recomputeBounds();
-        } else {
-            // m_size was already advanced above, so m_size == appended means
-            // the buffer was empty before this batch: seed m_bounds directly
-            // instead of expanding from the stale default-constructed QRectF()
-            // (which would anchor min/max at (0,0) instead of the first point).
-            const bool wasEmpty = (m_size == appended);
-            for (qsizetype i = 0; i < appended; ++i) {
-                if (wasEmpty && i == 0) {
-                    m_bounds = QRectF(srcData[0].x(), srcData[0].y(), 0.0, 0.0);
-                } else {
-                    expandBounds(srcData[i]);
-                }
-            }
+        // Bounds tracking: O(1) amortized via monotonic deques (#37) instead
+        // of an O(capacity) rescan on every eviction -- which is every
+        // append once the buffer is full, the library's flagship streaming
+        // scenario. Push new candidates first, then drop any that fell out
+        // of the live window (order between the two doesn't matter: pushing
+        // only ever pops from the back, evicting only ever pops from the
+        // front).
+        for (qsizetype i = 0; i < appended; ++i) {
+            const qint64 pushIndex = m_nextPushIndex++;
+            pushMinCandidate(m_minXCandidates, pushIndex, srcData[i].x());
+            pushMaxCandidate(m_maxXCandidates, pushIndex, srcData[i].x());
+            pushMinCandidate(m_minYCandidates, pushIndex, srcData[i].y());
+            pushMaxCandidate(m_maxYCandidates, pushIndex, srcData[i].y());
         }
+        if (evicted > 0) {
+            evictStaleCandidates(m_minXCandidates);
+            evictStaleCandidates(m_maxXCandidates);
+            evictStaleCandidates(m_minYCandidates);
+            evictStaleCandidates(m_maxYCandidates);
+        }
+        updateBoundsCache();
 
         newFirst = m_size - appended;
         newLast = m_size - 1;
@@ -248,63 +255,51 @@ void QRingBufferSeriesModel::append(QPointF pt)
 }
 
 // ─────────────────────────────────────────────────────────────
-// Bounds helpers
+// Bounds helpers (#37: sliding-window min/max via monotonic deques)
 // ─────────────────────────────────────────────────────────────
 
-void QRingBufferSeriesModel::recomputeBounds() noexcept
+void QRingBufferSeriesModel::pushMinCandidate(std::deque<BoundCandidate>& dq,
+                                              qint64 pushIndex,
+                                              qreal value)
+{
+    // Anything at the back that's >= the new value can never again be the
+    // minimum before this new point also falls out of the window (the new
+    // point is both younger and no larger), so it's safe to discard.
+    while (!dq.empty() && dq.back().value >= value) {
+        dq.pop_back();
+    }
+    dq.push_back({pushIndex, value});
+}
+
+void QRingBufferSeriesModel::pushMaxCandidate(std::deque<BoundCandidate>& dq,
+                                              qint64 pushIndex,
+                                              qreal value)
+{
+    while (!dq.empty() && dq.back().value <= value) {
+        dq.pop_back();
+    }
+    dq.push_back({pushIndex, value});
+}
+
+void QRingBufferSeriesModel::evictStaleCandidates(std::deque<BoundCandidate>& dq) noexcept
+{
+    const qint64 oldestLiveIndex = m_nextPushIndex - m_size;
+    while (!dq.empty() && dq.front().pushIndex < oldestLiveIndex) {
+        dq.pop_front();
+    }
+}
+
+void QRingBufferSeriesModel::updateBoundsCache() noexcept
 {
     if (m_size == 0) {
         m_bounds = QRectF();
         return;
     }
-    qreal minX = m_buffer[static_cast<size_t>(m_head)].x();
-    qreal maxX = minX;
-    qreal minY = m_buffer[static_cast<size_t>(m_head)].y();
-    qreal maxY = minY;
-    for (qsizetype i = 1; i < m_size; ++i) {
-        const QPointF& p = m_buffer[static_cast<size_t>((m_head + i) % m_capacity)];
-        if (p.x() < minX)
-            minX = p.x();
-        if (p.x() > maxX)
-            maxX = p.x();
-        if (p.y() < minY)
-            minY = p.y();
-        if (p.y() > maxY)
-            maxY = p.y();
-    }
+    const qreal minX = m_minXCandidates.front().value;
+    const qreal maxX = m_maxXCandidates.front().value;
+    const qreal minY = m_minYCandidates.front().value;
+    const qreal maxY = m_maxYCandidates.front().value;
     m_bounds = QRectF(minX, minY, maxX - minX, maxY - minY);
-}
-
-void QRingBufferSeriesModel::expandBounds(QPointF pt) noexcept
-{
-    if (m_size == 0) {
-        m_bounds = QRectF(pt.x(), pt.y(), 0.0, 0.0);
-        return;
-    }
-    qreal minX = m_bounds.left();
-    qreal maxX = m_bounds.right();
-    qreal minY = m_bounds.top();
-    qreal maxY = m_bounds.bottom();
-    bool changed = false;
-    if (pt.x() < minX) {
-        minX = pt.x();
-        changed = true;
-    }
-    if (pt.x() > maxX) {
-        maxX = pt.x();
-        changed = true;
-    }
-    if (pt.y() < minY) {
-        minY = pt.y();
-        changed = true;
-    }
-    if (pt.y() > maxY) {
-        maxY = pt.y();
-        changed = true;
-    }
-    if (changed) {
-        m_bounds = QRectF(minX, minY, maxX - minX, maxY - minY);
-    }
 }
 
 }  // namespace qgraphplot
