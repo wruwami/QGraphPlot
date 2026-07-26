@@ -36,10 +36,13 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
     : m_dataBounds(dataBounds), m_pixelRect(pixelRect), m_xLog(xLog), m_yLog(yLog)
 {
     if (m_dataBounds.width() <= 0.0 || m_dataBounds.height() <= 0.0 ||
-        !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height())) {
+        !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height()) ||
+        !qIsFinite(m_dataBounds.left()) || !qIsFinite(m_dataBounds.top()) ||
+        !qIsFinite(m_dataBounds.right()) || !qIsFinite(m_dataBounds.bottom())) {
         qCWarning(lcCoordinate) << "QCoordinateTransform: invalid or non-positive dataBounds"
-                                   " dimensions:"
+                                   " dimensions or non-finite edges:"
                                 << m_dataBounds;
+        m_dataBounds = QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square
     }
 
     // Validate Log boundaries (AI.md §3.3)
