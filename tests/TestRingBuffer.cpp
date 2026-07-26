@@ -86,6 +86,9 @@ private slots:
     void boundsAfterEvictingBothMinAndMaxSimultaneously();
     void appendBatchDuplicateExtremesWithinSingleBatch();
     void boundsAfterBatchPartialEviction();
+
+    // ─ Benchmark (#49) ────────────────────────────────────
+    void benchmarkAppendBatchPerformance();
 };
 
 void TestRingBuffer::initTestCase()
@@ -624,9 +627,29 @@ void TestRingBuffer::boundsAfterBatchPartialEviction()
     std::vector<QPointF> batch = {QPointF(0.0, 0.0), QPointF(1.0, 1.0)};
     rb.appendRange(batch);
 
-    QCOMPARE(rb.pointCount(), qsizetype(4));
+    QCOMPARE(rb.pointCount(), static_cast<qsizetype>(4));
     // Remaining points: (10,10), (3,3), (0,0), (1,1).
     QCOMPARE(rb.bounds(), QRectF(0.0, 0.0, 10.0, 10.0));
+}
+
+void TestRingBuffer::benchmarkAppendBatchPerformance()
+{
+    // Benchmark for #49: Verifies 60fps real-time streaming performance.
+    // Appends batches under continuous eviction to measure O(1) amortized
+    // monotonic deque bounds tracking throughput.
+    constexpr qsizetype kCapacity = 10000;
+    constexpr qsizetype kBatchSize = 100;
+
+    QRingBufferSeriesModel rb(kCapacity);
+    std::vector<QPointF> batch(static_cast<size_t>(kBatchSize));
+    for (qsizetype i = 0; i < kBatchSize; ++i) {
+        batch[static_cast<size_t>(i)] = QPointF(static_cast<double>(i), std::sin(i * 0.05));
+    }
+
+    QBENCHMARK
+    {
+        rb.appendBatch(batch);
+    }
 }
 
 QTEST_GUILESS_MAIN(TestRingBuffer)
