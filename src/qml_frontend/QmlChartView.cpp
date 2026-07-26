@@ -140,13 +140,16 @@ void QmlChartView::itemChange(ItemChange change, const ItemChangeData& value)
     QQuickItem::itemChange(change, value);
     // Declarative QML adds series as children of the ChartView
     // (ChartView { LineSeries {...} }). Detect such children and register
-    // their core QAbstractSeries* into the collection (issue #58). Removal
-    // is handled by the destroyed connection + the wrapper's own lifecycle;
-    // ItemChildRemovedChange is intentionally not used to avoid double
-    // bookkeeping against removeSeries()/clearSeries().
+    // their core QAbstractSeries* into the collection (issue #58).
+    // ItemChildRemovedChange mirrors the same lifecycle so reparenting and
+    // explicit removal both keep the collection in sync.
     if (change == ItemChildAddedChange && value.item) {
         if (auto* core = coreSeriesFromItem(value.item)) {
             addSeries(core);
+        }
+    } else if (change == ItemChildRemovedChange && value.item) {
+        if (auto* core = coreSeriesFromItem(value.item)) {
+            removeSeries(core);
         }
     }
 }

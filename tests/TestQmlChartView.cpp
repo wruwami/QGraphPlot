@@ -21,8 +21,13 @@
 
 #include <limits>
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
 #include <QtCore/QPointer>
 #include <QtCore/QRegularExpression>
+#include <QtCore/QScopedPointer>
+#include <QtQml/QQmlComponent>
+#include <QtQml/QQmlEngine>
 #include <QtTest/QtTest>
 
 #include "../src/core/series/QLineSeries.h"
@@ -38,6 +43,24 @@ using qgraphplot::QmlScatterSeries;
 
 namespace
 {
+
+QString qmlImportPath()
+{
+    return QDir::cleanPath(
+        QDir(QCoreApplication::applicationDirPath()).filePath("../../src/qml_frontend"));
+}
+
+QObject* createQmlObject(const QByteArray& source, QQmlEngine& engine, QString* errorString)
+{
+    engine.addImportPath(qmlImportPath());
+    QQmlComponent component(&engine);
+    component.setData(source, QUrl());
+    QObject* object = component.create();
+    if (!object && errorString) {
+        *errorString = component.errorString();
+    }
+    return object;
+}
 
 //! Builds a regex that matches the fixed, literal prefix of a qCWarning
 //! message. The setters append the rejected value after the prefix via
@@ -82,6 +105,8 @@ private slots:
     void destroyedSeriesIsDroppedFromCollection();
     void declarativeChildRegistersCoreSeries();
     void declarativeLineAndScatterChildrenBothRegistered();
+    void reparentedLineSeriesMovesBetweenCharts();
+    void reparentedScatterSeriesMovesBetweenCharts();
     void clearSeriesOnDestructorIsSafe();
 };
 
@@ -469,39 +494,116 @@ void TestQmlChartView::destroyedSeriesIsDroppedFromCollection()
 
 void TestQmlChartView::declarativeChildRegistersCoreSeries()
 {
-    QmlChartView view;
-    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
+                          "objectName: \"view\"; QmlLineSeries { objectName: \"series\" } } }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
 
-    // Reproduces the declarative QML pattern: a LineSeries added as a child
-    // of the ChartView. Setting the parentItem triggers ItemChildAddedChange
-    // inside QQuickItem, which QmlChartView::itemChange intercepts.
-    auto* wrapper = new QmlLineSeries(&view);  // QObject parent = view
-    wrapper->setParentItem(&view);             // QQuickItem child = view
+    auto* view = root->findChild<QmlChartView*>(QStringLiteral("view"));
+    auto* wrapper = root->findChild<QmlLineSeries*>(QStringLiteral("series"));
+    QVERIFY(view);
+    QVERIFY(wrapper);
 
-    QCOMPARE(view.seriesCount(), 1);
-    QCOMPARE(view.series().at(0), wrapper->coreSeries());
-    QCOMPARE(addedSpy.count(), 1);
+    QTRY_COMPARE(view->seriesCount(), 1);
+    QCOMPARE(view->seriesAt(0), wrapper->coreSeries());
 }
 
 void TestQmlChartView::declarativeLineAndScatterChildrenBothRegistered()
 {
-    QmlChartView view;
-    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
+                          "objectName: \"view\"; QmlLineSeries { objectName: \"line\" } "
+                          "QmlScatterSeries { objectName: \"scatter\" } } }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
 
-    auto* line = new QmlLineSeries(&view);
-    line->setParentItem(&view);
+    auto* view = root->findChild<QmlChartView*>(QStringLiteral("view"));
+    auto* line = root->findChild<QmlLineSeries*>(QStringLiteral("line"));
+    auto* scatter = root->findChild<QmlScatterSeries*>(QStringLiteral("scatter"));
+    QVERIFY(view);
+    QVERIFY(line);
+    QVERIFY(scatter);
 
-    auto* scatter = new QmlScatterSeries(&view);
-    scatter->setParentItem(&view);
-
-    QCOMPARE(view.seriesCount(), 2);
-    QCOMPARE(view.seriesAt(0), line->coreSeries());
-    QCOMPARE(view.seriesAt(1), scatter->coreSeries());
-    QCOMPARE(addedSpy.count(), 2);
+    QTRY_COMPARE(view->seriesCount(), 2);
+    QCOMPARE(view->seriesAt(0), line->coreSeries());
+    QCOMPARE(view->seriesAt(1), scatter->coreSeries());
 
     // Core type identities are preserved through the collection.
-    QCOMPARE(view.seriesAt(0)->type(), qgraphplot::SeriesType::Line);
-    QCOMPARE(view.seriesAt(1)->type(), qgraphplot::SeriesType::Scatter);
+    QCOMPARE(view->seriesAt(0)->type(), qgraphplot::SeriesType::Line);
+    QCOMPARE(view->seriesAt(1)->type(), qgraphplot::SeriesType::Scatter);
+}
+
+void TestQmlChartView::reparentedLineSeriesMovesBetweenCharts()
+{
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
+                          "objectName: \"sourceView\"; QmlLineSeries { objectName: \"line\" } } "
+                          "QmlChartView { objectName: \"targetView\" } }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* sourceView = root->findChild<QmlChartView*>(QStringLiteral("sourceView"));
+    auto* targetView = root->findChild<QmlChartView*>(QStringLiteral("targetView"));
+    auto* wrapper = root->findChild<QmlLineSeries*>(QStringLiteral("line"));
+    QVERIFY(sourceView);
+    QVERIFY(targetView);
+    QVERIFY(wrapper);
+
+    QSignalSpy sourceRemovedSpy(sourceView, &QmlChartView::seriesRemoved);
+    QSignalSpy targetAddedSpy(targetView, &QmlChartView::seriesAdded);
+    QTRY_COMPARE(sourceView->seriesCount(), 1);
+    QCOMPARE(sourceView->seriesAt(0), wrapper->coreSeries());
+
+    wrapper->setParentItem(targetView);
+
+    QTRY_COMPARE(sourceView->seriesCount(), 0);
+    QTRY_COMPARE(targetView->seriesCount(), 1);
+    QCOMPARE(targetView->seriesAt(0), wrapper->coreSeries());
+    QCOMPARE(sourceRemovedSpy.count(), 1);
+    QCOMPARE(targetAddedSpy.count(), 1);
+}
+
+void TestQmlChartView::reparentedScatterSeriesMovesBetweenCharts()
+{
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem { QmlChartView { "
+                          "objectName: \"sourceView\"; QmlScatterSeries { objectName: \"scatter\" } } "
+                          "QmlChartView { objectName: \"targetView\" } }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* sourceView = root->findChild<QmlChartView*>(QStringLiteral("sourceView"));
+    auto* targetView = root->findChild<QmlChartView*>(QStringLiteral("targetView"));
+    auto* wrapper = root->findChild<QmlScatterSeries*>(QStringLiteral("scatter"));
+    QVERIFY(sourceView);
+    QVERIFY(targetView);
+    QVERIFY(wrapper);
+
+    QSignalSpy sourceRemovedSpy(sourceView, &QmlChartView::seriesRemoved);
+    QSignalSpy targetAddedSpy(targetView, &QmlChartView::seriesAdded);
+    QTRY_COMPARE(sourceView->seriesCount(), 1);
+    QCOMPARE(sourceView->seriesAt(0), wrapper->coreSeries());
+
+    wrapper->setParentItem(targetView);
+
+    QTRY_COMPARE(sourceView->seriesCount(), 0);
+    QTRY_COMPARE(targetView->seriesCount(), 1);
+    QCOMPARE(targetView->seriesAt(0), wrapper->coreSeries());
+    QCOMPARE(sourceRemovedSpy.count(), 1);
+    QCOMPARE(targetAddedSpy.count(), 1);
 }
 
 void TestQmlChartView::clearSeriesOnDestructorIsSafe()

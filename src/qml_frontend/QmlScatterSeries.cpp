@@ -194,8 +194,7 @@ void QmlScatterSeries::connectChartViewSignals()
             [this]() {
                 m_geometryDirty = true;
                 update();
-            },
-            Qt::UniqueConnection);
+            });
         m_previousChartView = chartView;
     } else {
         m_previousChartView = nullptr;

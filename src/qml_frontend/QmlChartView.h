@@ -105,11 +105,10 @@ protected:
 
 private:
     void applyThemeConnections();
-
     //! Extracts the core QAbstractSeries* composed by a QML series wrapper
     //! (QmlLineSeries/QmlScatterSeries) if @p item is one, otherwise nullptr.
-    //! Used by itemChange to register declarative QML children into the
-    //! series collection (issue #58).
+    //! Used by itemChange to keep the series collection in sync with child
+    //! add/remove events (issue #58).
     qgraphplot::QAbstractSeries* coreSeriesFromItem(QQuickItem* item) const noexcept;
 
     // QPointer: the theme is typically owned by the QML host, not by the
