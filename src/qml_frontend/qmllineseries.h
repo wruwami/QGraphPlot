@@ -9,6 +9,9 @@
 
 #include "model/QAbstractSeriesModel.h"
 
+namespace qgraphplot
+{
+
 class QmlChartView;
 
 class QmlLineSeries : public QQuickItem
@@ -26,7 +29,7 @@ class QmlLineSeries : public QQuickItem
 
 public:
     explicit QmlLineSeries(QQuickItem* parent = nullptr);
-    ~QmlLineSeries() override = default;
+    ~QmlLineSeries() override;
 
     // Getters
     qgraphplot::QAbstractSeriesModel* model() const noexcept { return m_model; }
@@ -81,5 +84,7 @@ private:
     // itemChange) is a safe no-op instead of dangling-pointer UB.
     QPointer<QmlChartView> m_previousChartView;
 };
+
+}  // namespace qgraphplot
 
 #endif  // QMLLINESERIES_H

@@ -8,6 +8,9 @@
 #include "theme/QGraphPlotTheme.h"
 #include "transform/QCoordinateTransform.h"
 
+namespace qgraphplot
+{
+
 class QmlChartView : public QQuickItem
 {
     Q_OBJECT
@@ -98,5 +101,7 @@ private:
     double m_marginTop{20.0};
     double m_marginBottom{40.0};
 };
+
+}  // namespace qgraphplot
 
 #endif  // QMLCHARTVIEW_H
