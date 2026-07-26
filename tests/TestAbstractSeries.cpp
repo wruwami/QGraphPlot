@@ -438,18 +438,18 @@ void TestAbstractSeriesFixture::setMarkerSizeRejectsInvalid()
     QScatterSeries scatter;
     QSignalSpy spy(&scatter, &QScatterSeries::markerSizeChanged);
 
-    QTest::ignoreMessage(
-        QtWarningMsg, "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
     scatter.setMarkerSize(-5.0);
     QCOMPARE(scatter.markerSize(), 8.0);
 
-    QTest::ignoreMessage(
-        QtWarningMsg, "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
     scatter.setMarkerSize(0.0);
     QCOMPARE(scatter.markerSize(), 8.0);
 
-    QTest::ignoreMessage(
-        QtWarningMsg, "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
+    QTest::ignoreMessage(QtWarningMsg,
+                         "QScatterSeries::setMarkerSize: markerSize must be finite and > 0");
     scatter.setMarkerSize(std::numeric_limits<double>::quiet_NaN());
     QCOMPARE(scatter.markerSize(), 8.0);
 
