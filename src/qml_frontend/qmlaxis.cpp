@@ -8,49 +8,6 @@
 
 #include "qmlchartview.h"
 
-namespace
-{
-
-//! Length of a tick mark sticking out of the axis baseline, in pixels.
-constexpr float kTickLength = 5.0f;
-
-//! Creates or refreshes a DrawLines node holding @p vertexCount vertices in
-//! @p color at @p width. Axis chrome and grid lines live in separate nodes
-//! because a QSGFlatColorMaterial node carries exactly one color and one line
-//! width — sharing a node is what made gridColor/gridWidth unobservable.
-QSGGeometryNode*
-refreshLineNode(QSGGeometryNode* node, int vertexCount, const QColor& color, double width)
-{
-    if (!node) {
-        node = new QSGGeometryNode();
-        QSGGeometry* newGeometry =
-            new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
-        newGeometry->setDrawingMode(QSGGeometry::DrawLines);
-        node->setGeometry(newGeometry);
-        node->setFlag(QSGNode::OwnsGeometry);
-
-        QSGFlatColorMaterial* material = new QSGFlatColorMaterial();
-        material->setColor(color);
-        node->setMaterial(material);
-        node->setFlag(QSGNode::OwnsMaterial);
-    } else {
-        QSGFlatColorMaterial* material = static_cast<QSGFlatColorMaterial*>(node->material());
-        if (material && material->color() != color) {
-            material->setColor(color);
-            node->markDirty(QSGNode::DirtyMaterial);
-        }
-    }
-
-    QSGGeometry* geometry = node->geometry();
-    if (geometry->vertexCount() != vertexCount) {
-        geometry->allocate(vertexCount);
-    }
-    geometry->setLineWidth(static_cast<float>(width));
-    return node;
-}
-
-}  // namespace
-
 QmlAxis::QmlAxis(QQuickItem* parent) : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
@@ -207,52 +164,80 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const QRectF pixelRect = transform.pixelRect();
 
+    // 렌더링 세그먼트 개수 계산. 축 기준선 + 눈금선은 m_color로, 그리드선은
+    // m_gridColor로 그려야 하므로(#35) 두 개의 QSGGeometryNode로 분리한다.
     const size_t tickCount = m_tickInfos.size();
-    if (tickCount > static_cast<size_t>(INT_MAX / 4) - 1) {
+    const size_t axisLineCount = 1 + tickCount;               // 기준선(1) + 눈금선(tickCount)
+    const size_t gridLineCount = m_showGrid ? tickCount : 0;  // 그리드선
+    if (axisLineCount > static_cast<size_t>(INT_MAX / 2) ||
+        gridLineCount > static_cast<size_t>(INT_MAX / 2)) {
         delete oldNode;
         return nullptr;
     }
+    const int axisVertexCount = static_cast<int>(axisLineCount * 2);
+    const int gridVertexCount = static_cast<int>(gridLineCount * 2);
 
-    // 축 기준선 1개 + 틱 눈금선 tickCount개 → 축 노드
-    // 그리드선 tickCount개 → 그리드 노드 (색상/두께가 축과 다르므로 별도 노드)
-    const int axisVertexCount = static_cast<int>((1 + tickCount) * 2);
-    const int gridVertexCount = static_cast<int>(tickCount * 2);
-
-    // 노드 트리: root ─┬─ grid (showGrid일 때만, 축보다 먼저 그려짐)
-    //                  └─ axis
-    QSGNode* root = oldNode ? oldNode : new QSGNode();
+    QSGGeometryNode* axisNode = static_cast<QSGGeometryNode*>(oldNode);
     QSGGeometryNode* gridNode = nullptr;
-    QSGGeometryNode* axisNode = nullptr;
-    if (root->childCount() == 2) {
-        gridNode = static_cast<QSGGeometryNode*>(root->firstChild());
-        axisNode = static_cast<QSGGeometryNode*>(root->lastChild());
-    } else if (root->childCount() == 1) {
-        axisNode = static_cast<QSGGeometryNode*>(root->firstChild());
-    }
+    QSGGeometry* axisGeometry = nullptr;
+    QSGGeometry* gridGeometry = nullptr;
 
-    if (!m_showGrid && gridNode) {
-        root->removeChildNode(gridNode);
-        delete gridNode;
-        gridNode = nullptr;
-    }
+    if (!axisNode) {
+        axisNode = new QSGGeometryNode();
+        axisGeometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), axisVertexCount);
+        axisGeometry->setDrawingMode(QSGGeometry::DrawLines);
+        axisNode->setGeometry(axisGeometry);
+        axisNode->setFlag(QSGNode::OwnsGeometry);
 
-    const bool axisNodeIsNew = (axisNode == nullptr);
-    axisNode = refreshLineNode(axisNode, axisVertexCount, m_color, m_lineWidth);
-    if (axisNodeIsNew) {
-        root->appendChildNode(axisNode);
-    }
+        QSGFlatColorMaterial* axisMaterial = new QSGFlatColorMaterial();
+        axisMaterial->setColor(m_color);
+        axisNode->setMaterial(axisMaterial);
+        axisNode->setFlag(QSGNode::OwnsMaterial);
 
-    if (m_showGrid) {
-        const bool gridNodeIsNew = (gridNode == nullptr);
-        gridNode = refreshLineNode(gridNode, gridVertexCount, m_gridColor, m_gridWidth);
-        if (gridNodeIsNew) {
-            root->prependChildNode(gridNode);
+        gridNode = new QSGGeometryNode();
+        gridGeometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), gridVertexCount);
+        gridGeometry->setDrawingMode(QSGGeometry::DrawLines);
+        gridNode->setGeometry(gridGeometry);
+        gridNode->setFlag(QSGNode::OwnsGeometry);
+
+        QSGFlatColorMaterial* gridMaterial = new QSGFlatColorMaterial();
+        gridMaterial->setColor(m_gridColor);
+        gridNode->setMaterial(gridMaterial);
+        gridNode->setFlag(QSGNode::OwnsMaterial);
+
+        axisNode->appendChildNode(gridNode);
+    } else {
+        axisGeometry = axisNode->geometry();
+        if (axisGeometry->vertexCount() != axisVertexCount) {
+            axisGeometry->allocate(axisVertexCount);
+        }
+        QSGFlatColorMaterial* axisMaterial =
+            static_cast<QSGFlatColorMaterial*>(axisNode->material());
+        if (axisMaterial) {
+            axisMaterial->setColor(m_color);
+            axisNode->markDirty(QSGNode::DirtyMaterial);
+        }
+
+        gridNode = static_cast<QSGGeometryNode*>(axisNode->childAtIndex(0));
+        gridGeometry = gridNode->geometry();
+        if (gridGeometry->vertexCount() != gridVertexCount) {
+            gridGeometry->allocate(gridVertexCount);
+        }
+        QSGFlatColorMaterial* gridMaterial =
+            static_cast<QSGFlatColorMaterial*>(gridNode->material());
+        if (gridMaterial) {
+            gridMaterial->setColor(m_gridColor);
+            gridNode->markDirty(QSGNode::DirtyMaterial);
         }
     }
 
-    QSGGeometry::Point2D* axisVertices = axisNode->geometry()->vertexDataAsPoint2D();
+    // 두께는 테마에서 올 수 있으므로 매 프레임 반영한다 (#12).
+    axisGeometry->setLineWidth(static_cast<float>(m_lineWidth));
+    gridGeometry->setLineWidth(static_cast<float>(m_gridWidth));
+
+    QSGGeometry::Point2D* axisVertices = axisGeometry->vertexDataAsPoint2D();
     QSGGeometry::Point2D* gridVertices =
-        gridNode ? gridNode->geometry()->vertexDataAsPoint2D() : nullptr;
+        gridVertexCount > 0 ? gridGeometry->vertexDataAsPoint2D() : nullptr;
     int axisIdx = 0;
     int gridIdx = 0;
 
@@ -268,6 +253,8 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     }
 
     // 2. 눈금선 및 그리드선 배치
+    const float tickLength = 5.0f;
+
     for (const auto& tick : m_tickInfos) {
         if (m_orientation == Qt::Horizontal) {
             const QPointF p = transform.toPixel(QPointF(tick.position, 0.0));
@@ -276,11 +263,11 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
 
             // 눈금선 (아래쪽 5px)
             axisVertices[axisIdx++].set(x, borderY);
-            axisVertices[axisIdx++].set(x, borderY + kTickLength);
+            axisVertices[axisIdx++].set(x, borderY + tickLength);
 
             // 그리드선 (뷰포트 수직선)
-            if (gridVertices) {
-                gridVertices[gridIdx++].set(x, borderY);
+            if (m_showGrid) {
+                gridVertices[gridIdx++].set(x, static_cast<float>(pixelRect.bottom()));
                 gridVertices[gridIdx++].set(x, static_cast<float>(pixelRect.top()));
             }
         } else {
@@ -290,19 +277,17 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
 
             // 눈금선 (왼쪽 5px)
             axisVertices[axisIdx++].set(borderX, y);
-            axisVertices[axisIdx++].set(borderX - kTickLength, y);
+            axisVertices[axisIdx++].set(borderX - tickLength, y);
 
             // 그리드선 (뷰포트 수평선)
-            if (gridVertices) {
-                gridVertices[gridIdx++].set(borderX, y);
+            if (m_showGrid) {
+                gridVertices[gridIdx++].set(static_cast<float>(pixelRect.left()), y);
                 gridVertices[gridIdx++].set(static_cast<float>(pixelRect.right()), y);
             }
         }
     }
 
     axisNode->markDirty(QSGNode::DirtyGeometry);
-    if (gridNode) {
-        gridNode->markDirty(QSGNode::DirtyGeometry);
-    }
-    return root;
+    gridNode->markDirty(QSGNode::DirtyGeometry);
+    return axisNode;
 }
