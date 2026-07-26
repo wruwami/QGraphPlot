@@ -162,7 +162,11 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         node->setFlag(QSGNode::OwnsMaterial);
     } else {
         geometry = node->geometry();
-        // 포인트 개수 변화 대응
+        // 포인트 개수 변화 대응 (생성 경로와 동일하게 오버플로 가드 적용)
+        if (count > INT_MAX) {
+            delete node;
+            return nullptr;
+        }
         if (geometry->vertexCount() != static_cast<int>(count)) {
             geometry->allocate(static_cast<int>(count));
         }
