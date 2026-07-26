@@ -30,6 +30,7 @@
 
 #include "../src/core/model/QRingBufferSeriesModel.h"
 #include "../src/core/series/QAbstractSeries.h"
+#include "../src/core/series/QLineSeries.h"
 
 using namespace qgraphplot;
 
@@ -62,6 +63,19 @@ private slots:
 
     // ─ type() dispatch ────────────────────────────────────────
     void typeReturnsLineForTestSubclass();
+
+    // ─ QLineSeries concrete type (#57) ────────────────────────
+    void qLineSeriesTypeReturnsLine();
+    void qLineSeriesInheritsPropertyDefaults();
+    void qLineSeriesColorSettersWork();
+
+    // ─ Validation paths (single source of truth, #57) ────────
+    void setLineWidthRejectsInvalid();
+    void setLineWidthAcceptsValid();
+    void setDashPatternRejectsOddCount();
+    void setDashPatternRejectsNonPositive();
+    void setDashPatternRejectsNonFinite();
+    void setDashPatternAcceptsEmpty();
 
     // ─ Setters emit signals only on change ───────────────────
     void setColorEmitsOnceOnRealChange();
@@ -118,6 +132,117 @@ void TestAbstractSeriesFixture::typeReturnsLineForTestSubclass()
 {
     TestSeries s;
     QCOMPARE(s.type(), SeriesType::Line);
+}
+
+// ─────────────────────────────────────────────────────────────
+// QLineSeries concrete type (#57)
+//
+// QLineSeries is the single shipped concrete QAbstractSeries subclass in
+// core and the composition backend used by QmlLineSeries. These tests
+// verify it satisfies the abstract contract (identity + inherited
+// property behavior) so the QML frontend can safely delegate to it.
+// ─────────────────────────────────────────────────────────────
+
+void TestAbstractSeriesFixture::qLineSeriesTypeReturnsLine()
+{
+    QLineSeries s;
+    QCOMPARE(s.type(), SeriesType::Line);
+}
+
+void TestAbstractSeriesFixture::qLineSeriesInheritsPropertyDefaults()
+{
+    QLineSeries s;
+    // Same defaults as QAbstractSeries — proving QLineSeries adds no
+    // divergent property state of its own.
+    QCOMPARE(s.color(), QColor(Qt::blue));
+    QVERIFY(s.isVisible());
+    QVERIFY(s.model() == nullptr);
+    QVERIFY(s.name().isEmpty());
+    QCOMPARE(s.lineWidth(), 2.0);
+    QVERIFY(s.dashPattern().isEmpty());
+}
+
+void TestAbstractSeriesFixture::qLineSeriesColorSettersWork()
+{
+    QLineSeries s;
+    QSignalSpy spy(&s, &QLineSeries::colorChanged);
+    s.setColor(QColor(Qt::green));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(s.color(), QColor(Qt::green));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Validation paths — single source of truth (#57)
+//
+// QmlLineSeries now delegates lineWidth/dashPattern validation to the
+// core QAbstractSeries setters, so these tests assert the exact behavior
+// both frontends inherit. Covers the previously-untested validation gap.
+// ─────────────────────────────────────────────────────────────
+
+void TestAbstractSeriesFixture::setLineWidthRejectsInvalid()
+{
+    QLineSeries s;
+    const double original = s.lineWidth();
+    QSignalSpy spy(&s, &QLineSeries::lineWidthChanged);
+
+    s.setLineWidth(0.0);      // non-positive
+    s.setLineWidth(-1.0);     // negative
+    s.setLineWidth(qQNaN());  // NaN
+    s.setLineWidth(qInf());   // infinity
+
+    // Rejected: value and signal count unchanged.
+    QCOMPARE(s.lineWidth(), original);
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestAbstractSeriesFixture::setLineWidthAcceptsValid()
+{
+    QLineSeries s;
+    QSignalSpy spy(&s, &QLineSeries::lineWidthChanged);
+    s.setLineWidth(3.5);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(s.lineWidth(), 3.5);
+}
+
+void TestAbstractSeriesFixture::setDashPatternRejectsOddCount()
+{
+    QLineSeries s;
+    QVERIFY(s.dashPattern().isEmpty());  // default empty (solid)
+    QSignalSpy spy(&s, &QLineSeries::dashPatternChanged);
+    s.setDashPattern({1.0, 2.0, 3.0});  // 3 entries — QPen requires even
+    QCOMPARE(spy.count(), 0);
+    QVERIFY(s.dashPattern().isEmpty());  // unchanged
+}
+
+void TestAbstractSeriesFixture::setDashPatternRejectsNonPositive()
+{
+    QLineSeries s;
+    QSignalSpy spy(&s, &QLineSeries::dashPatternChanged);
+    s.setDashPattern({1.0, 0.0});   // zero gap
+    s.setDashPattern({1.0, -2.0});  // negative gap
+    QCOMPARE(spy.count(), 0);
+    QVERIFY(s.dashPattern().isEmpty());
+}
+
+void TestAbstractSeriesFixture::setDashPatternRejectsNonFinite()
+{
+    QLineSeries s;
+    QSignalSpy spy(&s, &QLineSeries::dashPatternChanged);
+    s.setDashPattern({1.0, qInf()});
+    s.setDashPattern({qQNaN(), 2.0});
+    QCOMPARE(spy.count(), 0);
+    QVERIFY(s.dashPattern().isEmpty());
+}
+
+void TestAbstractSeriesFixture::setDashPatternAcceptsEmpty()
+{
+    QLineSeries s;
+    s.setDashPattern({1.0, 2.0});
+    QVERIFY(!s.dashPattern().isEmpty());
+    QSignalSpy spy(&s, &QLineSeries::dashPatternChanged);
+    s.setDashPattern({});  // empty = solid line, always valid
+    QCOMPARE(spy.count(), 1);
+    QVERIFY(s.dashPattern().isEmpty());
 }
 
 // ─────────────────────────────────────────────────────────────
