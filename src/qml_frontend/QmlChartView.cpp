@@ -1,5 +1,6 @@
 #include "QmlChartView.h"
 
+#include <QtCore/QLoggingCategory>
 #include <QtCore/qmath.h>
 #include <QtQuick/QSGSimpleRectNode>
 
@@ -8,24 +9,7 @@ namespace qgraphplot
 
 namespace
 {
-//! qFuzzyCompare is a *relative*-epsilon comparison, so it misbehaves
-//! whenever either operand is exactly (or very near) zero: any nonzero
-//! difference against 0.0 is reported as "not equal", never "fuzzy equal"
-//! (see Qt's own docs: "comparing values where either p1 or p2 is 0.0 will
-//! not work"). QmlChartView's axes commonly start at/near 0 (e.g. the
-//! streaming demo's xMin), so every setter needs this near-zero-safe rule,
-//! not just one of them (#35).
-bool valuesDiffer(double a, double b) noexcept
-{
-    constexpr double kNearZeroEpsilon = 1e-10;
-    if (!qIsFinite(a) || !qIsFinite(b)) {
-        return true;  // Treat NaN/Inf as always different
-    }
-    if (qAbs(a) < kNearZeroEpsilon || qAbs(b) < kNearZeroEpsilon) {
-        return qAbs(a - b) > kNearZeroEpsilon;
-    }
-    return !qFuzzyCompare(a, b);
-}
+Q_LOGGING_CATEGORY(lcChartView, "qgraphplot.chartview")
 }  // namespace
 
 QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
@@ -69,7 +53,13 @@ void QmlChartView::applyThemeConnections()
 
 void QmlChartView::setXMin(double val)
 {
-    if (valuesDiffer(m_xMin, val)) {
+    if (!qIsFinite(val) || val >= m_xMax) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setXMin: rejected non-finite or invalid xMin (must be < xMax):"
+            << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMin, val)) {
         m_xMin = val;
         emit xMinChanged();
         emit transformChanged();
@@ -78,7 +68,13 @@ void QmlChartView::setXMin(double val)
 
 void QmlChartView::setXMax(double val)
 {
-    if (valuesDiffer(m_xMax, val)) {
+    if (!qIsFinite(val) || val <= m_xMin) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setXMax: rejected non-finite or invalid xMax (must be > xMin):"
+            << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMax, val)) {
         m_xMax = val;
         emit xMaxChanged();
         emit transformChanged();
@@ -87,7 +83,13 @@ void QmlChartView::setXMax(double val)
 
 void QmlChartView::setYMin(double val)
 {
-    if (valuesDiffer(m_yMin, val)) {
+    if (!qIsFinite(val) || val >= m_yMax) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setYMin: rejected non-finite or invalid yMin (must be < yMax):"
+            << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMin, val)) {
         m_yMin = val;
         emit yMinChanged();
         emit transformChanged();
@@ -96,7 +98,13 @@ void QmlChartView::setYMin(double val)
 
 void QmlChartView::setYMax(double val)
 {
-    if (valuesDiffer(m_yMax, val)) {
+    if (!qIsFinite(val) || val <= m_yMin) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setYMax: rejected non-finite or invalid yMax (must be > yMin):"
+            << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMax, val)) {
         m_yMax = val;
         emit yMaxChanged();
         emit transformChanged();
@@ -105,7 +113,12 @@ void QmlChartView::setYMax(double val)
 
 void QmlChartView::setMarginLeft(double val)
 {
-    if (valuesDiffer(m_marginLeft, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginLeft: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginLeft, val)) {
         m_marginLeft = val;
         emit marginsChanged();
         emit transformChanged();
@@ -115,7 +128,12 @@ void QmlChartView::setMarginLeft(double val)
 
 void QmlChartView::setMarginRight(double val)
 {
-    if (valuesDiffer(m_marginRight, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginRight: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginRight, val)) {
         m_marginRight = val;
         emit marginsChanged();
         emit transformChanged();
@@ -125,7 +143,12 @@ void QmlChartView::setMarginRight(double val)
 
 void QmlChartView::setMarginTop(double val)
 {
-    if (valuesDiffer(m_marginTop, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginTop: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginTop, val)) {
         m_marginTop = val;
         emit marginsChanged();
         emit transformChanged();
@@ -135,7 +158,12 @@ void QmlChartView::setMarginTop(double val)
 
 void QmlChartView::setMarginBottom(double val)
 {
-    if (valuesDiffer(m_marginBottom, val)) {
+    if (!qIsFinite(val) || val < 0.0) {
+        qCWarning(lcChartView)
+            << "QmlChartView::setMarginBottom: rejected negative or non-finite margin:" << val;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_marginBottom, val)) {
         m_marginBottom = val;
         emit marginsChanged();
         emit transformChanged();

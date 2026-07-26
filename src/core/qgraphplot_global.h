@@ -55,13 +55,32 @@
     (QGRAPHPLOT_VERSION_MAJOR << 16 | QGRAPHPLOT_VERSION_MINOR << 8 | QGRAPHPLOT_VERSION_PATCH)
 
 // ─────────────────────────────────────────────────────────────
-// Namespace
+// Namespace & Common Utilities
 // ─────────────────────────────────────────────────────────────
 //
 // Public API lives in the qgraphplot namespace. Frontends (QML/Widget)
 // may introduce their own sub-namespaces under qgraphplot::qml and
 // qgraphplot::widgets respectively.
 namespace qgraphplot
-{}  // namespace qgraphplot
+{
+
+//! @brief Near-zero safe fuzzy double difference comparison (#59).
+//!
+//! Standard qFuzzyCompare fails when either operand is near zero.
+//! This helper provides a near-zero safe epsilon threshold (1e-10) and
+//! treats non-finite numbers (NaN, Inf) as differing.
+[[nodiscard]] inline bool fuzzyValuesDiffer(double a, double b) noexcept
+{
+    constexpr double kNearZeroEpsilon = 1e-10;
+    if (!qIsFinite(a) || !qIsFinite(b)) {
+        return true;
+    }
+    if (qAbs(a) < kNearZeroEpsilon || qAbs(b) < kNearZeroEpsilon) {
+        return qAbs(a - b) > kNearZeroEpsilon;
+    }
+    return !qFuzzyCompare(a, b);
+}
+
+}  // namespace qgraphplot
 
 #endif  // QGRAPHPLOT_GLOBAL_H

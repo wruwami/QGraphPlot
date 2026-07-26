@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <QtCore/QRegularExpression>
 #include <QtTest/QtTest>
 
 #include "../src/core/transform/QCoordinateTransform.h"
@@ -33,6 +34,8 @@ private slots:
     void testLogInverseTransform();
     void testLogFallbackOnInvalidBounds();
     void testDegenerateBoundsSafety();
+    void testInvalidDataBoundsWarning();
+    void testFuzzyValuesDiffer();
 };
 
 void TestCoordinate::initTestCase() {}
@@ -161,6 +164,95 @@ void TestCoordinate::testDegenerateBoundsSafety()
 
     QCOMPARE(p.x(), 300.0);
     QCOMPARE(p.y(), 150.0);
+}
+
+void TestCoordinate::testInvalidDataBoundsWarning()
+{
+    // Constructor must warn (but not throw/crash) when dataBounds has a
+    // non-positive or non-finite width/height, regardless of log mode.
+    const QRegularExpression kWarningPattern("^QCoordinateTransform: invalid or non-positive "
+                                             "dataBounds dimensions or non-finite edges:");
+    const QRectF pixelRect(0.0, 0.0, 200.0, 100.0);
+
+    // Zero width.
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(QRectF(0.0, 0.0, 0.0, 10.0), pixelRect, false, false);
+
+    // Zero height.
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(QRectF(0.0, 0.0, 10.0, 0.0), pixelRect, false, false);
+
+    // Negative width under log scale.
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*log scale requires positive.*"));
+    (void)QCoordinateTransform(QRectF(0.0, 0.0, -5.0, 10.0), pixelRect, true, true);
+
+    // Non-finite (NaN) edge (left).
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(
+        QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0), pixelRect, false, false);
+
+    // Non-finite (Inf) edge (top).
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(
+        QRectF(0.0, std::numeric_limits<double>::infinity(), 10.0, 10.0), pixelRect, false, false);
+
+    // Non-finite (NaN) width.
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(
+        QRectF(0.0, 0.0, std::numeric_limits<double>::quiet_NaN(), 10.0), pixelRect, false, false);
+
+    // Non-finite (Inf) height.
+    QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+    (void)QCoordinateTransform(
+        QRectF(0.0, 0.0, 10.0, std::numeric_limits<double>::infinity()), pixelRect, false, false);
+
+    // Non-finite bounds must trigger unit-square (0,0,1,1) fallback.
+    // For pixelRect (0,0, 200,100), (0.5, 0.5) maps to (100.0, 50.0).
+    {
+        QTest::ignoreMessage(QtWarningMsg, kWarningPattern);
+        QCoordinateTransform trans(
+            QRectF(std::numeric_limits<double>::quiet_NaN(), 0.0, 10.0, 10.0),
+            pixelRect,
+            false,
+            false);
+        const QPointF p = trans.toPixel(QPointF(0.5, 0.5));
+        QCOMPARE(p.x(), 100.0);
+        QCOMPARE(p.y(), 50.0);
+    }
+}
+
+void TestCoordinate::testFuzzyValuesDiffer()
+{
+    // Test fuzzyValuesDiffer helper from qgraphplot_global.h (#59)
+    QVERIFY(!fuzzyValuesDiffer(0.0, 0.0));
+    QVERIFY(!fuzzyValuesDiffer(0.0, 1e-12));
+    QVERIFY(!fuzzyValuesDiffer(1e-12, 0.0));
+    QVERIFY(fuzzyValuesDiffer(0.0, 1e-8));
+
+    // Near-zero region: opposite-sign values within the epsilon are "equal".
+    QVERIFY(!fuzzyValuesDiffer(-1e-12, 1e-12));
+    // A near-zero value compared against a clearly non-zero value differs.
+    QVERIFY(fuzzyValuesDiffer(0.0, 1.0));
+    QVERIFY(fuzzyValuesDiffer(1.0, 0.0));
+
+    // Normal-magnitude values: falls through to qFuzzyCompare's relative
+    // epsilon rather than the near-zero absolute threshold.
+    QVERIFY(!fuzzyValuesDiffer(1000000.0, 1000000.0));
+    QVERIFY(!fuzzyValuesDiffer(-42.5, -42.5));
+    QVERIFY(fuzzyValuesDiffer(1.0, 2.0));
+    QVERIFY(fuzzyValuesDiffer(-5.0, 5.0));
+
+    // NaN / Inf behavior: non-finite operands always report "differ", even
+    // when both sides are the exact same non-finite value.
+    double nan = std::numeric_limits<double>::quiet_NaN();
+    double inf = std::numeric_limits<double>::infinity();
+    QVERIFY(fuzzyValuesDiffer(nan, 0.0));
+    QVERIFY(fuzzyValuesDiffer(0.0, nan));
+    QVERIFY(fuzzyValuesDiffer(nan, nan));
+    QVERIFY(fuzzyValuesDiffer(inf, 0.0));
+    QVERIFY(fuzzyValuesDiffer(inf, inf));
+    QVERIFY(fuzzyValuesDiffer(-inf, -inf));
 }
 
 QTEST_GUILESS_MAIN(TestCoordinate)
