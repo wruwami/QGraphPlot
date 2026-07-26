@@ -29,3 +29,10 @@ unmatchedSuppression
 # like Q_PROPERTY, Q_OBJECT, signals:, and slots:, and reports each as an
 # "unknown macro" error.
 unknownMacro
+
+# variableScope flags every local that *could* be narrowed to a smaller
+# block. In several model methods (e.g. QStaticSeriesModel::setPoints /
+# appendBatch) the local deliberately outlives the branch that fills it,
+# because a later QSpan keeps pointing at its storage — narrowing the scope
+# would dangle the span. The check is too syntactic to reason about this.
+variableScope
