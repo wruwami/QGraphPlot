@@ -1,5 +1,5 @@
-#ifndef QMLLINESERIES_H
-#define QMLLINESERIES_H
+#ifndef QGRAPHPLOT_QMLLINESERIES_H
+#define QGRAPHPLOT_QMLLINESERIES_H
 
 #include <QtCore/QList>
 #include <QtCore/QPointer>
@@ -39,6 +39,11 @@ class QmlLineSeries : public QQuickItem
     Q_PROPERTY(double lineWidth READ lineWidth WRITE setLineWidth NOTIFY lineWidthChanged)
     Q_PROPERTY(
         QList<qreal> dashPattern READ dashPattern WRITE setDashPattern NOTIFY dashPatternChanged)
+    // NOTE: shadows QQuickItem::opacity. The item-level compositing opacity
+    // (QQuickItem::opacity) is intentionally replaced by the series stroke
+    // alpha so overlapping series compose predictably (issue #71). No
+    // existing QML sets LineSeries.opacity, so the shadow is safe.
+    Q_PROPERTY(double opacity READ opacity WRITE setOpacity NOTIFY opacityChanged)
 
 public:
     explicit QmlLineSeries(QQuickItem* parent = nullptr);
@@ -60,6 +65,10 @@ public:
     //! and Widget series accept exactly the same patterns (AI.md §3.1).
     QList<qreal> dashPattern() const noexcept { return m_series->dashPattern(); }
 
+    //! Stroke alpha in [0.0, 1.0]. Shadows QQuickItem::opacity to expose
+    //! the core series opacity via QML (issue #71).
+    double opacity() const noexcept { return m_series->opacity(); }
+
     // Setters — delegate to the core series, which performs validation and
     // emits the corresponding NOTIFY signal (forwarded below).
     void setModel(qgraphplot::QAbstractSeriesModel* model) { m_series->setModel(model); }
@@ -67,6 +76,7 @@ public:
     void setName(const QString& name) { m_series->setName(name); }
     void setLineWidth(double lineWidth) { m_series->setLineWidth(lineWidth); }
     void setDashPattern(const QList<qreal>& dashPattern) { m_series->setDashPattern(dashPattern); }
+    void setOpacity(double opacity) { m_series->setOpacity(opacity); }
 
 signals:
     // Forwarded from the core series. Declared parameter-less for backward
@@ -77,6 +87,7 @@ signals:
     void nameChanged();
     void lineWidthChanged();
     void dashPatternChanged();
+    void opacityChanged();
 
 protected:
     QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
@@ -104,4 +115,4 @@ private:
 
 }  // namespace qgraphplot
 
-#endif  // QMLLINESERIES_H
+#endif  // QGRAPHPLOT_QMLLINESERIES_H

@@ -1,4 +1,4 @@
-#include "qmlchartview.h"
+#include "QmlChartView.h"
 
 #include <QtCore/qmath.h>
 #include <QtQuick/QSGSimpleRectNode>

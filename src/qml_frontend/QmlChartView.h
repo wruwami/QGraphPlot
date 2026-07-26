@@ -1,5 +1,5 @@
-#ifndef QMLCHARTVIEW_H
-#define QMLCHARTVIEW_H
+#ifndef QGRAPHPLOT_QMLCHARTVIEW_H
+#define QGRAPHPLOT_QMLCHARTVIEW_H
 
 #include <QtCore/QPointer>
 #include <QtCore/QRectF>
@@ -104,4 +104,4 @@ private:
 
 }  // namespace qgraphplot
 
-#endif  // QMLCHARTVIEW_H
+#endif  // QGRAPHPLOT_QMLCHARTVIEW_H

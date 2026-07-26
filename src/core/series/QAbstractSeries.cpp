@@ -110,6 +110,24 @@ void QAbstractSeries::setDashPattern(const QList<qreal>& dashPattern)
     Q_EMIT dashPatternChanged();
 }
 
+void QAbstractSeries::setOpacity(double opacity)
+{
+    if (!std::isfinite(opacity) || opacity < 0.0 || opacity > 1.0) {
+        qWarning("QAbstractSeries::setOpacity: opacity must be finite and in [0.0, 1.0]");
+        return;
+    }
+    // qFuzzyCompare is a *relative*-epsilon compare and returns false when
+    // either operand is 0.0, so 0.0 == 0.0 would wrongly bypass the guard
+    // and emit a spurious signal. Shifting both operands by +1.0 moves the
+    // valid [0.0, 1.0] range into [1.0, 2.0] where qFuzzyCompare is well
+    // behaved (Qt-recommended idiom for known-small ranges).
+    if (qFuzzyCompare(m_opacity + 1.0, opacity + 1.0)) {
+        return;
+    }
+    m_opacity = opacity;
+    Q_EMIT opacityChanged(m_opacity);
+}
+
 bool QAbstractSeries::isValidDashPattern(const QList<qreal>& dashPattern)
 {
     if (dashPattern.isEmpty()) {

@@ -99,6 +99,7 @@ Window {
             model: dataSource.model
             color: chartTheme.seriesColor(0)
             lineWidth: chartTheme.seriesLineWidth * rootWindow.lineWidthScale
+            opacity: rootWindow.opacityLevel
             name: "Streaming Signal"
         }
     }
@@ -106,6 +107,8 @@ Window {
     // 라인 두께 슬라이더 대신 버튼으로 배수를 토글 (QtQuick.Controls 의존성 회피)
     property real lineWidthScale: 1.0
     property bool dashed: false
+    // 시리즈 투명도 토글 (#71): 1.0 → 0.75 → 0.5 → 0.25 → 1.0
+    property real opacityLevel: 1.0
 
     Row {
         anchors.top: parent.top
@@ -142,6 +145,13 @@ Window {
                 rootWindow.dashed = !rootWindow.dashed
                 series.dashPattern = rootWindow.dashed ? [6, 4] : []
             }
+        }
+
+        DemoButton {
+            text: "Opacity " + Math.round(rootWindow.opacityLevel * 100) + "%"
+            theme: chartTheme
+            onClicked: rootWindow.opacityLevel =
+                       rootWindow.opacityLevel <= 0.25 ? 1.0 : rootWindow.opacityLevel - 0.25
         }
     }
 

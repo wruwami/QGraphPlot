@@ -20,6 +20,12 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
   backend for the frontend line renderers (#57).
 - Unit tests covering `QLineSeries` identity/defaults and the previously
   untested `setLineWidth` / `setDashPattern` validation paths.
+- `opacity` property on `QAbstractSeries` (double, `[0.0, 1.0]`, default
+  `1.0`) — per-series stroke alpha folded into the renderer's color
+  channel. Out-of-range / non-finite values are rejected with a
+  `qWarning` (#71, #12 leftover).
+- QML demo `opacity` cycle button (100% → 75% → 50% → 25% → 100%).
+- Unit tests for `setOpacity` validation (reject / accept / no-op-on-same).
 
 ### Changed
 - `QmlLineSeries` now composes a core `QLineSeries` instead of duplicating
@@ -31,6 +37,14 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 - `QmlLineSeries::updatePaintNode` now honors `QAbstractSeries::isVisible()`
   (render skip); previously the core `visible` property had no effect in
   the QML frontend (#57).
+- `QmlLineSeries` `opacity` Q_PROPERTY now shadows `QQuickItem::opacity`:
+  it controls the series stroke alpha (via the core property) instead of
+  item-level compositing, so overlapping series compose predictably. No
+  existing QML set `LineSeries.opacity`, so the shadow is safe (#71).
+- `qml_frontend` headers/sources renamed from lowercase to CamelCase
+  (`qmlchartview.h` → `QmlChartView.h`, etc.) to match core's convention
+  (AI.md §1.5, #18 leftover). Include guards updated to the
+  `QGRAPHPLOT_*_H` pattern (#71).
 
 ### BREAKING CHANGES
 - _(none — API surface not yet public)_
