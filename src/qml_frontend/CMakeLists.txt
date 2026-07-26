@@ -44,6 +44,19 @@ set_target_properties(qml_frontend PROPERTIES
     EXPORT_NAME Qml
 )
 
+# The QML module is a shared library (plugin). Its C++ backing classes
+# (QmlChartView, QmlLineSeries, QmlScatterSeries, ...) annotate their
+# declarations with QGRAPHPLOT_QML_EXPORT so in-tree C++ tests that link
+# the backing library can resolve symbols — including the per-class
+# staticMetaObject that WINDOWS_EXPORT_ALL_SYMBOLS does NOT auto-export
+# (it only covers function symbols, not static data members). Defining
+# QGRAPHPLOT_BUILDING_QML_LIB here selects Q_DECL_EXPORT while building
+# the frontend; consumers see Q_DECL_IMPORT via the shared
+# qgraphplot_global.h (AI.md §3.1 — QML/Widget test parity; the Widget
+# frontend is STATIC and so needs neither export annotations nor this
+# define).
+target_compile_definitions(qml_frontend PRIVATE QGRAPHPLOT_BUILDING_QML_LIB)
+
 if(NOT TARGET QGraphPlot::Qml)
     add_library(QGraphPlot::Qml ALIAS qml_frontend)
 endif()

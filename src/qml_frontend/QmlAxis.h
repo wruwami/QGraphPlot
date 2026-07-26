@@ -13,7 +13,7 @@ namespace qgraphplot
 
 class QmlChartView;
 
-class QmlAxis : public QQuickItem
+class QGRAPHPLOT_QML_EXPORT QmlAxis : public QQuickItem
 {
     Q_OBJECT
     QML_ELEMENT

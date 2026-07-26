@@ -15,18 +15,26 @@
 // limitations under the License.
 
 //! @file TestQmlChartView.cpp
-//! @brief Unit tests for qgraphplot::QmlChartView's axis/margin setters:
-//!        finite-range validation, rejection warnings, and the near-zero
-//!        safe fuzzy-equality gate shared with WidgetChartView (#59, #35).
+//! @brief Unit tests for qgraphplot::QmlChartView's axis/margin setters and
+//!        the series-collection API (add/remove/clear/enumerate, destroyed
+//!        cleanup, and itemChange child registration): #58, #59, #35.
 
 #include <limits>
 
+#include <QtCore/QPointer>
 #include <QtCore/QRegularExpression>
 #include <QtTest/QtTest>
 
+#include "../src/core/series/QLineSeries.h"
 #include "../src/qml_frontend/QmlChartView.h"
+#include "../src/qml_frontend/QmlLineSeries.h"
+#include "../src/qml_frontend/QmlScatterSeries.h"
 
+using qgraphplot::QAbstractSeries;
+using qgraphplot::QLineSeries;
 using qgraphplot::QmlChartView;
+using qgraphplot::QmlLineSeries;
+using qgraphplot::QmlScatterSeries;
 
 namespace
 {
@@ -61,6 +69,20 @@ private slots:
 
     void redundantWritesDoNotEmit();
     void wideningRangeAllowsPreviouslyInvalidValue();
+
+    // ── Series collection (issue #58) ──────────────────────────
+    void seriesCollectionStartsEmpty();
+    void addSeriesAppendsAndEmits();
+    void addSeriesIgnoresNullAndDuplicates();
+    void removeSeriesRemovesAndEmits();
+    void removeSeriesIgnoresUnknownSeries();
+    void clearSeriesRemovesAllAndEmits();
+    void seriesAtReturnsIndexedOrNull();
+    void seriesCountReflectsCollection();
+    void destroyedSeriesIsDroppedFromCollection();
+    void declarativeChildRegistersCoreSeries();
+    void declarativeLineAndScatterChildrenBothRegistered();
+    void clearSeriesOnDestructorIsSafe();
 };
 
 void TestQmlChartView::defaultsAreSane()
@@ -280,6 +302,222 @@ void TestQmlChartView::wideningRangeAllowsPreviouslyInvalidValue()
     view.setXMax(30.0);
     view.setXMin(20.0);
     QCOMPARE(view.xMin(), 20.0);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Series collection (issue #58)
+//
+// The QmlChartView tracks the *core* QAbstractSeries* objects composed by
+// the QML wrappers (QmlLineSeries/QmlScatterSeries), mirroring the
+// WidgetChartView API (AI.md §3.1). These tests cover add/remove/clear/
+// enumerate, the seriesAdded/seriesRemoved signals, destroyed-cleanup, and
+// automatic registration of declarative QML children via itemChange.
+// ════════════════════════════════════════════════════════════════
+
+void TestQmlChartView::seriesCollectionStartsEmpty()
+{
+    QmlChartView view;
+    QCOMPARE(view.series().size(), 0);
+    QCOMPARE(view.seriesCount(), 0);
+    QVERIFY(view.series().isEmpty());
+}
+
+void TestQmlChartView::addSeriesAppendsAndEmits()
+{
+    QmlChartView view;
+    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+
+    auto* core = new QLineSeries(&view);  // owned by view (QObject parent)
+    view.addSeries(core);
+
+    QCOMPARE(view.seriesCount(), 1);
+    QCOMPARE(view.series().at(0), core);
+    QCOMPARE(addedSpy.count(), 1);
+    QCOMPARE(addedSpy.at(0).at(0).value<QAbstractSeries*>(), core);
+}
+
+void TestQmlChartView::addSeriesIgnoresNullAndDuplicates()
+{
+    QmlChartView view;
+    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+
+    auto* core = new QLineSeries(&view);
+
+    view.addSeries(nullptr);  // null is a no-op
+    QCOMPARE(view.seriesCount(), 0);
+    QCOMPARE(addedSpy.count(), 0);
+
+    view.addSeries(core);
+    QCOMPARE(view.seriesCount(), 1);
+    QCOMPARE(addedSpy.count(), 1);
+
+    view.addSeries(core);  // duplicate is a no-op
+    QCOMPARE(view.seriesCount(), 1);
+    QCOMPARE(addedSpy.count(), 1);
+}
+
+void TestQmlChartView::removeSeriesRemovesAndEmits()
+{
+    QmlChartView view;
+    QSignalSpy removedSpy(&view, &QmlChartView::seriesRemoved);
+
+    auto* core = new QLineSeries(&view);
+    view.addSeries(core);
+    QCOMPARE(view.seriesCount(), 1);
+
+    view.removeSeries(core);
+
+    QCOMPARE(view.seriesCount(), 0);
+    QVERIFY(view.series().isEmpty());
+    QCOMPARE(removedSpy.count(), 1);
+    QCOMPARE(removedSpy.at(0).at(0).value<QAbstractSeries*>(), core);
+}
+
+void TestQmlChartView::removeSeriesIgnoresUnknownSeries()
+{
+    QmlChartView view;
+    QSignalSpy removedSpy(&view, &QmlChartView::seriesRemoved);
+
+    auto* tracked = new QLineSeries(&view);
+    auto* untracked = new QLineSeries(&view);
+    view.addSeries(tracked);
+
+    view.removeSeries(untracked);  // not in the collection
+
+    QCOMPARE(view.seriesCount(), 1);
+    QCOMPARE(view.series().at(0), tracked);
+    QCOMPARE(removedSpy.count(), 0);
+}
+
+void TestQmlChartView::clearSeriesRemovesAllAndEmits()
+{
+    QmlChartView view;
+    QSignalSpy removedSpy(&view, &QmlChartView::seriesRemoved);
+
+    auto* a = new QLineSeries(&view);
+    auto* b = new QLineSeries(&view);
+    auto* c = new QLineSeries(&view);
+    view.addSeries(a);
+    view.addSeries(b);
+    view.addSeries(c);
+    QCOMPARE(view.seriesCount(), 3);
+
+    view.clearSeries();
+
+    QCOMPARE(view.seriesCount(), 0);
+    QVERIFY(view.series().isEmpty());
+    QCOMPARE(removedSpy.count(), 3);
+}
+
+void TestQmlChartView::seriesAtReturnsIndexedOrNull()
+{
+    QmlChartView view;
+
+    QCOMPARE(view.seriesAt(0), nullptr);  // empty
+    QCOMPARE(view.seriesAt(-1), nullptr);
+
+    auto* a = new QLineSeries(&view);
+    auto* b = new QLineSeries(&view);
+    view.addSeries(a);
+    view.addSeries(b);
+
+    QCOMPARE(view.seriesAt(0), a);
+    QCOMPARE(view.seriesAt(1), b);
+    QCOMPARE(view.seriesAt(2), nullptr);  // out of range
+}
+
+void TestQmlChartView::seriesCountReflectsCollection()
+{
+    QmlChartView view;
+
+    auto* a = new QLineSeries(&view);
+    auto* b = new QLineSeries(&view);
+
+    QCOMPARE(view.seriesCount(), 0);
+    view.addSeries(a);
+    QCOMPARE(view.seriesCount(), 1);
+    view.addSeries(b);
+    QCOMPARE(view.seriesCount(), 2);
+    view.removeSeries(a);
+    QCOMPARE(view.seriesCount(), 1);
+    view.clearSeries();
+    QCOMPARE(view.seriesCount(), 0);
+}
+
+void TestQmlChartView::destroyedSeriesIsDroppedFromCollection()
+{
+    QmlChartView view;
+    QSignalSpy removedSpy(&view, &QmlChartView::seriesRemoved);
+
+    // The core series is owned externally (here by `view` as QObject parent,
+    // but in real QML usage by the wrapper item). When it is destroyed, the
+    // chart must drop it from the collection WITHOUT emitting seriesRemoved
+    // (the chart did not initiate the removal — parity with WidgetChartView,
+    // whose destroyed-handler also only removes silently).
+    auto* core = new QLineSeries(&view);
+    view.addSeries(core);
+    QCOMPARE(view.seriesCount(), 1);
+
+    delete core;
+
+    QCOMPARE(view.seriesCount(), 0);
+    QVERIFY(view.series().isEmpty());
+    // The destroyed-handler removes silently (no seriesRemoved emission),
+    // matching WidgetChartView::addSeries's destroyed lambda.
+    QCOMPARE(removedSpy.count(), 0);
+}
+
+void TestQmlChartView::declarativeChildRegistersCoreSeries()
+{
+    QmlChartView view;
+    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+
+    // Reproduces the declarative QML pattern: a LineSeries added as a child
+    // of the ChartView. Setting the parentItem triggers ItemChildAddedChange
+    // inside QQuickItem, which QmlChartView::itemChange intercepts.
+    auto* wrapper = new QmlLineSeries(&view);  // QObject parent = view
+    wrapper->setParentItem(&view);             // QQuickItem child = view
+
+    QCOMPARE(view.seriesCount(), 1);
+    QCOMPARE(view.series().at(0), wrapper->coreSeries());
+    QCOMPARE(addedSpy.count(), 1);
+}
+
+void TestQmlChartView::declarativeLineAndScatterChildrenBothRegistered()
+{
+    QmlChartView view;
+    QSignalSpy addedSpy(&view, &QmlChartView::seriesAdded);
+
+    auto* line = new QmlLineSeries(&view);
+    line->setParentItem(&view);
+
+    auto* scatter = new QmlScatterSeries(&view);
+    scatter->setParentItem(&view);
+
+    QCOMPARE(view.seriesCount(), 2);
+    QCOMPARE(view.seriesAt(0), line->coreSeries());
+    QCOMPARE(view.seriesAt(1), scatter->coreSeries());
+    QCOMPARE(addedSpy.count(), 2);
+
+    // Core type identities are preserved through the collection.
+    QCOMPARE(view.seriesAt(0)->type(), qgraphplot::SeriesType::Line);
+    QCOMPARE(view.seriesAt(1)->type(), qgraphplot::SeriesType::Scatter);
+}
+
+void TestQmlChartView::clearSeriesOnDestructorIsSafe()
+{
+    // A chart with tracked series must destroy cleanly (no use-after-free in
+    // the destroyed connections). QPointer verifies the chart is gone.
+    QPointer<QmlChartView> view(new QmlChartView);
+
+    auto* a = new QLineSeries(view);
+    auto* b = new QLineSeries(view);
+    view->addSeries(a);
+    view->addSeries(b);
+    QCOMPARE(view->seriesCount(), 2);
+
+    delete view;
+    QVERIFY(view.isNull());
 }
 
 QTEST_MAIN(TestQmlChartView)
