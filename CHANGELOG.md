@@ -15,10 +15,22 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 ## [Unreleased]
 
 ### Added
-- _(nothing yet)_
+- `qgraphplot::QLineSeries` — first shipped concrete `QAbstractSeries`
+  subclass (`type() == SeriesType::Line`); serves as the core composition
+  backend for the frontend line renderers (#57).
+- Unit tests covering `QLineSeries` identity/defaults and the previously
+  untested `setLineWidth` / `setDashPattern` validation paths.
 
 ### Changed
-- _(nothing yet)_
+- `QmlLineSeries` now composes a core `QLineSeries` instead of duplicating
+  the property/validation/signal layer. All property state, change-guards
+  and validation live in `QAbstractSeries` (single source of truth); QML
+  Q_PROPERTY getters/setters delegate to the composed object, and NOTIFY
+  signals are forwarded from it. QML property names and behavior are
+  preserved (backward compatible) (#57).
+- `QmlLineSeries::updatePaintNode` now honors `QAbstractSeries::isVisible()`
+  (render skip); previously the core `visible` property had no effect in
+  the QML frontend (#57).
 
 ### BREAKING CHANGES
 - _(none — API surface not yet public)_
