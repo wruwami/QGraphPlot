@@ -62,7 +62,10 @@ set(_core_public_headers
 qt_add_library(QGraphPlotCore ${_core_lib_type}
     ${_core_sources}
 )
-set_target_properties(QGraphPlotCore PROPERTIES AUTOMOC ON)
+set_target_properties(QGraphPlotCore PROPERTIES
+    AUTOMOC ON
+    EXPORT_NAME Core
+)
 
 # Emit the metatypes JSON for this target so the QML module can re-export core
 # types (QGraphPlotTheme) with QML_FOREIGN — qmltyperegistrar resolves foreign
@@ -81,8 +84,8 @@ target_include_directories(QGraphPlotCore
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/qgraphplot>
-    INTERFACE
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot>
 )
 
 # ── Qt dependencies ───────────────────────────────────────────
@@ -105,5 +108,34 @@ endif()
 if(NOT TARGET QGraphPlot::Core)
     add_library(QGraphPlot::Core ALIAS QGraphPlotCore)
 endif()
+
+# ── Installation rules ───────────────────────────────────────
+install(TARGETS QGraphPlotCore
+    EXPORT QGraphPlotTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# Install public headers preserving directory structure
+install(FILES qgraphplot_global.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/qgraphplot/qgraphplot_version.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot
+)
+install(FILES model/QAbstractSeriesModel.h model/QRingBufferSeriesModel.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/model
+)
+install(FILES series/QAbstractSeries.h series/QLineSeries.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/series
+)
+install(FILES transform/QCoordinateTransform.h transform/QScaleEngine.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/transform
+)
+install(FILES theme/QGraphPlotTheme.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/theme
+)
 
 message(STATUS "  QGraphPlotCore: ${_core_lib_type} library")
