@@ -77,6 +77,11 @@ private slots:
     void setDashPatternRejectsNonFinite();
     void setDashPatternAcceptsEmpty();
 
+    // ─ Opacity validation (#71) ──────────────────────────────
+    void setOpacityRejectsInvalid();
+    void setOpacityAcceptsValid();
+    void setOpacityDoesNotEmitOnSameValue();
+
     // ─ Setters emit signals only on change ───────────────────
     void setColorEmitsOnceOnRealChange();
     void setColorDoesNotEmitOnSameValue();
@@ -160,6 +165,7 @@ void TestAbstractSeriesFixture::qLineSeriesInheritsPropertyDefaults()
     QVERIFY(s.name().isEmpty());
     QCOMPARE(s.lineWidth(), 2.0);
     QVERIFY(s.dashPattern().isEmpty());
+    QCOMPARE(s.opacity(), 1.0);
 }
 
 void TestAbstractSeriesFixture::qLineSeriesColorSettersWork()
@@ -243,6 +249,53 @@ void TestAbstractSeriesFixture::setDashPatternAcceptsEmpty()
     s.setDashPattern({});  // empty = solid line, always valid
     QCOMPARE(spy.count(), 1);
     QVERIFY(s.dashPattern().isEmpty());
+}
+
+// ─────────────────────────────────────────────────────────────
+// Opacity validation (#71)
+//
+// opacity must be finite and in [0.0, 1.0]; out-of-range / non-finite
+// values are rejected (mirrors the lineWidth rejection idiom).
+// ─────────────────────────────────────────────────────────────
+
+void TestAbstractSeriesFixture::setOpacityRejectsInvalid()
+{
+    QLineSeries s;
+    const double original = s.opacity();  // 1.0 default
+    QSignalSpy spy(&s, &QLineSeries::opacityChanged);
+
+    s.setOpacity(-0.1);     // below range
+    s.setOpacity(1.1);      // above range
+    s.setOpacity(2.0);      // well above range
+    s.setOpacity(qQNaN());  // NaN
+    s.setOpacity(qInf());   // infinity
+
+    QCOMPARE(s.opacity(), original);
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestAbstractSeriesFixture::setOpacityAcceptsValid()
+{
+    QLineSeries s;
+    QSignalSpy spy(&s, &QLineSeries::opacityChanged);
+    s.setOpacity(0.5);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(s.opacity(), 0.5);
+    // Boundaries are valid.
+    s.setOpacity(0.0);
+    QCOMPARE(s.opacity(), 0.0);
+    s.setOpacity(1.0);
+    QCOMPARE(s.opacity(), 1.0);
+}
+
+void TestAbstractSeriesFixture::setOpacityDoesNotEmitOnSameValue()
+{
+    QLineSeries s;
+    s.setOpacity(0.5);
+    QSignalSpy spy(&s, &QLineSeries::opacityChanged);
+    s.setOpacity(0.5);  // identical — no-op
+    QCOMPARE(spy.count(), 0);
+    QCOMPARE(s.opacity(), 0.5);
 }
 
 // ─────────────────────────────────────────────────────────────

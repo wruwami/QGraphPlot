@@ -1,4 +1,4 @@
-#include "qmllineseries.h"
+#include "QmlLineSeries.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <QtQuick/QSGFlatColorMaterial>
 #include <QtQuick/QSGGeometryNode>
 
-#include "qmlchartview.h"
+#include "QmlChartView.h"
 
 namespace qgraphplot
 {
@@ -93,6 +93,7 @@ QmlLineSeries::QmlLineSeries(QQuickItem* parent)
     connect(m_series, &QLineSeries::lineWidthChanged, this, [this]() { update(); });
     connect(m_series, &QLineSeries::dashPatternChanged, this, [this]() { update(); });
     connect(m_series, &QLineSeries::visibleChanged, this, [this]() { update(); });
+    connect(m_series, &QLineSeries::opacityChanged, this, [this]() { update(); });
     // modelChanged는 모델 시그널 재연결까지 담당하므로 별도 처리.
     connect(m_series, &QLineSeries::modelChanged, this, [this]() {
         disconnectModelSignals();
@@ -121,6 +122,7 @@ void QmlLineSeries::connectForwardingSignals()
     connect(m_series, &QLineSeries::nameChanged, this, &QmlLineSeries::nameChanged);
     connect(m_series, &QLineSeries::lineWidthChanged, this, &QmlLineSeries::lineWidthChanged);
     connect(m_series, &QLineSeries::dashPatternChanged, this, &QmlLineSeries::dashPatternChanged);
+    connect(m_series, &QLineSeries::opacityChanged, this, &QmlLineSeries::opacityChanged);
 }
 
 void QmlLineSeries::connectModelSignals()
@@ -207,9 +209,13 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
 
     // 핫패스 반복 호출을 피해 core 프로퍼티를 한 번 캐시한다.
     auto* model = m_series->model();
-    const QColor color = m_series->color();
     const double lineWidth = m_series->lineWidth();
     const QList<qreal>& dashPattern = m_series->dashPattern();
+    // opacity(0.0–1.0)를 색 알파에 곱한다 (#71). QSGFlatColorMaterial 은
+    // QColor 의 알파 채널을 그대로 사용하며, 노드에 Opaque 플래그가 없으므로
+    // 알파 합성이 적용된다. 겹치는 시리즈가 예측 가능하게 섞인다.
+    QColor color = m_series->color();
+    color.setAlphaF(color.alphaF() * m_series->opacity());
 
     // 1. 그릴 데이터가 없는 경우
     if (!model || model->pointCount() == 0) {

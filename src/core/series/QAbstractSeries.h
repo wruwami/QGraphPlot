@@ -81,6 +81,7 @@ class QGRAPHPLOT_EXPORT QAbstractSeries : public QObject
     Q_PROPERTY(double lineWidth READ lineWidth WRITE setLineWidth NOTIFY lineWidthChanged)
     Q_PROPERTY(
         QList<qreal> dashPattern READ dashPattern WRITE setDashPattern NOTIFY dashPatternChanged)
+    Q_PROPERTY(double opacity READ opacity WRITE setOpacity NOTIFY opacityChanged)
 
 public:
     //! Constructs an empty series. @p parent follows Qt ownership (RAII,
@@ -135,6 +136,16 @@ public:
     [[nodiscard]] QList<qreal> dashPattern() const { return m_dashPattern; }
     void setDashPattern(const QList<qreal>& dashPattern);
 
+    //! Stroke / fill opacity in the range [0.0, 1.0], where 0.0 is fully
+    //! transparent and 1.0 (the default) is fully opaque. Renderers fold
+    //! this into the color's alpha channel. Must be finite and within
+    //! range; invalid values are rejected with a qWarning (AI.md §3.3).
+    //! This is independent of the frontend view item's own opacity (e.g.
+    //! QQuickItem::opacity): it controls the series stroke alpha only, so
+    //! overlapping series compose predictably (issue #71).
+    [[nodiscard]] double opacity() const { return m_opacity; }
+    void setOpacity(double opacity);
+
     //! Whether @p dashPattern is usable as a dash pattern. Shared by both
     //! frontends so QML and Widget reject exactly the same inputs.
     [[nodiscard]] static bool isValidDashPattern(const QList<qreal>& dashPattern);
@@ -146,6 +157,7 @@ Q_SIGNALS:
     void visibleChanged(bool visible);
     void lineWidthChanged(double lineWidth);
     void dashPatternChanged();
+    void opacityChanged(double opacity);
 
 private:
     QAbstractSeriesModel* m_model = nullptr;
@@ -155,6 +167,7 @@ private:
     bool m_visible = true;
     double m_lineWidth = 2.0;
     QList<qreal> m_dashPattern;
+    double m_opacity = 1.0;
 };
 
 }  // namespace qgraphplot
