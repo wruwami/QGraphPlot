@@ -44,7 +44,8 @@ QCoordinateTransform::QCoordinateTransform(const QRectF& dataBounds,
                                 << m_dataBounds;
         if (!qIsFinite(m_dataBounds.left()) || !qIsFinite(m_dataBounds.top()) ||
             !qIsFinite(m_dataBounds.width()) || !qIsFinite(m_dataBounds.height())) {
-            m_dataBounds = QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square only for non-finite values
+            m_dataBounds =
+                QRectF(0.0, 0.0, 1.0, 1.0);  // Fallback to unit square only for non-finite values
         }
     }
 
