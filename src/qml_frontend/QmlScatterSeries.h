@@ -37,9 +37,10 @@ class QmlScatterSeries : public QQuickItem
         qgraphplot::QAbstractSeriesModel* model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
+    Q_PROPERTY(bool visible READ isVisible WRITE setVisible NOTIFY visibleChanged)
     // NOTE: shadows QQuickItem::opacity — exposes the core series stroke
     // alpha (folded into marker color) so overlapping series compose
-    // predictably (issue #71).
+    // predictably (issue `#71`).
     Q_PROPERTY(double opacity READ opacity WRITE setOpacity NOTIFY opacityChanged)
     Q_PROPERTY(double markerSize READ markerSize WRITE setMarkerSize NOTIFY markerSizeChanged)
     Q_PROPERTY(qgraphplot::MarkerShape markerShape READ markerShape WRITE setMarkerShape NOTIFY
@@ -54,6 +55,7 @@ public:
     qgraphplot::QAbstractSeriesModel* model() const noexcept { return m_series->model(); }
     QColor color() const noexcept { return m_series->color(); }
     QString name() const noexcept { return m_series->name(); }
+    bool isVisible() const noexcept { return m_series->isVisible(); }
     double opacity() const noexcept { return m_series->opacity(); }
 
     //! Marker diameter in device-independent pixels. Validated by the core
@@ -61,7 +63,7 @@ public:
     //! the same inputs (AI.md §3.1).
     double markerSize() const noexcept { return m_series->markerSize(); }
 
-    //! Marker geometry. @see qgraphplot::MarkerShape.
+    //! Marker geometry. `@see` qgraphplot::MarkerShape.
     qgraphplot::MarkerShape markerShape() const noexcept { return m_series->markerShape(); }
 
     // Setters — delegate to the core series, which performs validation and
@@ -69,6 +71,7 @@ public:
     void setModel(qgraphplot::QAbstractSeriesModel* model) { m_series->setModel(model); }
     void setColor(const QColor& color) { m_series->setColor(color); }
     void setName(const QString& name) { m_series->setName(name); }
+    void setVisible(bool visible) { m_series->setVisible(visible); }
     void setOpacity(double opacity) { m_series->setOpacity(opacity); }
     void setMarkerSize(double size) { m_series->setMarkerSize(size); }
     void setMarkerShape(qgraphplot::MarkerShape shape) { m_series->setMarkerShape(shape); }
@@ -80,6 +83,7 @@ signals:
     void modelChanged();
     void colorChanged();
     void nameChanged();
+    void visibleChanged();
     void opacityChanged();
     void markerSizeChanged();
     void markerShapeChanged();
