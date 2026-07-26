@@ -8,6 +8,27 @@
 
 #include "qmlchartview.h"
 
+namespace
+{
+//! Whether two computed tick sets are identical. Ticks are recomputed
+//! deterministically from (min, max, tickCount), so an unchanged input
+//! range/count produces bit-identical output -- plain equality (not a
+//! fuzzy comparison) is the right tool here (#36).
+bool tickInfosEqual(const std::vector<qgraphplot::QScaleEngine::TickInfo>& a,
+                    const std::vector<qgraphplot::QScaleEngine::TickInfo>& b) noexcept
+{
+    if (a.size() != b.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].position != b[i].position || a[i].label != b[i].label) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
 QmlAxis::QmlAxis(QQuickItem* parent) : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
@@ -142,12 +163,38 @@ void QmlAxis::updateTicks()
     const double min = (m_orientation == Qt::Horizontal) ? chartView->xMin() : chartView->yMin();
     const double max = (m_orientation == Qt::Horizontal) ? chartView->xMax() : chartView->yMax();
 
-    if (qFuzzyCompare(min, max)) {
-        m_tickInfos.clear();
-    } else {
-        m_tickInfos = qgraphplot::QScaleEngine::calculateTicks(min, max, m_tickCount);
+    std::vector<qgraphplot::QScaleEngine::TickInfo> newTicks;
+    if (!qFuzzyCompare(min, max)) {
+        newTicks = qgraphplot::QScaleEngine::calculateTicks(min, max, m_tickCount);
     }
-    emit ticksChanged();
+
+    // Skip the emit (and the QML Repeater's full delegate rebuild it
+    // triggers) when the tick set didn't actually change -- important during
+    // streaming, where updateTicks() runs almost every frame but the visible
+    // "nice" tick values often don't move every single frame (#36).
+    //
+    // However, even when tick data is unchanged, we must emit if the axis
+    // range (min/max) is also unchanged, because that indicates a
+    // geometry-only transform change (e.g., window resize, margin adjust).
+    // ChartView.qml delegates use root.mapToPixel() in position bindings,
+    // which doesn't auto-track dependencies, so they only reposition when
+    // ticksChanged() forces Repeater model change.
+    const bool ticksEqual = tickInfosEqual(newTicks, m_tickInfos);
+    // Use absolute epsilon comparison for range equality (simpler and more
+    // robust than qFuzzyCompare, which fails when values are near zero).
+    const bool rangeEqual =
+        (qAbs(min - m_previousMin) < 1e-10) && (qAbs(max - m_previousMax) < 1e-10);
+    const bool geometryOnlyChange = (ticksEqual && rangeEqual && !m_tickInfos.empty());
+
+    if (!ticksEqual || geometryOnlyChange) {
+        if (!ticksEqual) {
+            m_tickInfos = std::move(newTicks);
+        }
+        emit ticksChanged();
+    }
+
+    m_previousMin = min;
+    m_previousMax = max;
     update();
 }
 

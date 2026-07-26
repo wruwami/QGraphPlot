@@ -234,15 +234,20 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
         return nullptr;
     }
 
-    // 3. dash 패턴이 있을 때만 픽셀 좌표를 모아 선분 단위로 분할한다.
-    //    solid는 중간 버퍼 없이 정점에 지점 쓴다 (60fps hot path).
+    // 3. points()는 링 버퍼가 wrap된 경우에도 항상 하나의 연속된 span을 반환하도록
+    //    설계되어 있으므로(QRingBufferSeriesModel 참고), 매 포인트마다 가상함수인
+    //    pointAt()을 호출하는 대신 span을 한 번만 가져와 순회한다(#36).
+    const qgraphplot::PointSpan points = m_model->points(0, count - 1);
+
+    // 4. dash 패턴이 있을 때만 픽셀 좌표를 모아 선분 단위로 분할한다.
+    //    solid는 중간 버퍼 없이 정점 버퍼에 바로 쓴다 (60fps hot path).
     const bool dashed = !m_dashPattern.isEmpty();
     std::vector<QSGGeometry::Point2D> dashVertices;
     if (dashed) {
         std::vector<QPointF> pixels;
         pixels.reserve(static_cast<size_t>(count));
         for (qsizetype i = 0; i < count; ++i) {
-            pixels.push_back(transform.toPixel(m_model->pointAt(i)));
+            pixels.push_back(transform.toPixel(points[i]));
         }
         dashVertices = tessellateDashes(pixels, m_dashPattern, m_lineWidth);
         if (dashVertices.empty()) {
@@ -293,13 +298,13 @@ QSGNode* QmlLineSeries::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     geometry->setLineWidth(static_cast<float>(m_lineWidth));
     geometry->setDrawingMode(static_cast<unsigned int>(drawingMode));
 
-    // 6. 버퍼 좌표 대입
+    // 6. 버퍼 좌표 대입 및 스케일링
     QSGGeometry::Point2D* vertices = geometry->vertexDataAsPoint2D();
     if (dashed) {
         std::copy(dashVertices.begin(), dashVertices.end(), vertices);
     } else {
         for (qsizetype i = 0; i < count; ++i) {
-            const QPointF pixelPt = transform.toPixel(m_model->pointAt(i));
+            const QPointF pixelPt = transform.toPixel(points[i]);
             vertices[i].set(static_cast<float>(pixelPt.x()), static_cast<float>(pixelPt.y()));
         }
     }
