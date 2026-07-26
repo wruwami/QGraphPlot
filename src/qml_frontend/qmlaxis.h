@@ -74,6 +74,12 @@ private:
     // already-destroyed chart (reparented away without going through
     // itemChange) is a safe no-op instead of dangling-pointer UB.
     QPointer<QmlChartView> m_previousChartView;
+
+    // Track the axis range used to generate the current ticks, so we can
+    // detect geometry-only transform changes (range unchanged, ticks
+    // unchanged, but pixel positions different - see updateTicks()).
+    double m_previousMin{0.0};
+    double m_previousMax{0.0};
 };
 
 #endif  // QMLAXIS_H

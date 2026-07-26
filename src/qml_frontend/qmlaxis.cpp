@@ -144,10 +144,28 @@ void QmlAxis::updateTicks()
     // triggers) when the tick set didn't actually change -- important during
     // streaming, where updateTicks() runs almost every frame but the visible
     // "nice" tick values often don't move every single frame (#36).
-    if (!tickInfosEqual(newTicks, m_tickInfos)) {
-        m_tickInfos = std::move(newTicks);
+    //
+    // However, even when tick data is unchanged, we must emit if the axis
+    // range (min/max) is also unchanged, because that indicates a
+    // geometry-only transform change (e.g., window resize, margin adjust).
+    // ChartView.qml delegates use root.mapToPixel() in position bindings,
+    // which doesn't auto-track dependencies, so they only reposition when
+    // ticksChanged() forces Repeater model change.
+    const bool ticksEqual = tickInfosEqual(newTicks, m_tickInfos);
+    // Use absolute epsilon comparison for range equality (simpler and more
+    // robust than qFuzzyCompare, which fails when values are near zero).
+    const bool rangeEqual = (qAbs(min - m_previousMin) < 1e-10) && (qAbs(max - m_previousMax) < 1e-10);
+    const bool geometryOnlyChange = (ticksEqual && rangeEqual && !m_tickInfos.empty());
+
+    if (!ticksEqual || geometryOnlyChange) {
+        if (!ticksEqual) {
+            m_tickInfos = std::move(newTicks);
+        }
         emit ticksChanged();
     }
+
+    m_previousMin = min;
+    m_previousMax = max;
     update();
 }
 
