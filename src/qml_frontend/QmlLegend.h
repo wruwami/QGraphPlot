@@ -22,7 +22,6 @@
 #include <QtCore/QPointer>
 #include <QtCore/QVariantList>
 #include <QtGui/QColor>
-#include <QtQml/qqmlintegration.h>
 #include <QtQuick/QQuickItem>
 
 #include "series/QAbstractSeries.h"
