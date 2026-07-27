@@ -405,12 +405,15 @@ void TestWidgetChartView::autoScaleXFollowsBoundsChanged()
 
     // model->appendBatch() emits boundsChanged() synchronously on this same
     // thread, and the view's direct connection recomputes the auto-range
-    // before appendBatch() returns — no waiting needed.
+    // before appendBatch() returns — no waiting needed. Exactly one emission
+    // also guards against duplicate boundsChanged connections that would
+    // re-enter the model (regression test for the QStaticSeriesModel mutex
+    // deadlock fixed alongside this test).
     QSignalSpy xMaxSpy(&view, &WidgetChartView::xMaxChanged);
     QList<QPointF> extra{QPointF(20.0, 1.0)};
     model->appendBatch(QSpan<const QPointF>(extra.data(), extra.size()));
+    QCOMPARE(xMaxSpy.count(), 1);
     QCOMPARE(view.xMax(), 21.0);
-    QVERIFY(xMaxSpy.count() >= 1);
 }
 
 void TestWidgetChartView::autoScaleXRecomputesOnAddSeries()
