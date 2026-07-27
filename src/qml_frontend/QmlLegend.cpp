@@ -144,11 +144,6 @@ void QmlLegend::setChart(QmlChartView* chart)
         return;
     }
 
-    for (auto& conn : m_chartConnections) {
-        disconnect(conn);
-    }
-    m_chartConnections.clear();
-
     m_chart = chart;
     emit chartChanged();
 
@@ -198,11 +193,12 @@ void QmlLegend::connectChartSignals()
             for (int i = 0; i < m_items.size(); ++i) {
                 auto* item = m_items.at(i).value<QmlLegendItem*>();
                 if (item && item->series() == series) {
-                    delete m_rows.at(i);
+                    auto* row = m_rows.at(i);
                     m_rows.removeAt(i);
                     m_items.removeAt(i);
-                    delete item;
                     emit itemsChanged();
+                    row->deleteLater();
+                    item->deleteLater();
                     break;
                 }
             }
@@ -211,14 +207,12 @@ void QmlLegend::connectChartSignals()
 
 void QmlLegend::rebuildItems()
 {
-    for (auto* row : m_rows) {
-        delete row;
+    QList<QQuickItem*> oldRows = m_rows;
+    QList<QmlLegendItem*> oldItems;
+    for (const auto& var : m_items) {
+        oldItems.append(var.value<QmlLegendItem*>());
     }
     m_rows.clear();
-
-    for (const auto& var : m_items) {
-        delete var.value<QmlLegendItem*>();
-    }
     m_items.clear();
 
     if (m_chart) {
@@ -231,6 +225,13 @@ void QmlLegend::rebuildItems()
     }
 
     emit itemsChanged();
+
+    for (auto* row : oldRows) {
+        row->deleteLater();
+    }
+    for (auto* item : oldItems) {
+        item->deleteLater();
+    }
 }
 
 QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
