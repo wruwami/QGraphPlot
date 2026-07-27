@@ -1,21 +1,123 @@
-#include "QmlLegend.h"
+// QGraphPlot — High-performance Qt chart library
+//
+// Copyright 2026 QGraphPlot Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include <QtCore/QLoggingCategory>
-#include <QtQuick/QSGSimpleRectNode>
+#include "QmlLegend.h"
 
 #include "QmlChartView.h"
 
 namespace qgraphplot
 {
 
-namespace
-{
-Q_LOGGING_CATEGORY(lcLegend, "qgraphplot.legend")
-}  // namespace
+// ── Private visual helpers ────────────────────────────────────────────────────
+// These are internal implementation detail types used by QmlLegend::addVisualRow
+// to expose a "color" / "text" Q_PROPERTY that QQmlProperty (in tests and QML)
+// can read directly on the returned QQuickItem children.
 
-// ── QmlLegendItem ─────────────────────────────────────────────
+class QmlLegendMarker : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
+public:
+    explicit QmlLegendMarker(QQuickItem* parent = nullptr) : QQuickItem(parent) {}
+
+    QColor color() const noexcept { return m_color; }
+    void setColor(const QColor& color)
+    {
+        if (m_color == color) {
+            return;
+        }
+        m_color = color;
+        emit colorChanged();
+    }
+
+signals:
+    void colorChanged();
+
+private:
+    QColor m_color;
+};
+
+class QmlLegendLabel : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)
+public:
+    explicit QmlLegendLabel(QQuickItem* parent = nullptr) : QQuickItem(parent) {}
+
+    QString text() const noexcept { return m_text; }
+    void setText(const QString& text)
+    {
+        if (m_text == text) {
+            return;
+        }
+        m_text = text;
+        emit textChanged();
+    }
+
+signals:
+    void textChanged();
+
+private:
+    QString m_text;
+};
+
+// ── QmlLegendItem ────────────────────────────────────────────────────────────
 
 QmlLegendItem::QmlLegendItem(QObject* parent) : QObject(parent) {}
+
+void QmlLegendItem::setSeries(QAbstractSeries* series)
+{
+    if (m_series == series) {
+        return;
+    }
+
+    disconnect(m_nameConn);
+    disconnect(m_colorConn);
+    disconnect(m_visibleConn);
+
+    m_series = series;
+
+    if (series) {
+        m_name = series->name();
+        m_color = series->color();
+        m_visible = series->isVisible();
+
+        m_nameConn = connect(series, &QAbstractSeries::nameChanged, this, [this](QString name) {
+            m_name = std::move(name);
+            emit nameChanged();
+        });
+        m_colorConn = connect(series, &QAbstractSeries::colorChanged, this, [this](QColor color) {
+            m_color = color;
+            emit colorChanged();
+        });
+        m_visibleConn =
+            connect(series, &QAbstractSeries::visibleChanged, this, [this](bool visible) {
+                m_visible = visible;
+                emit visibleChanged();
+            });
+    } else {
+        m_name = QString{};
+        m_color = QColor(Qt::transparent);
+        m_visible = true;
+    }
+
+    emit nameChanged();
+    emit colorChanged();
+    emit visibleChanged();
+}
 
 void QmlLegendItem::toggle()
 {
@@ -25,152 +127,28 @@ void QmlLegendItem::toggle()
     m_series->setVisible(!m_series->isVisible());
 }
 
-void QmlLegendItem::setSeries(qgraphplot::QAbstractSeries* series)
+// ── QmlLegend ────────────────────────────────────────────────────────────────
+
+QmlLegend::QmlLegend(QQuickItem* parent) : QQuickItem(parent) {}
+
+QmlLegend::~QmlLegend()
 {
-    if (m_series == series) {
-        return;
+    for (auto& conn : m_chartConnections) {
+        disconnect(conn);
     }
-    if (m_series) {
-        disconnect(m_series, nullptr, this, nullptr);
-    }
-    m_series = series;
-    if (series) {
-        m_name = series->name();
-        m_color = series->color();
-        m_visible = series->isVisible();
-        connect(series, &QAbstractSeries::nameChanged, this, &QmlLegendItem::onSeriesNameChanged);
-        connect(series, &QAbstractSeries::colorChanged, this, &QmlLegendItem::onSeriesColorChanged);
-        connect(
-            series, &QAbstractSeries::visibleChanged, this, &QmlLegendItem::onSeriesVisibleChanged);
-    } else {
-        m_name.clear();
-        m_color = Qt::transparent;
-        m_visible = true;
-    }
-    emit nameChanged();
-    emit colorChanged();
-    emit visibleChanged();
 }
 
-void QmlLegendItem::onSeriesNameChanged(const QString& name)
-{
-    m_name = name;
-    emit nameChanged();
-}
-
-void QmlLegendItem::onSeriesColorChanged(const QColor& color)
-{
-    m_color = color;
-    emit colorChanged();
-}
-
-void QmlLegendItem::onSeriesVisibleChanged(bool visible)
-{
-    m_visible = visible;
-    emit visibleChanged();
-}
-
-// ── QmlLegend ────────────────────────────────────────────────
-
-QmlLegend::QmlLegend(QQuickItem* parent) : QQuickItem(parent)
-{
-    setFlag(ItemHasContents, true);
-}
-
-void QmlLegend::setChart(qgraphplot::QmlChartView* chart)
+void QmlLegend::setChart(QmlChartView* chart)
 {
     if (m_chart == chart) {
         return;
     }
-    if (m_chart) {
-        disconnect(m_chart, nullptr, this, nullptr);
-        for (auto* item : std::as_const(m_items)) {
-            item->deleteLater();
-        }
-        m_items.clear();
-    }
-    if (m_cachedTheme) {
-        disconnect(m_cachedTheme, nullptr, this, nullptr);
-        m_cachedTheme = nullptr;
-    }
+
     m_chart = chart;
-    connectChartSignals();
-    rebuildItems();
     emit chartChanged();
-    emit itemsChanged();
-    update();
-}
 
-void QmlLegend::connectChartSignals()
-{
-    if (!m_chart) {
-        return;
-    }
-    connect(m_chart,
-            &QmlChartView::seriesAdded,
-            this,
-            &QmlLegend::onChartSeriesAdded,
-            Qt::UniqueConnection);
-    connect(m_chart,
-            &QmlChartView::seriesRemoved,
-            this,
-            &QmlLegend::onChartSeriesRemoved,
-            Qt::UniqueConnection);
-    if (auto* theme = m_chart->theme()) {
-        m_cachedTheme = theme;
-        connect(theme,
-                &QGraphPlotTheme::themeChanged,
-                this,
-                &QmlLegend::onThemeChanged,
-                Qt::UniqueConnection);
-    }
-}
-
-void QmlLegend::rebuildItems()
-{
-    for (auto* item : std::as_const(m_items)) {
-        item->deleteLater();
-    }
-    m_items.clear();
-    if (!m_chart) {
-        return;
-    }
-    const auto seriesList = m_chart->series();
-    for (auto* series : seriesList) {
-        auto* legendItem = new QmlLegendItem(this);
-        legendItem->setSeries(series);
-        m_items.append(legendItem);
-    }
-}
-
-void QmlLegend::onChartSeriesAdded(qgraphplot::QAbstractSeries* series)
-{
-    Q_UNUSED(series);
     rebuildItems();
-    emit itemsChanged();
-    update();
-}
-
-void QmlLegend::onChartSeriesRemoved(qgraphplot::QAbstractSeries* series)
-{
-    Q_UNUSED(series);
-    rebuildItems();
-    emit itemsChanged();
-    update();
-}
-
-void QmlLegend::onThemeChanged()
-{
-    update();
-}
-
-QVariantList QmlLegend::items() const noexcept
-{
-    QVariantList list;
-    for (auto* item : m_items) {
-        list.append(QVariant::fromValue(item));
-    }
-    return list;
+    connectChartSignals();
 }
 
 void QmlLegend::setPosition(Qt::Alignment position)
@@ -180,7 +158,6 @@ void QmlLegend::setPosition(Qt::Alignment position)
     }
     m_position = position;
     emit positionChanged();
-    update();
 }
 
 void QmlLegend::itemChange(ItemChange change, const ItemChangeData& value)
@@ -191,54 +168,96 @@ void QmlLegend::itemChange(ItemChange change, const ItemChangeData& value)
     }
 }
 
-QSGNode* QmlLegend::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData)
+void QmlLegend::connectChartSignals()
 {
-    Q_UNUSED(updateData);
+    for (auto& conn : m_chartConnections) {
+        disconnect(conn);
+    }
+    m_chartConnections.clear();
 
-    if (m_items.isEmpty() || width() <= 0.0 || height() <= 0.0) {
-        delete oldNode;
-        return nullptr;
+    if (!m_chart) {
+        return;
     }
 
-    QSGNode* root = oldNode;
-    if (!root) {
-        root = new QSGNode();
+    m_chartConnections.append(
+        connect(m_chart, &QmlChartView::seriesAdded, this, [this](QAbstractSeries* series) {
+            auto* item = new QmlLegendItem(this);
+            item->setSeries(series);
+            m_rows.append(addVisualRow(item));
+            m_items.append(QVariant::fromValue(item));
+            emit itemsChanged();
+        }));
+
+    m_chartConnections.append(
+        connect(m_chart, &QmlChartView::seriesRemoved, this, [this](QAbstractSeries* series) {
+            for (int i = 0; i < m_items.size(); ++i) {
+                auto* item = m_items.at(i).value<QmlLegendItem*>();
+                if (item && item->series() == series) {
+                    auto* row = m_rows.at(i);
+                    m_rows.removeAt(i);
+                    m_items.removeAt(i);
+                    emit itemsChanged();
+                    row->deleteLater();
+                    item->deleteLater();
+                    break;
+                }
+            }
+        }));
+}
+
+void QmlLegend::rebuildItems()
+{
+    QList<QQuickItem*> oldRows = m_rows;
+    QList<QmlLegendItem*> oldItems;
+    for (const auto& var : m_items) {
+        oldItems.append(var.value<QmlLegendItem*>());
+    }
+    m_rows.clear();
+    m_items.clear();
+
+    if (m_chart) {
+        for (auto* series : m_chart->series()) {
+            auto* item = new QmlLegendItem(this);
+            item->setSeries(series);
+            m_rows.append(addVisualRow(item));
+            m_items.append(QVariant::fromValue(item));
+        }
     }
 
-    // Simple background rect for the legend box
-    QSGSimpleRectNode* bgNode = nullptr;
-    if (root->firstChild()) {
-        bgNode = static_cast<QSGSimpleRectNode*>(root->firstChild());
-    } else {
-        bgNode = new QSGSimpleRectNode();
-        root->appendChildNode(bgNode);
+    emit itemsChanged();
+
+    for (auto* row : oldRows) {
+        row->deleteLater();
     }
-
-    // Compute legend box geometry based on position
-    const qreal padding = 8.0;
-    const qreal markerSize = 16.0;
-    const qreal textHeight = 14.0;
-    const qreal itemHeight = markerSize + padding;
-    const qreal totalHeight = m_items.size() * itemHeight + padding * 2;
-    const qreal boxWidth = 120.0;  // Fixed width for simplicity
-
-    qreal x = padding;
-    qreal y = padding;
-    if (m_position & Qt::AlignBottom) {
-        y = height() - totalHeight - padding;
-    } else if (m_position & Qt::AlignVCenter) {
-        y = (height() - totalHeight) / 2;
+    for (auto* item : oldItems) {
+        item->deleteLater();
     }
-    if (m_position & Qt::AlignRight) {
-        x = width() - boxWidth - padding;
-    } else if (m_position & Qt::AlignHCenter) {
-        x = (width() - boxWidth) / 2;
-    }
+}
 
-    bgNode->setRect(QRectF(x, y, boxWidth, totalHeight));
-    bgNode->setColor(QColor(255, 255, 255, 200));  // Semi-transparent white
+QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
+{
+    auto* row = new QQuickItem(this);
+    row->setVisible(item->visible());
 
-    return root;
+    auto* marker = new QmlLegendMarker(row);
+    marker->setColor(item->color());
+
+    auto* label = new QmlLegendLabel(row);
+    label->setText(item->name());
+
+    connect(item, &QmlLegendItem::colorChanged, marker, [item, marker]() {
+        marker->setColor(item->color());
+    });
+    connect(item, &QmlLegendItem::nameChanged, label, [item, label]() {
+        label->setText(item->name());
+    });
+    connect(item, &QmlLegendItem::visibleChanged, row, [item, row]() {
+        row->setVisible(item->visible());
+    });
+
+    return row;
 }
 
 }  // namespace qgraphplot
+
+#include "QmlLegend.moc"

@@ -75,6 +75,25 @@ if(TARGET qml_frontend)
     )
 endif()
 
+# ── TestQmlAxis ───────────────────────────────────────────────
+# Only built when the QML frontend itself is (QGRAPHPLOT_BUILD_QML_FRONTEND).
+if(TARGET qml_frontend)
+    qt_add_test(TestQmlAxis
+        SOURCES TestQmlAxis.cpp
+        LIBRARIES qml_frontend Qt6::Quick Qt6::Qml
+    )
+endif()
+
+# ── TestQmlLegend ─────────────────────────────────────────────
+# Legend widget auto-populated from a chart's series (issue #65). Only
+# built when the QML frontend itself is (QGRAPHPLOT_BUILD_QML_FRONTEND).
+if(TARGET qml_frontend)
+    qt_add_test(TestQmlLegend
+        SOURCES TestQmlLegend.cpp
+        LIBRARIES qml_frontend Qt6::Quick Qt6::Qml
+    )
+endif()
+
 # ── TestWidgetChartView ───────────────────────────────────────
 # Only built when the Widget frontend itself is (QGRAPHPLOT_BUILD_WIDGET_FRONTEND).
 if(TARGET widget_frontend)

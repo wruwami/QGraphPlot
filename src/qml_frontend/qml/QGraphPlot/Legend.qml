@@ -1,7 +1,7 @@
 import QtQuick
 import QGraphPlot 0.1 as GP
 
-GP.QmlLegend {
+GP.Legend {
     id: root
 
     Column {

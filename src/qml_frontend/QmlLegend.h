@@ -1,73 +1,90 @@
+// QGraphPlot — High-performance Qt chart library
+//
+// Copyright 2026 QGraphPlot Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #ifndef QGRAPHPLOT_QMLLEGEND_H
 #define QGRAPHPLOT_QMLLEGEND_H
 
+#include <QtCore/QList>
+#include <QtCore/QMetaObject>
 #include <QtCore/QPointer>
+#include <QtCore/QVariantList>
 #include <QtGui/QColor>
 #include <QtQuick/QQuickItem>
 
 #include "series/QAbstractSeries.h"
-#include "theme/QGraphPlotTheme.h"
 
 namespace qgraphplot
 {
 
 class QmlChartView;
 
-//! @brief Legend item for a single series.
-//!
-//! Exposed to QML as an attached type or model element. Each legend entry
-//! shows the series name and color marker, and clicking toggles the series
-//! visibility (issue #65).
+//! One entry in a chart legend, tracking a single series' name, colour, and
+//! visibility.  Instances are created by QmlLegend and exposed to QML via the
+//! `items` property; they should not be constructed directly from QML.
 class QGRAPHPLOT_QML_EXPORT QmlLegendItem : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
 
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(QColor color READ color NOTIFY colorChanged)
     Q_PROPERTY(bool visible READ visible NOTIFY visibleChanged)
-    Q_PROPERTY(qgraphplot::QAbstractSeries* series READ series CONSTANT)
+    Q_PROPERTY(qgraphplot::QAbstractSeries* series READ series)
 
 public:
     explicit QmlLegendItem(QObject* parent = nullptr);
     ~QmlLegendItem() override = default;
 
-    [[nodiscard]] QString name() const noexcept { return m_name; }
-    [[nodiscard]] QColor color() const noexcept { return m_color; }
-    [[nodiscard]] bool visible() const noexcept { return m_visible; }
-    [[nodiscard]] qgraphplot::QAbstractSeries* series() const noexcept { return m_series; }
+    QString name() const noexcept { return m_name; }
+    QColor color() const noexcept { return m_color; }
+    bool visible() const noexcept { return m_visible; }
+    QAbstractSeries* series() const noexcept { return m_series; }
 
-    //! Toggle the series visibility. Called from QML on marker click.
+    //! Attach (or detach) this item from @p series.  Passing null resets all
+    //! properties to their defaults and emits the corresponding changed signals.
+    //! Passing the same series pointer again is a no-op.
+    void setSeries(QAbstractSeries* series);
+
+    //! Toggle the attached series' visibility.  Safe to call when no series is
+    //! attached (returns without doing anything).
     Q_INVOKABLE void toggle();
-
-    void setSeries(qgraphplot::QAbstractSeries* series);
 
 signals:
     void nameChanged();
     void colorChanged();
     void visibleChanged();
 
-private slots:
-    void onSeriesNameChanged(const QString& name);
-    void onSeriesColorChanged(const QColor& color);
-    void onSeriesVisibleChanged(bool visible);
-
 private:
     QString m_name;
-    QColor m_color;
+    QColor m_color;  // default-constructed QColor is invalid (no colour set)
     bool m_visible{true};
-    QPointer<qgraphplot::QAbstractSeries> m_series;
+    QPointer<QAbstractSeries> m_series;
+
+    QMetaObject::Connection m_nameConn;
+    QMetaObject::Connection m_colorConn;
+    QMetaObject::Connection m_visibleConn;
 };
 
-//! @brief Legend widget displaying all series in a chart.
-//!
-//! The legend auto-populates from the attached QmlChartView's series list.
-//! Position can be set to Top/Bottom/Left/Right (default: Top). Styling
-//! (font/color) comes from the shared QGraphPlotTheme (AI.md §3.2).
+//! QML quick item that auto-populates a legend from a QmlChartView's series
+//! collection.  Declare it as a child of (or alongside) a ChartView in QML
+//! and set the `chart` property; the legend tracks series additions and
+//! removals automatically.
 class QGRAPHPLOT_QML_EXPORT QmlLegend : public QQuickItem
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(Legend)
 
     Q_PROPERTY(qgraphplot::QmlChartView* chart READ chart WRITE setChart NOTIFY chartChanged)
     Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
@@ -75,14 +92,13 @@ class QGRAPHPLOT_QML_EXPORT QmlLegend : public QQuickItem
 
 public:
     explicit QmlLegend(QQuickItem* parent = nullptr);
-    ~QmlLegend() override = default;
+    ~QmlLegend() override;
 
-    [[nodiscard]] qgraphplot::QmlChartView* chart() const noexcept { return m_chart; }
-    void setChart(qgraphplot::QmlChartView* chart);
+    QmlChartView* chart() const noexcept { return m_chart; }
+    QVariantList items() const noexcept { return m_items; }
+    Qt::Alignment position() const noexcept { return m_position; }
 
-    [[nodiscard]] QVariantList items() const noexcept;
-
-    [[nodiscard]] Qt::Alignment position() const noexcept { return m_position; }
+    void setChart(QmlChartView* chart);
     void setPosition(Qt::Alignment position);
 
 signals:
@@ -91,22 +107,25 @@ signals:
     void positionChanged();
 
 protected:
-    QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
     void itemChange(ItemChange change, const ItemChangeData& value) override;
 
-private slots:
-    void onChartSeriesAdded(qgraphplot::QAbstractSeries* series);
-    void onChartSeriesRemoved(qgraphplot::QAbstractSeries* series);
-    void onThemeChanged();
-
 private:
-    void rebuildItems();
+    //! (Re)subscribe to the chart's seriesAdded/seriesRemoved signals.
+    //! Always clears previous connections first so calling this multiple
+    //! times (e.g. on every ItemParentHasChanged) never accumulates
+    //! duplicate connections.
     void connectChartSignals();
+    void rebuildItems();
+    //! Create a visual row QQuickItem (with marker and label children) for
+    //! @p item, wiring up color/name/visibility signals.  The row is owned
+    //! by this QmlLegend (QObject parent = this).
+    QQuickItem* addVisualRow(QmlLegendItem* item);
 
-    QPointer<qgraphplot::QmlChartView> m_chart;
-    QList<QmlLegendItem*> m_items;
+    QPointer<QmlChartView> m_chart;
+    QVariantList m_items;
+    QList<QQuickItem*> m_rows;
     Qt::Alignment m_position{Qt::AlignTop};
-    QPointer<qgraphplot::QGraphPlotTheme> m_cachedTheme;
+    QList<QMetaObject::Connection> m_chartConnections;
 };
 
 }  // namespace qgraphplot
