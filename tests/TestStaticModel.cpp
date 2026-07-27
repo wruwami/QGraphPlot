@@ -77,6 +77,15 @@ private slots:
     void noSignalsOnClearEmpty();
     void boundsChangedOnReplacePointShrink();
     void noBoundsChangedOnReplacePointNoChange();
+
+    // Regression for the mutex deadlock fixed alongside these tests
+    // (AI.md §3.6): mutators must emit signals AFTER releasing m_mutex, so a
+    // direct-connected slot can re-enter pointCount()/bounds() without
+    // deadlocking the non-recursive QMutex. Before the fix, each of these
+    // would hang indefinitely inside the synchronous signal dispatch.
+    void boundsChangedSlotCanReenterModelOnAppend();
+    void boundsChangedSlotCanReenterModelOnSetPoints();
+    void modelChangedSlotCanReenterModel();
 };
 
 void TestStaticModel::constructEmpty()
@@ -551,6 +560,87 @@ void TestStaticModel::noBoundsChangedOnReplacePointNoChange()
     model.replacePoint(1, QPointF(6.0, 6.0));
 
     QCOMPARE(boundsSpy.count(), 0);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reentrancy regression (AI.md §3.6 + §1.0 "Solid is better than fast").
+//
+// Before the mutex-deadlock fix, every mutator emitted its signals while still
+// holding m_mutex. A direct-connected slot that re-entered the model
+// (pointCount()/bounds()) deadlocked the non-recursive QMutex — the test
+// harness saw this as a 300s timeout. The fix emits after the lock releases;
+// these tests reproduce the reentry directly at the model layer (no view
+// needed) so the regression is caught here, not only via a view-integration
+// timeout. Each case would hang indefinitely against the pre-fix code.
+// ─────────────────────────────────────────────────────────────
+
+void TestStaticModel::boundsChangedSlotCanReenterModelOnAppend()
+{
+    QStaticSeriesModel model;
+    std::vector<QPointF> seed = {QPointF(0.0, 0.0), QPointF(2.0, 1.0)};
+    model.setPoints(seed);
+
+    int reentryCount = 0;
+    qsizetype seenPointCount = -1;
+    QRectF seenBounds;
+    // Direct (synchronous) connection: the slot runs inside appendBatch's
+    // signal dispatch, so reentering pointCount()/bounds() is exactly the
+    // call path that deadlocked before the fix.
+    QObject::connect(&model, &QStaticSeriesModel::boundsChanged, &model, [&]() {
+        ++reentryCount;
+        seenPointCount = model.pointCount();
+        seenBounds = model.bounds();
+    });
+
+    std::vector<QPointF> extra = {QPointF(20.0, 1.0)};
+    model.appendBatch(extra);  // expands bounds → emits boundsChanged
+
+    // The reentry completed without deadlocking, and observed the post-mutation
+    // state (proving the slot genuinely re-entered the model, not a no-op).
+    QCOMPARE(reentryCount, 1);
+    QCOMPARE(seenPointCount, qsizetype(3));
+    QCOMPARE(seenBounds, QRectF(0.0, 0.0, 20.0, 1.0));
+}
+
+void TestStaticModel::boundsChangedSlotCanReenterModelOnSetPoints()
+{
+    QStaticSeriesModel model;
+    std::vector<QPointF> seed = {QPointF(0.0, 0.0)};
+    model.setPoints(seed);
+
+    int reentryCount = 0;
+    qsizetype seenPointCount = -1;
+    QObject::connect(&model, &QStaticSeriesModel::boundsChanged, &model, [&]() {
+        ++reentryCount;
+        seenPointCount = model.pointCount();
+    });
+
+    std::vector<QPointF> replacement = {QPointF(-1.0, -1.0), QPointF(5.0, 5.0)};
+    model.setPoints(replacement);  // always emits boundsChanged
+
+    QCOMPARE(reentryCount, 1);
+    QCOMPARE(seenPointCount, qsizetype(2));
+}
+
+void TestStaticModel::modelChangedSlotCanReenterModel()
+{
+    QStaticSeriesModel model;
+    model.append(QPointF(0.0, 0.0));
+
+    int reentryCount = 0;
+    qsizetype seenPointCount = -1;
+    // modelChanged shares the same lock-then-emit window as boundsChanged, so
+    // reentering pointCount() from its handler must not deadlock either.
+    QObject::connect(&model, &QStaticSeriesModel::modelChanged, &model, [&](qsizetype) {
+        ++reentryCount;
+        seenPointCount = model.pointCount();
+    });
+
+    std::vector<QPointF> extra = {QPointF(1.0, 1.0), QPointF(2.0, 2.0)};
+    model.appendBatch(extra);
+
+    QCOMPARE(reentryCount, 1);
+    QCOMPARE(seenPointCount, qsizetype(3));
 }
 
 QTEST_GUILESS_MAIN(TestStaticModel)
