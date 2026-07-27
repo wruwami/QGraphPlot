@@ -16,9 +16,7 @@ Q_LOGGING_CATEGORY(lcLegend, "qgraphplot.legend")
 
 // ── QmlLegendItem ─────────────────────────────────────────────
 
-QmlLegendItem::QmlLegendItem(QObject* parent) : QObject(parent)
-{
-}
+QmlLegendItem::QmlLegendItem(QObject* parent) : QObject(parent) {}
 
 void QmlLegendItem::toggle()
 {
@@ -41,12 +39,10 @@ void QmlLegendItem::setSeries(qgraphplot::QAbstractSeries* series)
         m_name = series->name();
         m_color = series->color();
         m_visible = series->isVisible();
-        connect(series, &QAbstractSeries::nameChanged, this,
-                &QmlLegendItem::onSeriesNameChanged);
-        connect(series, &QAbstractSeries::colorChanged, this,
-                &QmlLegendItem::onSeriesColorChanged);
-        connect(series, &QAbstractSeries::visibleChanged, this,
-                &QmlLegendItem::onSeriesVisibleChanged);
+        connect(series, &QAbstractSeries::nameChanged, this, &QmlLegendItem::onSeriesNameChanged);
+        connect(series, &QAbstractSeries::colorChanged, this, &QmlLegendItem::onSeriesColorChanged);
+        connect(
+            series, &QAbstractSeries::visibleChanged, this, &QmlLegendItem::onSeriesVisibleChanged);
     } else {
         m_name.clear();
         m_color = Qt::transparent;
