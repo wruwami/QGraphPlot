@@ -120,6 +120,16 @@ void QmlAxis::setShowGrid(bool show)
     }
 }
 
+void QmlAxis::setTitle(const QString& title)
+{
+    if (m_title == title) {
+        return;
+    }
+    m_title = title;
+    emit titleChanged();
+    update();
+}
+
 void QmlAxis::itemChange(ItemChange change, const ItemChangeData& value)
 {
     QQuickItem::itemChange(change, value);

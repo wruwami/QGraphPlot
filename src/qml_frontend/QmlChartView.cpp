@@ -57,6 +57,16 @@ void QmlChartView::setTheme(qgraphplot::QGraphPlotTheme* theme)
     update();
 }
 
+void QmlChartView::setTitle(const QString& title)
+{
+    if (m_title == title) {
+        return;
+    }
+    m_title = title;
+    emit titleChanged();
+    update();
+}
+
 void QmlChartView::applyThemeConnections()
 {
     if (!m_theme) {
