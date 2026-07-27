@@ -15,7 +15,7 @@
 // limitations under the License.
 
 //! @file TestQmlAxis.cpp
-//! @brief Unit tests for qgraphplot::QmlAxis (placeholder - title API not yet implemented)
+//! @brief Unit tests for qgraphplot::QmlAxis
 
 #include <QtTest/QtTest>
 
@@ -29,15 +29,50 @@ class TestQmlAxis : public QObject
 
 private slots:
     void defaultsAreSane();
+
+    void titleDefaultIsEmpty();
+    void setTitleAcceptsValue();
+    void setTitleEmitsSignal();
+    void setTitleRedundantWriteDoesNotEmit();
 };
 
 void TestQmlAxis::defaultsAreSane()
 {
-    // Basic smoke test - verifies QmlAxis can be instantiated.
-    // Title-related tests removed as the API does not currently exist in QmlAxis.
     QmlAxis axis;
     QCOMPARE(axis.orientation(), Qt::Horizontal);
     QCOMPARE(axis.tickCount(), 5);
+}
+
+void TestQmlAxis::titleDefaultIsEmpty()
+{
+    QmlAxis axis;
+    QCOMPARE(axis.title(), QString());
+}
+
+void TestQmlAxis::setTitleAcceptsValue()
+{
+    QmlAxis axis;
+    axis.setTitle(QStringLiteral("X Axis"));
+    QCOMPARE(axis.title(), QStringLiteral("X Axis"));
+}
+
+void TestQmlAxis::setTitleEmitsSignal()
+{
+    QmlAxis axis;
+    QSignalSpy spy(&axis, &QmlAxis::titleChanged);
+    axis.setTitle(QStringLiteral("Time (s)"));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(axis.title(), QStringLiteral("Time (s)"));
+}
+
+void TestQmlAxis::setTitleRedundantWriteDoesNotEmit()
+{
+    QmlAxis axis;
+    axis.setTitle(QStringLiteral("Voltage"));
+
+    QSignalSpy spy(&axis, &QmlAxis::titleChanged);
+    axis.setTitle(QStringLiteral("Voltage"));  // same value — no-op
+    QCOMPARE(spy.count(), 0);
 }
 
 QTEST_MAIN(TestQmlAxis)

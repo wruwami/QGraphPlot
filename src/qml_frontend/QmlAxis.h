@@ -27,6 +27,7 @@ class QGRAPHPLOT_QML_EXPORT QmlAxis : public QQuickItem
     Q_PROPERTY(double gridWidth READ gridWidth WRITE setGridWidth NOTIFY gridWidthChanged)
     Q_PROPERTY(bool showGrid READ showGrid WRITE setShowGrid NOTIFY showGridChanged)
     Q_PROPERTY(QVariantList ticks READ ticks NOTIFY ticksChanged)
+    Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
 
 public:
     explicit QmlAxis(QQuickItem* parent = nullptr);
@@ -46,6 +47,8 @@ public:
 
     bool showGrid() const noexcept { return m_showGrid; }
     QVariantList ticks() const noexcept;
+    [[nodiscard]] QString title() const noexcept { return m_title; }
+    void setTitle(const QString& title);
 
     // Setters
     void setOrientation(Qt::Orientation orientation);
@@ -65,6 +68,7 @@ signals:
     void gridWidthChanged();
     void showGridChanged();
     void ticksChanged();
+    void titleChanged();
 
 protected:
     QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
@@ -80,12 +84,14 @@ private:
     Qt::Orientation m_orientation{Qt::Horizontal};
     int m_tickCount{5};
     QColor m_color{Qt::gray};
-    QColor m_gridColor{0xE0, 0xE0, 0xE0};  // 아주 연한 회색
+    QColor m_gridColor{0xE0, 0xE0, 0xE0};  // very light grey
     double m_lineWidth{1.0};
     double m_gridWidth{1.0};
     bool m_showGrid{true};
 
     std::vector<qgraphplot::QScaleEngine::TickInfo> m_tickInfos;
+
+    QString m_title;
 
     // Per-instance (NOT static — see #34): the ChartView this axis is
     // currently connected to. QPointer so a disconnect() against an
