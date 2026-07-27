@@ -106,11 +106,23 @@ void QmlLegend::connectChartSignals()
     if (!m_chart) {
         return;
     }
-    connect(m_chart, &QmlChartView::seriesAdded, this, &QmlLegend::onChartSeriesAdded, Qt::UniqueConnection);
-    connect(m_chart, &QmlChartView::seriesRemoved, this, &QmlLegend::onChartSeriesRemoved, Qt::UniqueConnection);
+    connect(m_chart,
+            &QmlChartView::seriesAdded,
+            this,
+            &QmlLegend::onChartSeriesAdded,
+            Qt::UniqueConnection);
+    connect(m_chart,
+            &QmlChartView::seriesRemoved,
+            this,
+            &QmlLegend::onChartSeriesRemoved,
+            Qt::UniqueConnection);
     if (auto* theme = m_chart->theme()) {
         m_cachedTheme = theme;
-        connect(theme, &QGraphPlotTheme::themeChanged, this, &QmlLegend::onThemeChanged, Qt::UniqueConnection);
+        connect(theme,
+                &QGraphPlotTheme::themeChanged,
+                this,
+                &QmlLegend::onThemeChanged,
+                Qt::UniqueConnection);
     }
 }
 
