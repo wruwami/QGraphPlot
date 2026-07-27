@@ -111,7 +111,10 @@ private slots:
     void wideningRangeAllowsPreviouslyInvalidValue();
 
     // ── Title property (chart title rendering) ──────────────────
-    // NOTE: Title tests removed - QmlChartView does not currently have a title property
+    void titleDefaultIsEmpty();
+    void setTitleAcceptsValue();
+    void setTitleEmitsSignal();
+    void setTitleRedundantWriteDoesNotEmit();
 
     // ── Series collection (issue #58) ──────────────────────────
     void seriesCollectionStartsEmpty();
@@ -362,11 +365,40 @@ void TestQmlChartView::wideningRangeAllowsPreviouslyInvalidValue()
 }
 
 // ════════════════════════════════════════════════════════════════
-// Title property tests removed
-//
-// NOTE: The title property does not currently exist in QmlChartView.
-// These tests were auto-generated but test functionality not yet implemented.
+// Title property (chart title rendering, issue #87)
 // ════════════════════════════════════════════════════════════════
+
+void TestQmlChartView::titleDefaultIsEmpty()
+{
+    QmlChartView view;
+    QCOMPARE(view.title(), QString());
+}
+
+void TestQmlChartView::setTitleAcceptsValue()
+{
+    QmlChartView view;
+    view.setTitle(QStringLiteral("My Chart"));
+    QCOMPARE(view.title(), QStringLiteral("My Chart"));
+}
+
+void TestQmlChartView::setTitleEmitsSignal()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::titleChanged);
+    view.setTitle(QStringLiteral("Sensor Data"));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(view.title(), QStringLiteral("Sensor Data"));
+}
+
+void TestQmlChartView::setTitleRedundantWriteDoesNotEmit()
+{
+    QmlChartView view;
+    view.setTitle(QStringLiteral("Fixed Title"));
+
+    QSignalSpy spy(&view, &QmlChartView::titleChanged);
+    view.setTitle(QStringLiteral("Fixed Title"));  // same value — no-op
+    QCOMPARE(spy.count(), 0);
+}
 
 // ════════════════════════════════════════════════════════════════
 // Series collection (issue #58)
