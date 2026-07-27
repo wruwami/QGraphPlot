@@ -68,7 +68,7 @@ signals:
 
 private:
     QString m_name;
-    QColor m_color;        // default-constructed QColor is invalid (no colour set)
+    QColor m_color;  // default-constructed QColor is invalid (no colour set)
     bool m_visible{true};
     QPointer<QAbstractSeries> m_series;
 
