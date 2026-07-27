@@ -227,7 +227,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     // Calculate rendering segment count. Axis baseline + tick marks use m_color;
     // grid lines use m_gridColor (#35), so split into two QSGGeometryNodes.
     const size_t tickCount = m_tickInfos.size();
-    const size_t axisLineCount = 1 + tickCount;               // baseline (1) + tick marks (tickCount)
+    const size_t axisLineCount = 1 + tickCount;  // baseline (1) + tick marks (tickCount)
     const size_t gridLineCount = m_showGrid ? tickCount : 0;  // grid lines
     if (axisLineCount > static_cast<size_t>(INT_MAX / 2) ||
         gridLineCount > static_cast<size_t>(INT_MAX / 2)) {

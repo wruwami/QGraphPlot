@@ -18,8 +18,9 @@ Q_LOGGING_CATEGORY(lcChartView, "qgraphplot.chartview")
 
 QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
 {
-    // Renders the background (entire item) and plot area (area excluding margins) directly with theme colors.
-    // Without a theme, updatePaintNode returns nullptr so the item remains transparent.
+    // Renders the background (entire item) and plot area (area excluding margins) directly with
+    // theme colors. Without a theme, updatePaintNode returns nullptr so the item remains
+    // transparent.
     setFlag(ItemHasContents, true);
 }
 
