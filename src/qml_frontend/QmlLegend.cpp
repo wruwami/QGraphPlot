@@ -21,6 +21,59 @@
 namespace qgraphplot
 {
 
+// ── Private visual helpers ────────────────────────────────────────────────────
+// These are internal implementation detail types used by QmlLegend::addVisualRow
+// to expose a "color" / "text" Q_PROPERTY that QQmlProperty (in tests and QML)
+// can read directly on the returned QQuickItem children.
+
+class QmlLegendMarker : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
+public:
+    explicit QmlLegendMarker(QQuickItem* parent = nullptr) : QQuickItem(parent) {}
+
+    QColor color() const noexcept { return m_color; }
+    void setColor(const QColor& color)
+    {
+        if (m_color == color) {
+            return;
+        }
+        m_color = color;
+        emit colorChanged();
+    }
+
+signals:
+    void colorChanged();
+
+private:
+    QColor m_color;
+};
+
+class QmlLegendLabel : public QQuickItem
+{
+    Q_OBJECT
+    Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)
+public:
+    explicit QmlLegendLabel(QQuickItem* parent = nullptr) : QQuickItem(parent) {}
+
+    QString text() const noexcept { return m_text; }
+    void setText(const QString& text)
+    {
+        if (m_text == text) {
+            return;
+        }
+        m_text = text;
+        emit textChanged();
+    }
+
+signals:
+    void textChanged();
+
+private:
+    QString m_text;
+};
+
 // ── QmlLegendItem ────────────────────────────────────────────────────────────
 
 QmlLegendItem::QmlLegendItem(QObject* parent) : QObject(parent) {}
@@ -135,6 +188,7 @@ void QmlLegend::connectChartSignals()
         connect(m_chart, &QmlChartView::seriesAdded, this, [this](QAbstractSeries* series) {
             auto* item = new QmlLegendItem(this);
             item->setSeries(series);
+            m_rows.append(addVisualRow(item));
             m_items.append(QVariant::fromValue(item));
             emit itemsChanged();
         }));
@@ -144,6 +198,8 @@ void QmlLegend::connectChartSignals()
             for (int i = 0; i < m_items.size(); ++i) {
                 auto* item = m_items.at(i).value<QmlLegendItem*>();
                 if (item && item->series() == series) {
+                    delete m_rows.at(i);
+                    m_rows.removeAt(i);
                     m_items.removeAt(i);
                     delete item;
                     emit itemsChanged();
@@ -155,6 +211,11 @@ void QmlLegend::connectChartSignals()
 
 void QmlLegend::rebuildItems()
 {
+    for (auto* row : m_rows) {
+        delete row;
+    }
+    m_rows.clear();
+
     for (const auto& var : m_items) {
         delete var.value<QmlLegendItem*>();
     }
@@ -164,6 +225,7 @@ void QmlLegend::rebuildItems()
         for (auto* series : m_chart->series()) {
             auto* item = new QmlLegendItem(this);
             item->setSeries(series);
+            m_rows.append(addVisualRow(item));
             m_items.append(QVariant::fromValue(item));
         }
     }
@@ -171,4 +233,30 @@ void QmlLegend::rebuildItems()
     emit itemsChanged();
 }
 
+QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
+{
+    auto* row = new QQuickItem(this);
+    row->setVisible(item->visible());
+
+    auto* marker = new QmlLegendMarker(row);
+    marker->setColor(item->color());
+
+    auto* label = new QmlLegendLabel(row);
+    label->setText(item->name());
+
+    connect(item, &QmlLegendItem::colorChanged, marker, [item, marker]() {
+        marker->setColor(item->color());
+    });
+    connect(item, &QmlLegendItem::nameChanged, label, [item, label]() {
+        label->setText(item->name());
+    });
+    connect(item, &QmlLegendItem::visibleChanged, row, [item, row]() {
+        row->setVisible(item->visible());
+    });
+
+    return row;
+}
+
 }  // namespace qgraphplot
+
+#include "QmlLegend.moc"

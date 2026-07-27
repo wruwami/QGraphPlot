@@ -158,8 +158,8 @@ void TestQmlLegend::legendItemForwardsNameColorVisibleChanges()
     QCOMPARE(item.name(), QStringLiteral("Beta"));
     QCOMPARE(nameSpy.count(), 1);
 
-    series.setColor(QColor(Qt::blue));
-    QCOMPARE(item.color(), QColor(Qt::blue));
+    series.setColor(QColor(Qt::green));
+    QCOMPARE(item.color(), QColor(Qt::green));
     QCOMPARE(colorSpy.count(), 1);
 
     series.setVisible(false);
