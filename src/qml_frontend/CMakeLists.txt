@@ -16,6 +16,7 @@ qt_add_qml_module(qml_frontend
         QmlLineSeries.h QmlLineSeries.cpp
         QmlScatterSeries.h QmlScatterSeries.cpp
         QmlAxis.h QmlAxis.cpp
+        QmlLegend.h QmlLegend.cpp
         QmlTheme.h
     QML_FILES
         qml/QGraphPlot/ChartView.qml

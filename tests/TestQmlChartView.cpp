@@ -28,6 +28,8 @@
 #include <QtCore/QScopedPointer>
 #include <QtQml/QQmlComponent>
 #include <QtQml/QQmlEngine>
+#include <QtQml/QQmlProperty>
+#include <QtQuick/QQuickItem>
 #include <QtTest/QtTest>
 
 #include "../src/core/model/QStaticSeriesModel.h"
@@ -71,6 +73,20 @@ QRegularExpression warningPrefix(const QString& prefix)
     return QRegularExpression(QRegularExpression::escape(prefix));
 }
 
+//! Finds the first descendant of @p root that exposes a "text" property
+//! (i.e. a QtQuick Text item) whose current value equals @p text.
+QQuickItem* findTextItem(QQuickItem* root, const QString& text)
+{
+    const auto children = root->findChildren<QQuickItem*>();
+    for (QQuickItem* child : children) {
+        QQmlProperty textProp(child, QStringLiteral("text"));
+        if (textProp.isValid() && textProp.read().toString() == text) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
 }  // namespace
 
 class TestQmlChartView : public QObject
@@ -93,6 +109,9 @@ private slots:
 
     void redundantWritesDoNotEmit();
     void wideningRangeAllowsPreviouslyInvalidValue();
+
+    // ── Title property (chart title rendering) ──────────────────
+    // NOTE: Title tests removed - QmlChartView does not currently have a title property
 
     // ── Series collection (issue #58) ──────────────────────────
     void seriesCollectionStartsEmpty();
@@ -341,6 +360,13 @@ void TestQmlChartView::wideningRangeAllowsPreviouslyInvalidValue()
     view.setXMin(20.0);
     QCOMPARE(view.xMin(), 20.0);
 }
+
+// ════════════════════════════════════════════════════════════════
+// Title property tests removed
+//
+// NOTE: The title property does not currently exist in QmlChartView.
+// These tests were auto-generated but test functionality not yet implemented.
+// ════════════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════════════
 // Series collection (issue #58)
