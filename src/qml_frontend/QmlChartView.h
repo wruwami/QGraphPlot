@@ -67,9 +67,9 @@ public:
     //! the next `boundsChanged` from any tracked model overrides the axis
     //! range with the freshly computed one.
     //!@{
-    bool autoScaleX() const noexcept { return m_autoScaleX; }
-    bool autoScaleY() const noexcept { return m_autoScaleY; }
-    double autoScalePadding() const noexcept { return m_autoScalePadding; }
+    [[nodiscard]] bool autoScaleX() const noexcept { return m_autoScaleX; }
+    [[nodiscard]] bool autoScaleY() const noexcept { return m_autoScaleY; }
+    [[nodiscard]] double autoScalePadding() const noexcept { return m_autoScalePadding; }
     //!@}
 
     //! Visual style shared with the axes / series and with the Widget

@@ -81,9 +81,11 @@ QRectF QAutoScaler::computePaddedBounds(const QList<QAbstractSeries*>& series, d
     }
 
     if (!hasData) {
-        // No usable series: return a sane finite fallback so the view's
-        // coordinate transform never sees a zero-area data rect.
-        return QRectF(0.0, 0.0, 1.0, 1.0);
+        // No usable series: fall back to a sane unit rect so the view's
+        // coordinate transform never sees a zero-area data rect. This falls
+        // through to the same padding logic below as real data, so the
+        // fallback is padded exactly like any other bounds.
+        unioned = QRectF(0.0, 0.0, 1.0, 1.0);
     }
 
     // Apply padding per axis. A zero-span axis (single point, or all points
@@ -91,8 +93,18 @@ QRectF QAutoScaler::computePaddedBounds(const QList<QAbstractSeries*>& series, d
     // the ratio, since padding * 0 == 0.
     const double xSpan = unioned.width();
     const double ySpan = unioned.height();
-    const double xHalf = (xSpan > 0.0) ? ratio * xSpan : kDegenerateHalfSpan;
-    const double yHalf = (ySpan > 0.0) ? ratio * ySpan : kDegenerateHalfSpan;
+    double xHalf = (xSpan > 0.0) ? ratio * xSpan : kDegenerateHalfSpan;
+    double yHalf = (ySpan > 0.0) ? ratio * ySpan : kDegenerateHalfSpan;
+    // A finite ratio and a finite span can still multiply out to a
+    // non-finite half-span (e.g. DBL_MAX-sized data); drop the padding
+    // rather than let a non-finite value escape the "always finite QRectF"
+    // contract.
+    if (!std::isfinite(xHalf)) {
+        xHalf = 0.0;
+    }
+    if (!std::isfinite(yHalf)) {
+        yHalf = 0.0;
+    }
 
     double xMin, xMax, yMin, yMax;
     if (xSpan > 0.0) {
@@ -107,6 +119,21 @@ QRectF QAutoScaler::computePaddedBounds(const QList<QAbstractSeries*>& series, d
         yMax = unioned.bottom() + yHalf;
     } else {
         expandAxis(unioned.top(), yHalf, yMin, yMax);
+    }
+    // The endpoint addition/subtraction above can itself overflow even with
+    // finite padding (e.g. unioned.right() already near DBL_MAX); fall back
+    // to the un-padded endpoint rather than emit a non-finite bound.
+    if (!std::isfinite(xMin)) {
+        xMin = unioned.left();
+    }
+    if (!std::isfinite(xMax)) {
+        xMax = unioned.right();
+    }
+    if (!std::isfinite(yMin)) {
+        yMin = unioned.top();
+    }
+    if (!std::isfinite(yMax)) {
+        yMax = unioned.bottom();
     }
 
     return QRectF(xMin, yMin, xMax - xMin, yMax - yMin);

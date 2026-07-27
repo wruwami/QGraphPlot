@@ -253,6 +253,8 @@ void WidgetChartView::addSeries(QAbstractSeries* aSeries)
         connect(aSeries, &QObject::destroyed, this, [this, aSeries](QObject*) {
             m_series.removeAll(aSeries);
             m_seriesDestroyedConnections.remove(aSeries);
+            disconnectAutoScaleModel(aSeries);
+            applyAutoScale();
         });
     connectAutoScaleModel(aSeries);
     applyAutoScale();

@@ -76,14 +76,16 @@ void TestAutoScaler::emptyListReturnsFallback()
 {
     QList<QAbstractSeries*> empty;
     const QRectF r = QAutoScaler::computePaddedBounds(empty, 0.05);
-    QCOMPARE(r, QRectF(0.0, 0.0, 1.0, 1.0));
+    // Fallback bounds QRectF(0,0,1,1) padded by 0.05*1=0.05 on each axis,
+    // same as any other bounds (the fallback is not a special case).
+    QCOMPARE(r, QRectF(-0.05, -0.05, 1.1, 1.1));
 }
 
 void TestAutoScaler::nullSeriesAreSkipped()
 {
     QList<QAbstractSeries*> series{nullptr, nullptr};
     const QRectF r = QAutoScaler::computePaddedBounds(series, 0.05);
-    QCOMPARE(r, QRectF(0.0, 0.0, 1.0, 1.0));
+    QCOMPARE(r, QRectF(-0.05, -0.05, 1.1, 1.1));
 }
 
 void TestAutoScaler::nullModelSeriesAreSkipped()
@@ -92,7 +94,7 @@ void TestAutoScaler::nullModelSeriesAreSkipped()
     auto* noModel = new QLineSeries(&owner);  // model() is null by default
     QList<QAbstractSeries*> series{noModel};
     const QRectF r = QAutoScaler::computePaddedBounds(series, 0.05);
-    QCOMPARE(r, QRectF(0.0, 0.0, 1.0, 1.0));
+    QCOMPARE(r, QRectF(-0.05, -0.05, 1.1, 1.1));
 }
 
 void TestAutoScaler::emptyModelSeriesAreSkipped()
@@ -101,7 +103,7 @@ void TestAutoScaler::emptyModelSeriesAreSkipped()
     auto* emptyModelSeries = makeSeries(&owner, QList<QPointF>{});  // 0 points → skipped
     QList<QAbstractSeries*> series{emptyModelSeries};
     const QRectF r = QAutoScaler::computePaddedBounds(series, 0.05);
-    QCOMPARE(r, QRectF(0.0, 0.0, 1.0, 1.0));
+    QCOMPARE(r, QRectF(-0.05, -0.05, 1.1, 1.1));
 }
 
 void TestAutoScaler::singleSeriesBoundsArePadded()

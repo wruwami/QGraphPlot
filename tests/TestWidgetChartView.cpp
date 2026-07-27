@@ -72,6 +72,7 @@ private slots:
     void autoScaleYRecomputesOnEnable();
     void autoScaleXFollowsBoundsChanged();
     void autoScaleXRecomputesOnAddSeries();
+    void autoScaleRespectsPaddingRatio();
     void autoScaleXHandlesEmptyModel();
     void autoScaleXHandlesSinglePoint();
 };
@@ -402,10 +403,13 @@ void TestWidgetChartView::autoScaleXFollowsBoundsChanged()
     QCOMPARE(view.xMin(), -0.1);
     QCOMPARE(view.xMax(), 2.1);
 
+    // model->appendBatch() emits boundsChanged() synchronously on this same
+    // thread, and the view's direct connection recomputes the auto-range
+    // before appendBatch() returns — no waiting needed.
     QSignalSpy xMaxSpy(&view, &WidgetChartView::xMaxChanged);
     QList<QPointF> extra{QPointF(20.0, 1.0)};
     model->appendBatch(QSpan<const QPointF>(extra.data(), extra.size()));
-    QTRY_COMPARE_WITH_TIMEOUT(view.xMax(), 21.0, 1000);
+    QCOMPARE(view.xMax(), 21.0);
     QVERIFY(xMaxSpy.count() >= 1);
 }
 
@@ -422,6 +426,19 @@ void TestWidgetChartView::autoScaleXRecomputesOnAddSeries()
     view.addSeries(s);
     QCOMPARE(view.xMin(), -0.2);
     QCOMPARE(view.xMax(), 4.2);
+}
+
+void TestWidgetChartView::autoScaleRespectsPaddingRatio()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(10.0, 1.0)});
+    view.addSeries(s);
+    view.setAutoScalePadding(0.1);
+    view.setAutoScaleX(true);
+    // padding 0.1 of span 10 = 1.0 on each side.
+    QCOMPARE(view.xMin(), -1.0);
+    QCOMPARE(view.xMax(), 11.0);
 }
 
 void TestWidgetChartView::autoScaleXHandlesEmptyModel()
