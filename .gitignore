@@ -18,7 +18,6 @@ Makefile
 
 # Qt/QML specific
 *.qm
-*.qrc
 moc_*.cpp
 qrc_*.cpp
 ui_*.h

@@ -18,7 +18,7 @@ GP.QmlChartView {
         visible: root.title !== ""
         text: root.title
         x: root.width / 2 - width / 2
-        y: root.marginTop / 2 - height / 2
+        y: Math.max(0, root.marginTop / 2 - height / 2)
         font.pixelSize: root.labelPixelSize + 2
         font.bold: true
         font.family: root.labelFontFamily !== "" ? root.labelFontFamily : Qt.application.font.family

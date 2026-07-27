@@ -89,6 +89,10 @@ void QmlLegend::setChart(qgraphplot::QmlChartView* chart)
         }
         m_items.clear();
     }
+    if (m_cachedTheme) {
+        disconnect(m_cachedTheme, nullptr, this, nullptr);
+        m_cachedTheme = nullptr;
+    }
     m_chart = chart;
     connectChartSignals();
     rebuildItems();
@@ -102,11 +106,11 @@ void QmlLegend::connectChartSignals()
     if (!m_chart) {
         return;
     }
-    connect(m_chart, &QmlChartView::seriesAdded, this, &QmlLegend::onChartSeriesAdded);
-    connect(m_chart, &QmlChartView::seriesRemoved, this, &QmlLegend::onChartSeriesRemoved);
+    connect(m_chart, &QmlChartView::seriesAdded, this, &QmlLegend::onChartSeriesAdded, Qt::UniqueConnection);
+    connect(m_chart, &QmlChartView::seriesRemoved, this, &QmlLegend::onChartSeriesRemoved, Qt::UniqueConnection);
     if (auto* theme = m_chart->theme()) {
         m_cachedTheme = theme;
-        connect(theme, &QGraphPlotTheme::themeChanged, this, &QmlLegend::onThemeChanged);
+        connect(theme, &QGraphPlotTheme::themeChanged, this, &QmlLegend::onThemeChanged, Qt::UniqueConnection);
     }
 }
 
@@ -221,26 +225,6 @@ QSGNode* QmlLegend::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updat
 
     bgNode->setRect(QRectF(x, y, boxWidth, totalHeight));
     bgNode->setColor(QColor(255, 255, 255, 200));  // Semi-transparent white
-
-    // Clear old text/marker nodes
-    while (root->lastChild() != bgNode) {
-        delete root->lastChild();
-    }
-
-    // Render each legend item (marker + name)
-    for (int i = 0; i < m_items.size(); ++i) {
-        auto* item = m_items.at(i);
-        const qreal itemY = y + padding + i * itemHeight;
-
-        // Color marker rect
-        QSGSimpleRectNode* marker = new QSGSimpleRectNode();
-        marker->setRect(QRectF(x + padding, itemY, markerSize, markerSize));
-        marker->setColor(item->color());
-        root->appendChildNode(marker);
-
-        // Series name text (simplified - in production would use QSGTextNode)
-        // For now we skip text rendering complexity; the QML Legend.qml will handle it
-    }
 
     return root;
 }
