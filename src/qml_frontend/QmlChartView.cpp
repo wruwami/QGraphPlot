@@ -18,8 +18,8 @@ Q_LOGGING_CATEGORY(lcChartView, "qgraphplot.chartview")
 
 QmlChartView::QmlChartView(QQuickItem* parent) : QQuickItem(parent)
 {
-    // 배경(전체 아이템)과 플롯 영역(마진 제외 영역)을 테마 색상으로 직접 렌더링한다.
-    // 테마가 없으면 updatePaintNode가 nullptr을 반환하여 투명하게 유지된다.
+    // Renders the background (entire item) and plot area (area excluding margins) directly with theme colors.
+    // Without a theme, updatePaintNode returns nullptr so the item remains transparent.
     setFlag(ItemHasContents, true);
 }
 
@@ -465,8 +465,8 @@ QSGNode* QmlChartView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* up
         return nullptr;
     }
 
-    // 노드 트리: root ─┬─ background (아이템 전체)
-    //                  └─ plotArea   (마진 제외 영역)
+    // Node tree: root ─┬─ background (entire item)
+    //                  └─ plotArea   (area excluding margins)
     QSGNode* root = oldNode;
     QSGSimpleRectNode* background = nullptr;
     QSGSimpleRectNode* plotAreaNode = nullptr;

@@ -4,16 +4,16 @@ import QGraphPlot 0.1 as GP
 GP.QmlChartView {
     id: root
 
-    // X 축 및 Y 축 인스턴스 바인딩 (QML 단에서 라벨을 그리기 위함)
+    // X-axis and Y-axis instance bindings (for rendering labels in QML)
     property GP.QmlAxis xAxis: null
     property GP.QmlAxis yAxis: null
 
-    // 라벨 스타일. theme 가 지정되면 테마 값을, 아니면 기존 기본값을 사용한다.
+    // Label style. Uses theme values when a theme is set, otherwise falls back to defaults.
     readonly property color labelColor: root.theme ? root.theme.textColor : "#666666"
     readonly property int labelPixelSize: root.theme ? root.theme.fontPixelSize : 11
     readonly property string labelFontFamily: root.theme ? root.theme.fontFamily : ""
 
-    // 차트 타이틀 렌더링
+    // Chart title rendering
     Text {
         visible: root.title !== ""
         text: root.title
@@ -25,7 +25,7 @@ GP.QmlChartView {
         color: root.labelColor
     }
 
-    // X 축 (가로축) 라벨 렌더링
+    // X-axis (horizontal) label rendering
     Repeater {
         model: root.xAxis ? root.xAxis.ticks : []
         delegate: Text {
@@ -38,7 +38,7 @@ GP.QmlChartView {
         }
     }
 
-    // Y 축 (세로축) 라벨 렌더링
+    // Y-axis (vertical) label rendering
     Repeater {
         model: root.yAxis ? root.yAxis.ticks : []
         delegate: Text {

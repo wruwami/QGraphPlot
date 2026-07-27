@@ -116,7 +116,7 @@ void QmlAxis::setShowGrid(bool show)
     if (m_showGrid != show) {
         m_showGrid = show;
         emit showGridChanged();
-        updateTicks();  // 틱 개수나 지오메트리 크기 영향을 재계산
+        updateTicks();  // Recalculate when tick count or geometry size changes
     }
 }
 
@@ -224,11 +224,11 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     const qgraphplot::QCoordinateTransform transform = chartView->coordinateTransform();
     const QRectF pixelRect = transform.pixelRect();
 
-    // 렌더링 세그먼트 개수 계산. 축 기준선 + 눈금선은 m_color로, 그리드선은
-    // m_gridColor로 그려야 하므로(#35) 두 개의 QSGGeometryNode로 분리한다.
+    // Calculate rendering segment count. Axis baseline + tick marks use m_color;
+    // grid lines use m_gridColor (#35), so split into two QSGGeometryNodes.
     const size_t tickCount = m_tickInfos.size();
-    const size_t axisLineCount = 1 + tickCount;               // 기준선(1) + 눈금선(tickCount)
-    const size_t gridLineCount = m_showGrid ? tickCount : 0;  // 그리드선
+    const size_t axisLineCount = 1 + tickCount;               // baseline (1) + tick marks (tickCount)
+    const size_t gridLineCount = m_showGrid ? tickCount : 0;  // grid lines
     if (axisLineCount > static_cast<size_t>(INT_MAX / 2) ||
         gridLineCount > static_cast<size_t>(INT_MAX / 2)) {
         delete oldNode;
@@ -291,7 +291,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         }
     }
 
-    // 두께는 테마에서 올 수 있으므로 매 프레임 반영한다 (#12).
+    // Thickness may come from the theme, so apply it every frame (#12).
     axisGeometry->setLineWidth(static_cast<float>(m_lineWidth));
     gridGeometry->setLineWidth(static_cast<float>(m_gridWidth));
 
@@ -301,7 +301,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
     int axisIdx = 0;
     int gridIdx = 0;
 
-    // 1. 축 기준선 (Border line)
+    // 1. Axis baseline (border line)
     if (m_orientation == Qt::Horizontal) {
         const float y = static_cast<float>(pixelRect.bottom());
         axisVertices[axisIdx++].set(static_cast<float>(pixelRect.left()), y);
@@ -312,7 +312,7 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
         axisVertices[axisIdx++].set(x, static_cast<float>(pixelRect.bottom()));
     }
 
-    // 2. 눈금선 및 그리드선 배치
+    // 2. Lay out tick marks and grid lines
     const float tickLength = 5.0f;
 
     for (const auto& tick : m_tickInfos) {
@@ -321,11 +321,11 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
             const float x = static_cast<float>(p.x());
             const float borderY = static_cast<float>(pixelRect.bottom());
 
-            // 눈금선 (아래쪽 5px)
+            // Tick mark (5px downward)
             axisVertices[axisIdx++].set(x, borderY);
             axisVertices[axisIdx++].set(x, borderY + tickLength);
 
-            // 그리드선 (뷰포트 수직선)
+            // Grid line (vertical line across viewport)
             if (m_showGrid) {
                 gridVertices[gridIdx++].set(x, static_cast<float>(pixelRect.bottom()));
                 gridVertices[gridIdx++].set(x, static_cast<float>(pixelRect.top()));
@@ -335,11 +335,11 @@ QSGNode* QmlAxis::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateD
             const float y = static_cast<float>(p.y());
             const float borderX = static_cast<float>(pixelRect.left());
 
-            // 눈금선 (왼쪽 5px)
+            // Tick mark (5px leftward)
             axisVertices[axisIdx++].set(borderX, y);
             axisVertices[axisIdx++].set(borderX - tickLength, y);
 
-            // 그리드선 (뷰포트 수평선)
+            // Grid line (horizontal line across viewport)
             if (m_showGrid) {
                 gridVertices[gridIdx++].set(static_cast<float>(pixelRect.left()), y);
                 gridVertices[gridIdx++].set(static_cast<float>(pixelRect.right()), y);

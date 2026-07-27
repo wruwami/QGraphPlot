@@ -84,7 +84,7 @@ private:
     Qt::Orientation m_orientation{Qt::Horizontal};
     int m_tickCount{5};
     QColor m_color{Qt::gray};
-    QColor m_gridColor{0xE0, 0xE0, 0xE0};  // 아주 연한 회색
+    QColor m_gridColor{0xE0, 0xE0, 0xE0};  // very light grey
     double m_lineWidth{1.0};
     double m_gridWidth{1.0};
     bool m_showGrid{true};

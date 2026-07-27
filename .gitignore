@@ -1,4 +1,3 @@
-```
 # Build artifacts
 *.o
 *.obj
@@ -45,4 +44,3 @@ vendor/
 # OS
 .DS_Store
 Thumbs.db
-```
