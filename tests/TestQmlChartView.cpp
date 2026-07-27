@@ -28,6 +28,8 @@
 #include <QtCore/QScopedPointer>
 #include <QtQml/QQmlComponent>
 #include <QtQml/QQmlEngine>
+#include <QtQml/QQmlProperty>
+#include <QtQuick/QQuickItem>
 #include <QtTest/QtTest>
 
 #include "../src/core/model/QStaticSeriesModel.h"
@@ -71,6 +73,22 @@ QRegularExpression warningPrefix(const QString& prefix)
     return QRegularExpression(QRegularExpression::escape(prefix));
 }
 
+//! Finds the first descendant of @p root that exposes a "text" property
+//! (i.e. a QtQuick Text item) whose current value equals @p text. Used to
+//! locate the ChartView.qml title label without relying on an objectName
+//! that the QML file does not set.
+QQuickItem* findTextItem(QQuickItem* root, const QString& text)
+{
+    const auto children = root->findChildren<QQuickItem*>();
+    for (QQuickItem* child : children) {
+        QQmlProperty textProp(child, QStringLiteral("text"));
+        if (textProp.isValid() && textProp.read().toString() == text) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
 }  // namespace
 
 class TestQmlChartView : public QObject
@@ -93,6 +111,13 @@ private slots:
 
     void redundantWritesDoNotEmit();
     void wideningRangeAllowsPreviouslyInvalidValue();
+
+    // ── Title property (chart title rendering) ──────────────────
+    void titleDefaultsToEmpty();
+    void setTitleUpdatesValueAndEmits();
+    void setTitleSameValueDoesNotEmit();
+    void chartViewQmlBindsTitleToTitleText();
+    void chartViewQmlHidesTitleTextWhenEmpty();
 
     // ── Series collection (issue #58) ──────────────────────────
     void seriesCollectionStartsEmpty();
@@ -340,6 +365,86 @@ void TestQmlChartView::wideningRangeAllowsPreviouslyInvalidValue()
     view.setXMax(30.0);
     view.setXMin(20.0);
     QCOMPARE(view.xMin(), 20.0);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Title property (chart title rendering)
+//
+// QmlChartView gained a plain `title` string property; ChartView.qml binds
+// a Text label's visibility and content to it. These tests cover both the
+// C++ property contract and the QML-level binding.
+// ════════════════════════════════════════════════════════════════
+
+void TestQmlChartView::titleDefaultsToEmpty()
+{
+    QmlChartView view;
+    QCOMPARE(view.title(), QString());
+}
+
+void TestQmlChartView::setTitleUpdatesValueAndEmits()
+{
+    QmlChartView view;
+    QSignalSpy titleSpy(&view, &QmlChartView::titleChanged);
+
+    view.setTitle(QStringLiteral("Sensor Readings"));
+
+    QCOMPARE(view.title(), QStringLiteral("Sensor Readings"));
+    QCOMPARE(titleSpy.count(), 1);
+}
+
+void TestQmlChartView::setTitleSameValueDoesNotEmit()
+{
+    QmlChartView view;
+    view.setTitle(QStringLiteral("Sensor Readings"));
+
+    QSignalSpy titleSpy(&view, &QmlChartView::titleChanged);
+    view.setTitle(QStringLiteral("Sensor Readings"));  // redundant write
+
+    QCOMPARE(titleSpy.count(), 0);
+}
+
+void TestQmlChartView::chartViewQmlBindsTitleToTitleText()
+{
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nChartView { objectName: \"chart\"; "
+                          "width: 400; height: 300; title: \"My Chart\" }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* chartView = qobject_cast<QmlChartView*>(root.data());
+    QVERIFY(chartView);
+    QCOMPARE(chartView->title(), QStringLiteral("My Chart"));
+
+    // QmlChartView is itself a QQuickItem, so the root object doubles as the
+    // item tree root for the QML-declared child Text label.
+    QQuickItem* titleText = findTextItem(chartView, QStringLiteral("My Chart"));
+    QVERIFY2(titleText, "ChartView.qml did not create a Text item bound to root.title");
+    QCOMPARE(QQmlProperty(titleText, QStringLiteral("visible")).read().toBool(), true);
+}
+
+void TestQmlChartView::chartViewQmlHidesTitleTextWhenEmpty()
+{
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral(
+            "import QtQuick\nimport QGraphPlot\nChartView { width: 400; height: 300 }"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* chartView = qobject_cast<QmlChartView*>(root.data());
+    QVERIFY(chartView);
+    QCOMPARE(chartView->title(), QString());
+
+    // With no title set, the label's text is empty and its visibility is
+    // bound to `root.title !== ""`, so it must be hidden.
+    QQuickItem* titleText = findTextItem(chartView, QString());
+    QVERIFY2(titleText, "ChartView.qml did not create the title Text item");
+    QCOMPARE(QQmlProperty(titleText, QStringLiteral("visible")).read().toBool(), false);
 }
 
 // ════════════════════════════════════════════════════════════════
