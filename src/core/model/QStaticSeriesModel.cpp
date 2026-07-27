@@ -21,6 +21,7 @@
 #include <limits>
 
 #include <QtCore/QDebug>
+#include <QtCore/QMutexLocker>
 
 namespace qgraphplot
 {
@@ -32,14 +33,22 @@ bool isFinitePoint(const QPointF& pt) noexcept
     return std::isfinite(pt.x()) && std::isfinite(pt.y());
 }
 
+bool spansOverlap(QSpan<const QPointF> pts, const std::vector<QPointF>& points) noexcept
+{
+    if (pts.isEmpty() || points.empty()) {
+        return false;
+    }
+
+    const auto* inputBegin = pts.data();
+    const auto* inputEnd = inputBegin + pts.size();
+    const auto* storageBegin = points.data();
+    const auto* storageEnd = storageBegin + points.size();
+    return inputBegin < storageEnd && storageBegin < inputEnd;
+}
+
 bool hasFinitePoints(QSpan<const QPointF> pts) noexcept
 {
-    for (const QPointF& pt : pts) {
-        if (!isFinitePoint(pt)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(pts.begin(), pts.end(), [](const QPointF& pt) { return isFinitePoint(pt); });
 }
 }  // namespace
 
@@ -53,24 +62,28 @@ QStaticSeriesModel::~QStaticSeriesModel() = default;
 
 qsizetype QStaticSeriesModel::pointCount() const
 {
+    QMutexLocker locker(&m_mutex);
     return static_cast<qsizetype>(m_points.size());
 }
 
 QPointF QStaticSeriesModel::pointAt(qsizetype index) const
 {
-    Q_ASSERT(index >= 0 && index < pointCount());
+    QMutexLocker locker(&m_mutex);
+    Q_ASSERT(index >= 0 && index < static_cast<qsizetype>(m_points.size()));
     return m_points[static_cast<size_t>(index)];
 }
 
 PointSpan QStaticSeriesModel::points(qsizetype first, qsizetype last) const
 {
-    Q_ASSERT(first >= 0 && last >= first && last < pointCount());
+    QMutexLocker locker(&m_mutex);
+    Q_ASSERT(first >= 0 && last >= first && last < static_cast<qsizetype>(m_points.size()));
     const qsizetype count = last - first + 1;
     return PointSpan(m_points.data() + first, count);
 }
 
 QRectF QStaticSeriesModel::bounds() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_bounds;
 }
 
@@ -78,14 +91,27 @@ QRectF QStaticSeriesModel::bounds() const
 
 void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 {
-    if (!hasFinitePoints(pts)) {
+    QMutexLocker locker(&m_mutex);
+
+    // `snapshot` intentionally lives to the end of the function: when the
+    // input span aliases m_points, `source` must keep pointing at valid
+    // storage until the assign() below has consumed it. Reducing its scope
+    // (as cppcheck suggests) would dangle `source`.
+    QSpan<const QPointF> source = pts;
+    std::vector<QPointF> snapshot;
+    if (spansOverlap(pts, m_points)) {
+        snapshot.assign(pts.begin(), pts.end());
+        source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
+    }
+
+    if (!hasFinitePoints(source)) {
         qWarning("QStaticSeriesModel::setPoints: points must be finite");
         return;
     }
 
-    const qsizetype oldSize = pointCount();
-    m_points.assign(pts.begin(), pts.end());
-    const qsizetype newSize = pointCount();
+    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
+    m_points.assign(source.begin(), source.end());
+    const qsizetype newSize = static_cast<qsizetype>(m_points.size());
 
     recomputeBounds();
 
@@ -101,28 +127,42 @@ void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 
 void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
 {
+    QMutexLocker locker(&m_mutex);
+
     if (pts.isEmpty()) {
         return;
     }
-    if (!hasFinitePoints(pts)) {
+
+    // `snapshot` intentionally lives to the end of the function: when the
+    // input span aliases m_points, `source` must keep pointing at valid
+    // storage until the insert() below has consumed it. Reducing its scope
+    // (as cppcheck suggests) would dangle `source`.
+    QSpan<const QPointF> source = pts;
+    std::vector<QPointF> snapshot;
+    if (spansOverlap(pts, m_points)) {
+        snapshot.assign(pts.begin(), pts.end());
+        source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
+    }
+
+    if (!hasFinitePoints(source)) {
         qWarning("QStaticSeriesModel::appendBatch: points must be finite");
         return;
     }
 
-    const qsizetype oldSize = pointCount();
+    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
     const QRectF oldBounds = m_bounds;
 
-    m_points.insert(m_points.end(), pts.begin(), pts.end());
+    m_points.insert(m_points.end(), source.begin(), source.end());
 
     if (oldSize == 0) {
         recomputeBounds();
     } else {
-        for (const QPointF& pt : pts) {
+        for (const QPointF& pt : source) {
             expandBounds(pt);
         }
     }
 
-    const qsizetype newSize = pointCount();
+    const qsizetype newSize = static_cast<qsizetype>(m_points.size());
     const qsizetype newFirst = oldSize;
     const qsizetype newLast = newSize - 1;
 
@@ -140,7 +180,8 @@ void QStaticSeriesModel::append(QPointF pt)
 
 void QStaticSeriesModel::replacePoint(qsizetype index, QPointF pt)
 {
-    Q_ASSERT(index >= 0 && index < pointCount());
+    QMutexLocker locker(&m_mutex);
+    Q_ASSERT(index >= 0 && index < static_cast<qsizetype>(m_points.size()));
     if (!isFinitePoint(pt)) {
         qWarning("QStaticSeriesModel::replacePoint: point must be finite");
         return;
@@ -155,12 +196,13 @@ void QStaticSeriesModel::replacePoint(qsizetype index, QPointF pt)
     if (m_bounds != oldBounds) {
         Q_EMIT boundsChanged();
     }
-    Q_EMIT modelChanged(pointCount());
+    Q_EMIT modelChanged(static_cast<qsizetype>(m_points.size()));
 }
 
 void QStaticSeriesModel::clear()
 {
-    const qsizetype oldSize = pointCount();
+    QMutexLocker locker(&m_mutex);
+    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
 
     m_points.clear();
     m_bounds = QRectF();
@@ -174,6 +216,7 @@ void QStaticSeriesModel::clear()
 
 void QStaticSeriesModel::reserve(qsizetype count)
 {
+    QMutexLocker locker(&m_mutex);
     if (count > 0) {
         m_points.reserve(static_cast<size_t>(count));
     }
