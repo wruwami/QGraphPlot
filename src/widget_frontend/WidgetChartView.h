@@ -52,6 +52,12 @@ class WidgetChartView : public QWidget
     Q_PROPERTY(double marginTop READ marginTop WRITE setMarginTop NOTIFY marginsChanged)
     Q_PROPERTY(double marginBottom READ marginBottom WRITE setMarginBottom NOTIFY marginsChanged)
 
+    // Axis auto-range (issue #63). Mirrors QmlChartView (AI.md §3.1 parity).
+    Q_PROPERTY(bool autoScaleX READ autoScaleX WRITE setAutoScaleX NOTIFY autoScaleXChanged)
+    Q_PROPERTY(bool autoScaleY READ autoScaleY WRITE setAutoScaleY NOTIFY autoScaleYChanged)
+    Q_PROPERTY(double autoScalePadding READ autoScalePadding WRITE setAutoScalePadding NOTIFY
+                   autoScalePaddingChanged)
+
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
 
@@ -75,6 +81,20 @@ public:
     [[nodiscard]] double marginTop() const noexcept { return m_marginTop; }
     [[nodiscard]] double marginBottom() const noexcept { return m_marginBottom; }
 
+    //! @name Axis auto-range (issue #63)
+    //! Same contract as QmlChartView (AI.md §3.1 parity): when on, the axis
+    //! is recomputed from the union of all series' model bounds plus padding
+    //! via the shared `qgraphplot::QAutoScaler`.
+    //!
+    //! @par Priority rule
+    //! Manual `setXMin/setXMax/...` still store the value, but auto-scale
+    //! overrides it on the next `boundsChanged`.
+    //!@{
+    [[nodiscard]] bool autoScaleX() const noexcept { return m_autoScaleX; }
+    [[nodiscard]] bool autoScaleY() const noexcept { return m_autoScaleY; }
+    [[nodiscard]] double autoScalePadding() const noexcept { return m_autoScalePadding; }
+    //!@}
+
     //! Visual style, the very same type the QML frontend consumes (AI.md
     //! §3.1). Null (the default) keeps the widget's palette background.
     [[nodiscard]] QGraphPlotTheme* theme() const noexcept { return m_theme; }
@@ -93,6 +113,10 @@ public:
     void setMarginRight(double val);
     void setMarginTop(double val);
     void setMarginBottom(double val);
+
+    void setAutoScaleX(bool enabled);
+    void setAutoScaleY(bool enabled);
+    void setAutoScalePadding(double ratio);
 
     void setTheme(QGraphPlotTheme* theme);
 
@@ -114,6 +138,9 @@ signals:
     void marginsChanged();
     void transformChanged();
     void themeChanged();
+    void autoScaleXChanged();
+    void autoScaleYChanged();
+    void autoScalePaddingChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
 
@@ -122,6 +149,13 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
+    //! Recomputes axis bounds via QAutoScaler — same role as in QmlChartView.
+    void applyAutoScale();
+    //! (Re)subscribes to a series' model (and modelChanged) for auto-scale.
+    void connectAutoScaleModel(QAbstractSeries* aSeries);
+    //! Tears down the subscriptions wired by connectAutoScaleModel.
+    void disconnectAutoScaleModel(QAbstractSeries* aSeries);
+
     // QPointer: the theme is typically owned by the application, not by the
     // view, so either object may be destroyed first.
     QPointer<QGraphPlotTheme> m_theme;
@@ -136,8 +170,15 @@ private:
     double m_marginTop{20.0};
     double m_marginBottom{40.0};
 
+    bool m_autoScaleX{false};
+    bool m_autoScaleY{false};
+    double m_autoScalePadding{0.05};
+
     QList<QAbstractSeries*> m_series;
     QHash<QAbstractSeries*, QMetaObject::Connection> m_seriesDestroyedConnections;
+    // [modelChanged conn, current-model boundsChanged conn].
+    QHash<QAbstractSeries*, QPair<QMetaObject::Connection, QMetaObject::Connection>>
+        m_autoScaleConnections;
 };
 
 }  // namespace qgraphplot

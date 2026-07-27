@@ -59,10 +59,25 @@ Window {
 
         theme: chartTheme
 
-        xMin: dataSource.xMin
-        xMax: dataSource.xMax
+        // X axis auto-range (issue #63): when on, the C++ view owns xMin/xMax
+        // (recomputed from the series' model bounds + 5% padding on every
+        // boundsChanged). The Binding objects below only push the streaming
+        // data source's fixed window while auto-scale is OFF, releasing the
+        // properties so the view can write them while ON.
+        autoScaleX: rootWindow.autoScaleX
         yMin: -1.2
         yMax: 1.2
+
+        Binding on xMin {
+            when: !chart.autoScaleX
+            value: dataSource.xMin
+            restoreMode: Binding.RestoreBindingOrValue
+        }
+        Binding on xMax {
+            when: !chart.autoScaleX
+            value: dataSource.xMax
+            restoreMode: Binding.RestoreBindingOrValue
+        }
 
         marginLeft: 60
         marginRight: 30
@@ -122,6 +137,8 @@ Window {
     property real opacityLevel: 1.0
     property bool showScatter: false
     property bool scatterShapeSquare: false
+    // X축 자동 영역 토글 (#63): ON → view 가 시리즈 bounds + 5% padding 로 xMin/xMax 자동 계산
+    property bool autoScaleX: false
 
     Row {
         anchors.top: parent.top
@@ -172,6 +189,13 @@ Window {
             highlighted: rootWindow.showScatter
             theme: chartTheme
             onClicked: rootWindow.showScatter = !rootWindow.showScatter
+        }
+
+        DemoButton {
+            text: rootWindow.autoScaleX ? "AutoX: ON" : "AutoX: OFF"
+            highlighted: rootWindow.autoScaleX
+            theme: chartTheme
+            onClicked: rootWindow.autoScaleX = !rootWindow.autoScaleX
         }
 
         DemoButton {

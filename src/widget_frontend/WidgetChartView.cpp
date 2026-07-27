@@ -23,6 +23,8 @@
 #include <QtCore/qmath.h>
 #include <QtGui/QPainter>
 
+#include "transform/QAutoScaler.h"
+
 namespace qgraphplot
 {
 
@@ -43,6 +45,12 @@ WidgetChartView::~WidgetChartView()
         disconnect(it.value());
     }
     m_seriesDestroyedConnections.clear();
+    for (auto it = m_autoScaleConnections.constBegin(); it != m_autoScaleConnections.constEnd();
+         ++it) {
+        disconnect(it.value().first);
+        disconnect(it.value().second);
+    }
+    m_autoScaleConnections.clear();
 }
 
 void WidgetChartView::setTheme(QGraphPlotTheme* theme)
@@ -193,6 +201,47 @@ void WidgetChartView::setMarginBottom(double val)
     }
 }
 
+void WidgetChartView::setAutoScaleX(bool enabled)
+{
+    if (m_autoScaleX == enabled) {
+        return;
+    }
+    m_autoScaleX = enabled;
+    emit autoScaleXChanged();
+    if (enabled) {
+        applyAutoScale();
+    }
+}
+
+void WidgetChartView::setAutoScaleY(bool enabled)
+{
+    if (m_autoScaleY == enabled) {
+        return;
+    }
+    m_autoScaleY = enabled;
+    emit autoScaleYChanged();
+    if (enabled) {
+        applyAutoScale();
+    }
+}
+
+void WidgetChartView::setAutoScalePadding(double ratio)
+{
+    if (!qIsFinite(ratio) || ratio < 0.0) {
+        qCWarning(lcWidgetChartView) << "WidgetChartView::setAutoScalePadding: rejected negative "
+                                        "or non-finite ratio:"
+                                     << ratio;
+        return;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_autoScalePadding, ratio)) {
+        m_autoScalePadding = ratio;
+        emit autoScalePaddingChanged();
+        if (m_autoScaleX || m_autoScaleY) {
+            applyAutoScale();
+        }
+    }
+}
+
 void WidgetChartView::addSeries(QAbstractSeries* aSeries)
 {
     if (!aSeries || m_series.contains(aSeries)) {
@@ -204,7 +253,11 @@ void WidgetChartView::addSeries(QAbstractSeries* aSeries)
         connect(aSeries, &QObject::destroyed, this, [this, aSeries](QObject*) {
             m_series.removeAll(aSeries);
             m_seriesDestroyedConnections.remove(aSeries);
+            disconnectAutoScaleModel(aSeries);
+            applyAutoScale();
         });
+    connectAutoScaleModel(aSeries);
+    applyAutoScale();
     emit seriesAdded(aSeries);
     update();
 }
@@ -217,10 +270,12 @@ void WidgetChartView::removeSeries(QAbstractSeries* aSeries)
     if (m_seriesDestroyedConnections.contains(aSeries)) {
         disconnect(m_seriesDestroyedConnections.take(aSeries));
     }
+    disconnectAutoScaleModel(aSeries);
     m_series.removeOne(aSeries);
     if (aSeries) {
         aSeries->setParent(nullptr);
     }
+    applyAutoScale();
     emit seriesRemoved(aSeries);
     update();
 }
@@ -232,12 +287,98 @@ void WidgetChartView::clearSeries()
         if (m_seriesDestroyedConnections.contains(aSeries)) {
             disconnect(m_seriesDestroyedConnections.take(aSeries));
         }
+        disconnectAutoScaleModel(aSeries);
         if (aSeries) {
             aSeries->setParent(nullptr);
         }
         emit seriesRemoved(aSeries);
     }
+    applyAutoScale();
     update();
+}
+
+void WidgetChartView::connectAutoScaleModel(QAbstractSeries* aSeries)
+{
+    if (!aSeries || m_autoScaleConnections.contains(aSeries)) {
+        return;
+    }
+    QMetaObject::Connection modelConn =
+        connect(aSeries, &QAbstractSeries::modelChanged, this, [this, aSeries]() {
+            auto it = m_autoScaleConnections.find(aSeries);
+            if (it == m_autoScaleConnections.end()) {
+                return;
+            }
+            disconnect(it.value().second);
+            it.value().second = QMetaObject::Connection();
+            if (auto* model = aSeries->model()) {
+                it.value().second = connect(model,
+                                            &QAbstractSeriesModel::boundsChanged,
+                                            this,
+                                            &WidgetChartView::applyAutoScale,
+                                            Qt::UniqueConnection);
+            }
+            applyAutoScale();
+        });
+    QMetaObject::Connection boundsConn;
+    if (auto* model = aSeries->model()) {
+        boundsConn = connect(model,
+                             &QAbstractSeriesModel::boundsChanged,
+                             this,
+                             &WidgetChartView::applyAutoScale,
+                             Qt::UniqueConnection);
+    }
+    m_autoScaleConnections.insert(aSeries, {modelConn, boundsConn});
+}
+
+void WidgetChartView::disconnectAutoScaleModel(QAbstractSeries* aSeries)
+{
+    auto it = m_autoScaleConnections.find(aSeries);
+    if (it == m_autoScaleConnections.end()) {
+        return;
+    }
+    disconnect(it.value().first);
+    disconnect(it.value().second);
+    m_autoScaleConnections.erase(it);
+}
+
+void WidgetChartView::applyAutoScale()
+{
+    if (!m_autoScaleX && !m_autoScaleY) {
+        return;
+    }
+    const QRectF padded = QAutoScaler::computePaddedBounds(m_series, m_autoScalePadding);
+    // computePaddedBounds guarantees min < max on both axes; write members
+    // directly, bypassing manual-setter validation (see priority rule in
+    // WidgetChartView.h).
+    bool changed = false;
+    if (m_autoScaleX) {
+        if (qgraphplot::fuzzyValuesDiffer(m_xMin, padded.left())) {
+            m_xMin = padded.left();
+            emit xMinChanged();
+            changed = true;
+        }
+        if (qgraphplot::fuzzyValuesDiffer(m_xMax, padded.right())) {
+            m_xMax = padded.right();
+            emit xMaxChanged();
+            changed = true;
+        }
+    }
+    if (m_autoScaleY) {
+        if (qgraphplot::fuzzyValuesDiffer(m_yMin, padded.top())) {
+            m_yMin = padded.top();
+            emit yMinChanged();
+            changed = true;
+        }
+        if (qgraphplot::fuzzyValuesDiffer(m_yMax, padded.bottom())) {
+            m_yMax = padded.bottom();
+            emit yMaxChanged();
+            changed = true;
+        }
+    }
+    if (changed) {
+        emit transformChanged();
+        update();
+    }
 }
 
 QCoordinateTransform WidgetChartView::coordinateTransform() const noexcept

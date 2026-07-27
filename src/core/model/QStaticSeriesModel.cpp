@@ -91,29 +91,39 @@ QRectF QStaticSeriesModel::bounds() const
 
 void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 {
-    QMutexLocker locker(&m_mutex);
+    // Mutation happens under the lock; signals are emitted after it's released
+    // below. Emitting while the mutex is held would deadlock a direct-connected
+    // slot that re-enters this object — e.g. QAutoScaler-driven views call
+    // pointCount()/bounds() from their boundsChanged() handler (QMutex is
+    // non-recursive), even in the single-threaded case. Same pattern as
+    // QRingBufferSeriesModel (see the note in its clear()).
+    qsizetype oldSize = 0;
+    qsizetype newSize = 0;
+    {
+        QMutexLocker locker(&m_mutex);
 
-    // `snapshot` intentionally lives to the end of the function: when the
-    // input span aliases m_points, `source` must keep pointing at valid
-    // storage until the assign() below has consumed it. Reducing its scope
-    // (as cppcheck suggests) would dangle `source`.
-    QSpan<const QPointF> source = pts;
-    std::vector<QPointF> snapshot;
-    if (spansOverlap(pts, m_points)) {
-        snapshot.assign(pts.begin(), pts.end());
-        source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
+        // `snapshot` intentionally lives to the end of the block: when the
+        // input span aliases m_points, `source` must keep pointing at valid
+        // storage until the assign() below has consumed it. Reducing its scope
+        // (as cppcheck suggests) would dangle `source`.
+        QSpan<const QPointF> source = pts;
+        std::vector<QPointF> snapshot;
+        if (spansOverlap(pts, m_points)) {
+            snapshot.assign(pts.begin(), pts.end());
+            source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
+        }
+
+        if (!hasFinitePoints(source)) {
+            qWarning("QStaticSeriesModel::setPoints: points must be finite");
+            return;
+        }
+
+        oldSize = static_cast<qsizetype>(m_points.size());
+        m_points.assign(source.begin(), source.end());
+        newSize = static_cast<qsizetype>(m_points.size());
+
+        recomputeBounds();
     }
-
-    if (!hasFinitePoints(source)) {
-        qWarning("QStaticSeriesModel::setPoints: points must be finite");
-        return;
-    }
-
-    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
-    m_points.assign(source.begin(), source.end());
-    const qsizetype newSize = static_cast<qsizetype>(m_points.size());
-
-    recomputeBounds();
 
     if (oldSize > 0) {
         Q_EMIT pointsRemoved(0, oldSize - 1);
@@ -127,47 +137,60 @@ void QStaticSeriesModel::setPoints(QSpan<const QPointF> pts)
 
 void QStaticSeriesModel::appendBatch(QSpan<const QPointF> pts)
 {
-    QMutexLocker locker(&m_mutex);
-
     if (pts.isEmpty()) {
         return;
     }
 
-    // `snapshot` intentionally lives to the end of the function: when the
-    // input span aliases m_points, `source` must keep pointing at valid
-    // storage until the insert() below has consumed it. Reducing its scope
-    // (as cppcheck suggests) would dangle `source`.
-    QSpan<const QPointF> source = pts;
-    std::vector<QPointF> snapshot;
-    if (spansOverlap(pts, m_points)) {
-        snapshot.assign(pts.begin(), pts.end());
-        source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
-    }
+    // Mutation happens under the lock; signals are emitted after it's released
+    // below. Emitting while the mutex is held would deadlock a direct-connected
+    // slot that re-enters this object — e.g. QAutoScaler-driven views call
+    // pointCount()/bounds() from their boundsChanged() handler (QMutex is
+    // non-recursive), even in the single-threaded case. Same pattern as
+    // QRingBufferSeriesModel (see the note in its clear()).
+    qsizetype newFirst = 0;
+    qsizetype newLast = 0;
+    qsizetype newSize = 0;
+    bool boundsShifted = false;
+    {
+        QMutexLocker locker(&m_mutex);
 
-    if (!hasFinitePoints(source)) {
-        qWarning("QStaticSeriesModel::appendBatch: points must be finite");
-        return;
-    }
-
-    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
-    const QRectF oldBounds = m_bounds;
-
-    m_points.insert(m_points.end(), source.begin(), source.end());
-
-    if (oldSize == 0) {
-        recomputeBounds();
-    } else {
-        for (const QPointF& pt : source) {
-            expandBounds(pt);
+        // `snapshot` intentionally lives to the end of the block: when the
+        // input span aliases m_points, `source` must keep pointing at valid
+        // storage until the insert() below has consumed it. Reducing its scope
+        // (as cppcheck suggests) would dangle `source`.
+        QSpan<const QPointF> source = pts;
+        std::vector<QPointF> snapshot;
+        if (spansOverlap(pts, m_points)) {
+            snapshot.assign(pts.begin(), pts.end());
+            source = QSpan<const QPointF>(snapshot.data(), static_cast<qsizetype>(snapshot.size()));
         }
-    }
 
-    const qsizetype newSize = static_cast<qsizetype>(m_points.size());
-    const qsizetype newFirst = oldSize;
-    const qsizetype newLast = newSize - 1;
+        if (!hasFinitePoints(source)) {
+            qWarning("QStaticSeriesModel::appendBatch: points must be finite");
+            return;
+        }
+
+        const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
+        const QRectF oldBounds = m_bounds;
+
+        m_points.insert(m_points.end(), source.begin(), source.end());
+
+        if (oldSize == 0) {
+            recomputeBounds();
+        } else {
+            for (const QPointF& pt : source) {
+                expandBounds(pt);
+            }
+        }
+
+        newSize = static_cast<qsizetype>(m_points.size());
+        newFirst = oldSize;
+        newLast = newSize - 1;
+        boundsShifted = (m_bounds != oldBounds);
+    }
 
     Q_EMIT pointsInserted(newFirst, newLast);
-    if (m_bounds != oldBounds) {
+    if (boundsShifted) {
         Q_EMIT boundsChanged();
     }
     Q_EMIT modelChanged(newSize);
@@ -180,32 +203,47 @@ void QStaticSeriesModel::append(QPointF pt)
 
 void QStaticSeriesModel::replacePoint(qsizetype index, QPointF pt)
 {
-    QMutexLocker locker(&m_mutex);
-    Q_ASSERT(index >= 0 && index < static_cast<qsizetype>(m_points.size()));
-    if (!isFinitePoint(pt)) {
-        qWarning("QStaticSeriesModel::replacePoint: point must be finite");
-        return;
+    // Mutation happens under the lock; signals are emitted after it's released
+    // below (see the note in setPoints() about direct-connected slots
+    // re-entering this object while the mutex is held).
+    bool boundsShifted = false;
+    qsizetype newSize = 0;
+    {
+        QMutexLocker locker(&m_mutex);
+        Q_ASSERT(index >= 0 && index < static_cast<qsizetype>(m_points.size()));
+        if (!isFinitePoint(pt)) {
+            qWarning("QStaticSeriesModel::replacePoint: point must be finite");
+            return;
+        }
+
+        const QRectF oldBounds = m_bounds;
+        m_points[static_cast<size_t>(index)] = pt;
+
+        recomputeBounds();
+        boundsShifted = (m_bounds != oldBounds);
+        newSize = static_cast<qsizetype>(m_points.size());
     }
-
-    const QRectF oldBounds = m_bounds;
-    m_points[static_cast<size_t>(index)] = pt;
-
-    recomputeBounds();
 
     Q_EMIT dataChanged(index, index);
-    if (m_bounds != oldBounds) {
+    if (boundsShifted) {
         Q_EMIT boundsChanged();
     }
-    Q_EMIT modelChanged(static_cast<qsizetype>(m_points.size()));
+    Q_EMIT modelChanged(newSize);
 }
 
 void QStaticSeriesModel::clear()
 {
-    QMutexLocker locker(&m_mutex);
-    const qsizetype oldSize = static_cast<qsizetype>(m_points.size());
+    // Mutation happens under the lock; signals are emitted after it's released
+    // below (see the note in setPoints() about direct-connected slots
+    // re-entering this object while the mutex is held).
+    qsizetype oldSize = 0;
+    {
+        QMutexLocker locker(&m_mutex);
+        oldSize = static_cast<qsizetype>(m_points.size());
 
-    m_points.clear();
-    m_bounds = QRectF();
+        m_points.clear();
+        m_bounds = QRectF();
+    }
 
     if (oldSize > 0) {
         Q_EMIT pointsRemoved(0, oldSize - 1);

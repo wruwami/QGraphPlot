@@ -35,6 +35,8 @@ set(_core_sources
     model/QRingBufferSeriesModel.cpp
     model/QStaticSeriesModel.h
     model/QStaticSeriesModel.cpp
+    transform/QAutoScaler.h
+    transform/QAutoScaler.cpp
     transform/QCoordinateTransform.h
     transform/QCoordinateTransform.cpp
     transform/QScaleEngine.h
@@ -54,6 +56,7 @@ set(_core_public_headers
     model/QAbstractSeriesModel.h
     model/QRingBufferSeriesModel.h
     model/QStaticSeriesModel.h
+    transform/QAutoScaler.h
     transform/QCoordinateTransform.h
     transform/QScaleEngine.h
     series/QAbstractSeries.h
@@ -134,7 +137,7 @@ install(FILES model/QAbstractSeriesModel.h model/QRingBufferSeriesModel.h model/
 install(FILES series/QAbstractSeries.h series/QLineSeries.h series/QScatterSeries.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/series
 )
-install(FILES transform/QCoordinateTransform.h transform/QScaleEngine.h
+install(FILES transform/QAutoScaler.h transform/QCoordinateTransform.h transform/QScaleEngine.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/transform
 )
 install(FILES theme/QGraphPlotTheme.h

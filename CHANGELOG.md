@@ -15,6 +15,23 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 ## [Unreleased]
 
 ### Added
+- Axis auto-range (auto-scale) on both `QmlChartView` and `WidgetChartView`
+  (issue #63): new `autoScaleX` / `autoScaleY` (bool, default false for
+  backward compat) and `autoScalePadding` (double, default 0.05 = 5%)
+  properties. When active, the view recomputes the axis bounds from the
+  union of all tracked series' model `bounds()` plus the padding ratio,
+  signal-driven via `QAbstractSeriesModel::boundsChanged()` (not per-frame).
+  The math lives once in the shared `qgraphplot::QAutoScaler` core helper
+  (AI.md §3.2 no-duplication). Edge cases handled: empty model, single
+  point (zero-width bounds expanded by a unit), and `autoScalePadding` is
+  validated (negative / non-finite rejected with a `qWarning`).
+- `qgraphplot::QAutoScaler` — pure static helper computing padded data
+  bounds from a series collection (shared by both frontends, parity
+  AI.md §3.1).
+- Unit tests for `QAutoScaler` edge cases (`TestAutoScaler.cpp`) and for
+  both frontends' auto-scale wiring (`TestQmlChartView.cpp`,
+  `TestWidgetChartView.cpp`).
+- QML demo `AutoX` toggle button in `examples/qml_demo/main.qml`.
 - CMake `install()` targets and `QGraphPlotConfig.cmake` package export support,
   allowing external CMake projects to consume QGraphPlot via `find_package(QGraphPlot 0.1 REQUIRED)`
   and link against `QGraphPlot::Core`, `QGraphPlot::Qml`, and `QGraphPlot::Widget` (#61).
