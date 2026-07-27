@@ -2,7 +2,6 @@
 
 #include <QtCore/QLoggingCategory>
 #include <QtQuick/QSGSimpleRectNode>
-#include <QtQuick/QSGTextNode>
 
 #include "QmlChartView.h"
 
@@ -224,7 +223,7 @@ QSGNode* QmlLegend::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updat
     bgNode->setColor(QColor(255, 255, 255, 200));  // Semi-transparent white
 
     // Clear old text/marker nodes
-    while (root->firstChild() != bgNode) {
+    while (root->lastChild() != bgNode) {
         delete root->lastChild();
     }
 

@@ -25,6 +25,31 @@ GP.QmlChartView {
         color: root.labelColor
     }
 
+    // X-axis title rendering (centered below the plot area)
+    Text {
+        visible: root.xAxis !== null && root.xAxis.title !== ""
+        text: root.xAxis ? root.xAxis.title : ""
+        x: root.marginLeft + (root.width - root.marginLeft - root.marginRight) / 2 - width / 2
+        y: root.height - root.marginBottom / 2 - height / 2
+        font.pixelSize: root.labelPixelSize
+        font.bold: true
+        font.family: root.labelFontFamily !== "" ? root.labelFontFamily : Qt.application.font.family
+        color: root.labelColor
+    }
+
+    // Y-axis title rendering (rotated, centered beside the plot area)
+    Text {
+        visible: root.yAxis !== null && root.yAxis.title !== ""
+        text: root.yAxis ? root.yAxis.title : ""
+        rotation: -90
+        x: root.marginLeft / 2 - width / 2
+        y: root.marginTop + (root.height - root.marginTop - root.marginBottom) / 2 - height / 2
+        font.pixelSize: root.labelPixelSize
+        font.bold: true
+        font.family: root.labelFontFamily !== "" ? root.labelFontFamily : Qt.application.font.family
+        color: root.labelColor
+    }
+
     // X-axis (horizontal) label rendering
     Repeater {
         model: root.xAxis ? root.xAxis.ticks : []
