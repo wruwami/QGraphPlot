@@ -752,13 +752,14 @@ void TestQmlChartView::autoScaleXFollowsBoundsChanged()
     QCOMPARE(view.xMin(), -0.1);
     QCOMPARE(view.xMax(), 2.1);
 
-    // Append a point far to the right — model emits boundsChanged, view
-    // recomputes the auto-range (signal-driven, no per-frame polling).
+    // Append a point far to the right — model emits boundsChanged, and the
+    // view recomputes the auto-range synchronously off that direct
+    // same-thread connection (signal-driven, no per-frame polling), so the
+    // new range is already in effect by the time appendBatch() returns.
     QSignalSpy xMaxSpy(&view, &QmlChartView::xMaxChanged);
     QList<QPointF> extra{QPointF(20.0, 1.0)};
     model->appendBatch(QSpan<const QPointF>(extra.data(), extra.size()));
-    QTRY_COMPARE_WITH_TIMEOUT(view.xMax(), 21.0,
-                              1000);  // padding 0.05 of span 20 = 1.0
+    QCOMPARE(view.xMax(), 21.0);  // padding 0.05 of span 20 = 1.0
     QVERIFY(xMaxSpy.count() >= 1);
 }
 
@@ -798,7 +799,7 @@ void TestQmlChartView::autoScaleXHandlesEmptyModel()
     QmlChartView view;
     QObject owner;
     // Series with an empty model → contributes nothing; auto-range must not
-    // crash and must fall back to the prior manual range.
+    // crash and must use QAutoScaler's padded fallback bounds.
     auto* emptyModel = new qgraphplot::QStaticSeriesModel(&owner);
     auto* s = new QLineSeries(&owner);
     s->setModel(emptyModel);
