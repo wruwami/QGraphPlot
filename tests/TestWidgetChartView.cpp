@@ -786,7 +786,13 @@ void TestWidgetChartView::setYRangeAtomicUpdate()
 void TestWidgetChartView::setYRangeInvalidRejected()
 {
     WidgetChartView view;
-    view.setYRange(5.0, 5.0);    // min == max: rejected
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    view.setYRange(nan, 5.0);  // nan min
+    view.setYRange(0.0, inf);  // inf max
+    view.setYRange(5.0, 5.0);  // min == max
+    view.setYRange(6.0, 5.0);  // min > max
+
     QCOMPARE(view.yMin(), 0.0);  // unchanged
     QCOMPARE(view.yMax(), 10.0);
 }
@@ -856,6 +862,8 @@ void TestWidgetChartView::clearSeriesEmitsRemovedForEachSeries()
 
     QCOMPARE(view.series().size(), 0);
     QCOMPARE(spy.count(), 2);
+    delete s1;  // clearSeries() detached both from view and owner
+    delete s2;
 }
 
 void TestWidgetChartView::resizeEmitsTransformChanged()
