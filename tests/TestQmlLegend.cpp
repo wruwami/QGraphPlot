@@ -406,11 +406,11 @@ void TestQmlLegend::legendSetPositionSameValueIsNoOp()
 void TestQmlLegend::legendReparentingPreservesItemConsistency()
 {
     // QmlLegend::itemChange re-runs connectChartSignals() on every
-    // ItemParentHasChanged, without Qt::UniqueConnection guards on the
-    // seriesAdded/seriesRemoved connections. This regression test verifies
-    // that despite the resulting duplicate connections, rebuildItems()'s
-    // clear-then-rebuild strategy still yields a correct, non-duplicated
-    // item list after reparenting.
+    // ItemParentHasChanged. connectChartSignals() disconnects and resets all
+    // existing chart connections before re-subscribing, so no duplicates arise.
+    // This regression test verifies that connections remain active and
+    // rebuildItems() produces a correct, non-duplicated item list after
+    // reparenting.
     QmlChartView chart;
     auto* s1 = new QLineSeries(&chart);
     chart.addSeries(s1);

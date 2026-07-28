@@ -21,9 +21,13 @@
 #define WIDGETCHARTVIEW_H
 
 #include <QtCore/QHash>
+#include <QtCore/QList>
 #include <QtCore/QMetaObject>
 #include <QtCore/QPointer>
+#include <QtCore/QPointF>
 #include <QtWidgets/QWidget>
+
+class QPainter;
 
 #include "series/QAbstractSeries.h"
 #include "theme/QGraphPlotTheme.h"
@@ -32,12 +36,11 @@
 namespace qgraphplot
 {
 
-//! @brief QWidget 파생 차트 뷰 스텁.
+//! @brief QWidget 파생 차트 뷰.
 //!
-//! Phase 0.8에서는 렌더링 없이 API 표면과 빌드/링크 통합 지점만 검증.
+//! Phase 1에서는 QPainter 기반 렌더링(배경, 그리드, 시리즈, 축)을 포함.
 //! QML 프론트엔드의 QmlChartView와 동일한 속성(xMin/xMax/yMin/yMax,
 //! margin*) 및 시그널(transformChanged 등)을 노출한다 (AI.md §3.1 패리티).
-//! 실제 그리기는 Phase 1에서 추가 예정.
 class WidgetChartView : public QWidget
 {
     Q_OBJECT
@@ -60,6 +63,10 @@ class WidgetChartView : public QWidget
 
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
+
+    // ── Zoom / pan interaction (issue #64) ────────────────────────
+    Q_PROPERTY(bool zoomXEnabled READ zoomXEnabled WRITE setZoomXEnabled NOTIFY zoomXEnabledChanged)
+    Q_PROPERTY(bool zoomYEnabled READ zoomYEnabled WRITE setZoomYEnabled NOTIFY zoomYEnabledChanged)
 
 public:
     explicit WidgetChartView(QWidget* parent = nullptr);
@@ -120,6 +127,17 @@ public:
 
     void setTheme(QGraphPlotTheme* theme);
 
+    // ── Zoom / pan (issue #64) ────────────────────────────────────
+    [[nodiscard]] bool zoomXEnabled() const noexcept { return m_zoomXEnabled; }
+    [[nodiscard]] bool zoomYEnabled() const noexcept { return m_zoomYEnabled; }
+    void setZoomXEnabled(bool enabled);
+    void setZoomYEnabled(bool enabled);
+
+    //! Atomically update both X-axis bounds.  Disables autoScaleX.
+    void setXRange(double min, double max);
+    //! Atomically update both Y-axis bounds.  Disables autoScaleY.
+    void setYRange(double min, double max);
+
     // Child series management (stub)
     void addSeries(QAbstractSeries* aSeries);
     void removeSeries(QAbstractSeries* aSeries);
@@ -143,10 +161,17 @@ signals:
     void autoScalePaddingChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
+    void zoomXEnabledChanged();
+    void zoomYEnabledChanged();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
     //! Recomputes axis bounds via QAutoScaler — same role as in QmlChartView.
@@ -155,6 +180,27 @@ private:
     void connectAutoScaleModel(QAbstractSeries* aSeries);
     //! Tears down the subscriptions wired by connectAutoScaleModel.
     void disconnectAutoScaleModel(QAbstractSeries* aSeries);
+
+    // ── Phase 1 rendering helpers (issue #70) ────────────────────
+    //! Draws grid lines for both axes using QScaleEngine tick positions.
+    void paintGrid(QPainter& painter, const QCoordinateTransform& xform) const;
+    //! Renders all visible Line-type series via WidgetLineSeries::paintSeries.
+    void paintAllSeries(QPainter& painter, const QCoordinateTransform& xform) const;
+    //! Draws axis lines, tick marks, and tick labels outside the plot area.
+    void paintAxes(QPainter& painter, const QCoordinateTransform& xform) const;
+
+    //! Subscribes to a series' model data-change signals so any insert /
+    //! remove / dataChanged from the model triggers a full repaint. Also
+    //! re-wires when the series swaps models (modelChanged).
+    void connectRepaintModel(QAbstractSeries* aSeries);
+    //! Tears down the subscriptions wired by connectRepaintModel.
+    void disconnectRepaintModel(QAbstractSeries* aSeries);
+
+    //! Snapshot the current viewport (ranges + autoScale flags) into the
+    //! m_saved* members the first time an interaction starts. No-op when a
+    //! snapshot is already held.  Used by wheel/pan/rubberband so double-click
+    //! always restores the pre-interaction state.
+    void saveViewportIfNeeded();
 
     // QPointer: the theme is typically owned by the application, not by the
     // view, so either object may be destroyed first.
@@ -179,6 +225,30 @@ private:
     // [modelChanged conn, current-model boundsChanged conn].
     QHash<QAbstractSeries*, QPair<QMetaObject::Connection, QMetaObject::Connection>>
         m_autoScaleConnections;
+    // [modelChanged conn, dataChanged conn, pointsInserted conn, pointsRemoved conn].
+    // Index 0 is the series-level modelChanged conn; 1..N are current-model connections.
+    QHash<QAbstractSeries*, QList<QMetaObject::Connection>> m_repaintConnections;
+
+    bool m_zoomXEnabled{true};
+    bool m_zoomYEnabled{true};
+
+    // Pan state
+    bool m_panning{false};
+    QPointF m_panLastPixel;
+
+    // Rubberband state (right-button drag → area zoom)
+    bool m_rubberbanding{false};
+    QPointF m_rubberbandOrigin;
+    QPointF m_rubberbandCurrent;
+
+    // Range + autoScale flags saved before zoom starts (for double-click reset)
+    double m_savedXMin{0.0};
+    double m_savedXMax{10.0};
+    double m_savedYMin{0.0};
+    double m_savedYMax{10.0};
+    bool m_savedAutoScaleX{false};
+    bool m_savedAutoScaleY{false};
+    bool m_rangeSaved{false};
 };
 
 }  // namespace qgraphplot

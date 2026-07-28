@@ -204,6 +204,12 @@ Window {
             theme: chartTheme
             onClicked: rootWindow.scatterShapeSquare = !rootWindow.scatterShapeSquare
         }
+
+        DemoButton {
+            text: "Reset Zoom"
+            theme: chartTheme
+            onClicked: chart.resetZoom()
+        }
     }
 
     Rectangle {
