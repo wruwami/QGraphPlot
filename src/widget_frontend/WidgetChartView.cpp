@@ -22,8 +22,10 @@
 #include <QtCore/QLoggingCategory>
 #include <QtCore/qmath.h>
 #include <QtGui/QFont>
+#include <QtGui/QMouseEvent>
 #include <QtGui/QPainter>
 #include <QtGui/QPen>
+#include <QtGui/QWheelEvent>
 
 #include "transform/QAutoScaler.h"
 #include "transform/QScaleEngine.h"

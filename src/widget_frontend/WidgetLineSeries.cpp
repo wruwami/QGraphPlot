@@ -18,6 +18,7 @@
 
 #include "WidgetLineSeries.h"
 
+#include <QtGui/QPainter>
 #include <QtGui/QPen>
 #include <QtGui/QPolygonF>
 
