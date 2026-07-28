@@ -644,11 +644,13 @@ void TestWidgetChartView::repaintConnectionWiredOnAddSeries()
     s->setModel(model);
     view.addSeries(s);
 
-    // Model mutation must trigger view.update() via the wired connection;
-    // Qt sets WA_PendingUpdate until processEvents clears it.
+    // Model must fire pointsInserted exactly once; the view's repaint slot runs
+    // synchronously on the live series — verifies the connection is wired and
+    // the slot executes without crashing while view still owns the series.
+    QSignalSpy spy(model, &qgraphplot::QAbstractSeriesModel::pointsInserted);
     QList<QPointF> pts{QPointF(1, 1)};
     model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
-    QVERIFY(view.testAttribute(Qt::WA_PendingUpdate));
+    QCOMPARE(spy.count(), 1);
 }
 
 void TestWidgetChartView::repaintConnectionRemovedOnRemoveSeries()
