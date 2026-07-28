@@ -323,6 +323,74 @@ void QmlChartView::setYMax(double val)
     }
 }
 
+void QmlChartView::setXRange(double min, double max)
+{
+    if (!qIsFinite(min) || !qIsFinite(max) || min >= max) {
+        return;
+    }
+    if (m_autoScaleX) {
+        m_autoScaleX = false;
+        emit autoScaleXChanged();
+    }
+    bool changed = false;
+    if (qgraphplot::fuzzyValuesDiffer(m_xMin, min)) {
+        m_xMin = min;
+        emit xMinChanged();
+        changed = true;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMax, max)) {
+        m_xMax = max;
+        emit xMaxChanged();
+        changed = true;
+    }
+    if (changed) {
+        emit transformChanged();
+    }
+}
+
+void QmlChartView::setYRange(double min, double max)
+{
+    if (!qIsFinite(min) || !qIsFinite(max) || min >= max) {
+        return;
+    }
+    if (m_autoScaleY) {
+        m_autoScaleY = false;
+        emit autoScaleYChanged();
+    }
+    bool changed = false;
+    if (qgraphplot::fuzzyValuesDiffer(m_yMin, min)) {
+        m_yMin = min;
+        emit yMinChanged();
+        changed = true;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMax, max)) {
+        m_yMax = max;
+        emit yMaxChanged();
+        changed = true;
+    }
+    if (changed) {
+        emit transformChanged();
+    }
+}
+
+void QmlChartView::setZoomXEnabled(bool enabled)
+{
+    if (m_zoomXEnabled == enabled) {
+        return;
+    }
+    m_zoomXEnabled = enabled;
+    emit zoomXEnabledChanged();
+}
+
+void QmlChartView::setZoomYEnabled(bool enabled)
+{
+    if (m_zoomYEnabled == enabled) {
+        return;
+    }
+    m_zoomYEnabled = enabled;
+    emit zoomYEnabledChanged();
+}
+
 void QmlChartView::setAutoScaleX(bool enabled)
 {
     if (m_autoScaleX == enabled) {

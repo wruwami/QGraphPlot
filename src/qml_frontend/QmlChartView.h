@@ -40,6 +40,12 @@ class QGRAPHPLOT_QML_EXPORT QmlChartView : public QQuickItem
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
 
+    // ── Zoom / pan interaction (issue #64) ────────────────────────
+    // When false the corresponding axis is locked: wheel/drag/rubberband
+    // gestures that would change that axis are silently ignored.
+    Q_PROPERTY(bool zoomXEnabled READ zoomXEnabled WRITE setZoomXEnabled NOTIFY zoomXEnabledChanged)
+    Q_PROPERTY(bool zoomYEnabled READ zoomYEnabled WRITE setZoomYEnabled NOTIFY zoomYEnabledChanged)
+
 public:
     explicit QmlChartView(QQuickItem* parent = nullptr);
     ~QmlChartView() override;
@@ -99,6 +105,22 @@ public:
 
     void setTheme(qgraphplot::QGraphPlotTheme* theme);
 
+    // Title property accessors
+    [[nodiscard]] QString title() const noexcept { return m_title; }
+    void setTitle(const QString& title);
+
+    // ── Zoom / pan (issue #64) ────────────────────────────────────
+    [[nodiscard]] bool zoomXEnabled() const noexcept { return m_zoomXEnabled; }
+    [[nodiscard]] bool zoomYEnabled() const noexcept { return m_zoomYEnabled; }
+    void setZoomXEnabled(bool enabled);
+    void setZoomYEnabled(bool enabled);
+
+    //! Atomically update both X-axis bounds.  Disables autoScaleX.
+    //! Silently ignored when min >= max or either value is non-finite.
+    Q_INVOKABLE void setXRange(double min, double max);
+    //! Atomically update both Y-axis bounds.  Disables autoScaleY.
+    Q_INVOKABLE void setYRange(double min, double max);
+
     // Helpers
     qgraphplot::QCoordinateTransform coordinateTransform() const noexcept;
     Q_INVOKABLE QPointF mapToPixel(double x, double y) const noexcept;
@@ -129,6 +151,9 @@ signals:
     void autoScalePaddingChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
+    void titleChanged();
+    void zoomXEnabledChanged();
+    void zoomYEnabledChanged();
 
 protected:
     QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
@@ -186,6 +211,11 @@ private:
     // whenever the series swaps models (modelChanged fires).
     QHash<qgraphplot::QAbstractSeries*, QPair<QMetaObject::Connection, QMetaObject::Connection>>
         m_autoScaleConnections;
+
+    QString m_title;
+
+    bool m_zoomXEnabled{true};
+    bool m_zoomYEnabled{true};
 };
 
 }  // namespace qgraphplot

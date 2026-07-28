@@ -252,6 +252,206 @@ void WidgetChartView::setAutoScalePadding(double ratio)
     }
 }
 
+void WidgetChartView::setXRange(double min, double max)
+{
+    if (!qIsFinite(min) || !qIsFinite(max) || min >= max) {
+        return;
+    }
+    if (m_autoScaleX) {
+        m_autoScaleX = false;
+        emit autoScaleXChanged();
+    }
+    bool changed = false;
+    if (qgraphplot::fuzzyValuesDiffer(m_xMin, min)) {
+        m_xMin = min;
+        emit xMinChanged();
+        changed = true;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_xMax, max)) {
+        m_xMax = max;
+        emit xMaxChanged();
+        changed = true;
+    }
+    if (changed) {
+        emit transformChanged();
+        update();
+    }
+}
+
+void WidgetChartView::setYRange(double min, double max)
+{
+    if (!qIsFinite(min) || !qIsFinite(max) || min >= max) {
+        return;
+    }
+    if (m_autoScaleY) {
+        m_autoScaleY = false;
+        emit autoScaleYChanged();
+    }
+    bool changed = false;
+    if (qgraphplot::fuzzyValuesDiffer(m_yMin, min)) {
+        m_yMin = min;
+        emit yMinChanged();
+        changed = true;
+    }
+    if (qgraphplot::fuzzyValuesDiffer(m_yMax, max)) {
+        m_yMax = max;
+        emit yMaxChanged();
+        changed = true;
+    }
+    if (changed) {
+        emit transformChanged();
+        update();
+    }
+}
+
+void WidgetChartView::setZoomXEnabled(bool enabled)
+{
+    if (m_zoomXEnabled == enabled) {
+        return;
+    }
+    m_zoomXEnabled = enabled;
+    emit zoomXEnabledChanged();
+}
+
+void WidgetChartView::setZoomYEnabled(bool enabled)
+{
+    if (m_zoomYEnabled == enabled) {
+        return;
+    }
+    m_zoomYEnabled = enabled;
+    emit zoomYEnabledChanged();
+}
+
+void WidgetChartView::wheelEvent(QWheelEvent* event)
+{
+    const QRectF plot = plotArea();
+    if (!plot.contains(event->position())) {
+        QWidget::wheelEvent(event);
+        return;
+    }
+    const double degrees = event->angleDelta().y() / 8.0;
+    const double factor = std::pow(0.9, degrees / 15.0);  // zoom 10% per notch
+
+    const QCoordinateTransform xform = coordinateTransform();
+    const QPointF dataPos = xform.toData(event->position());
+
+    if (m_zoomXEnabled) {
+        const double span = m_xMax - m_xMin;
+        const double newSpan = span * factor;
+        const double t = (dataPos.x() - m_xMin) / span;
+        setXRange(dataPos.x() - t * newSpan, dataPos.x() + (1.0 - t) * newSpan);
+    }
+    if (m_zoomYEnabled) {
+        const double span = m_yMax - m_yMin;
+        const double newSpan = span * factor;
+        const double t = (dataPos.y() - m_yMin) / span;
+        setYRange(dataPos.y() - t * newSpan, dataPos.y() + (1.0 - t) * newSpan);
+    }
+    event->accept();
+}
+
+void WidgetChartView::mousePressEvent(QMouseEvent* event)
+{
+    const QRectF plot = plotArea();
+    if (!plot.contains(event->position())) {
+        QWidget::mousePressEvent(event);
+        return;
+    }
+    if (event->button() == Qt::LeftButton) {
+        m_panning = true;
+        m_panLastPixel = event->position();
+        if (!m_rangeSaved) {
+            m_savedXMin = m_xMin;
+            m_savedXMax = m_xMax;
+            m_savedYMin = m_yMin;
+            m_savedYMax = m_yMax;
+            m_rangeSaved = true;
+        }
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+    } else if (event->button() == Qt::RightButton) {
+        m_rubberbanding = true;
+        m_rubberbandOrigin = event->position();
+        m_rubberbandCurrent = event->position();
+        if (!m_rangeSaved) {
+            m_savedXMin = m_xMin;
+            m_savedXMax = m_xMax;
+            m_savedYMin = m_yMin;
+            m_savedYMax = m_yMax;
+            m_rangeSaved = true;
+        }
+        event->accept();
+    } else {
+        QWidget::mousePressEvent(event);
+    }
+}
+
+void WidgetChartView::mouseMoveEvent(QMouseEvent* event)
+{
+    if (m_panning) {
+        const QCoordinateTransform xform = coordinateTransform();
+        const QPointF prev = xform.toData(m_panLastPixel);
+        const QPointF cur = xform.toData(event->position());
+        const double dx = prev.x() - cur.x();
+        const double dy = prev.y() - cur.y();
+        if (m_zoomXEnabled) {
+            setXRange(m_xMin + dx, m_xMax + dx);
+        }
+        if (m_zoomYEnabled) {
+            setYRange(m_yMin + dy, m_yMax + dy);
+        }
+        m_panLastPixel = event->position();
+        event->accept();
+    } else if (m_rubberbanding) {
+        m_rubberbandCurrent = event->position();
+        update();
+        event->accept();
+    } else {
+        QWidget::mouseMoveEvent(event);
+    }
+}
+
+void WidgetChartView::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (m_panning && event->button() == Qt::LeftButton) {
+        m_panning = false;
+        setCursor(Qt::ArrowCursor);
+        event->accept();
+    } else if (m_rubberbanding && event->button() == Qt::RightButton) {
+        m_rubberbanding = false;
+        const QRectF plot = plotArea();
+        const QRectF band =
+            QRectF(m_rubberbandOrigin, m_rubberbandCurrent).normalized().intersected(plot);
+        if (band.width() > 4 && band.height() > 4) {
+            const QCoordinateTransform xform = coordinateTransform();
+            const QPointF dataMin = xform.toData(band.bottomLeft());
+            const QPointF dataMax = xform.toData(band.topRight());
+            if (m_zoomXEnabled) {
+                setXRange(dataMin.x(), dataMax.x());
+            }
+            if (m_zoomYEnabled) {
+                setYRange(dataMin.y(), dataMax.y());
+            }
+        }
+        update();
+        event->accept();
+    } else {
+        QWidget::mouseReleaseEvent(event);
+    }
+}
+
+void WidgetChartView::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && m_rangeSaved) {
+        setXRange(m_savedXMin, m_savedXMax);
+        setYRange(m_savedYMin, m_savedYMax);
+        m_rangeSaved = false;
+        event->accept();
+    } else {
+        QWidget::mouseDoubleClickEvent(event);
+    }
+}
+
 void WidgetChartView::addSeries(QAbstractSeries* aSeries)
 {
     if (!aSeries || m_series.contains(aSeries)) {
@@ -434,6 +634,15 @@ void WidgetChartView::paintEvent(QPaintEvent* event)
     }
 
     paintAxes(painter, xform);
+
+    if (m_rubberbanding) {
+        const QRectF band = QRectF(m_rubberbandOrigin, m_rubberbandCurrent).normalized();
+        painter.save();
+        painter.setPen(QPen(QColor(0, 120, 215, 200), 1, Qt::DashLine));
+        painter.fillRect(band, QColor(0, 120, 215, 40));
+        painter.drawRect(band);
+        painter.restore();
+    }
 }
 
 void WidgetChartView::paintGrid(QPainter& painter, const QCoordinateTransform& xform) const

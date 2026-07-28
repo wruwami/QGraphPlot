@@ -38,4 +38,174 @@ GP.QmlChartView {
             color: root.labelColor
         }
     }
+
+    // ── Zoom / pan / rubberband interaction (issue #64) ──────────
+    // Saved range for double-click reset (mirrors WidgetChartView state).
+    property double _savedXMin: 0.0
+    property double _savedXMax: 10.0
+    property double _savedYMin: 0.0
+    property double _savedYMax: 10.0
+    property bool _rangeSaved: false
+
+    function _saveRange() {
+        if (!_rangeSaved) {
+            _savedXMin = root.xMin;
+            _savedXMax = root.xMax;
+            _savedYMin = root.yMin;
+            _savedYMax = root.yMax;
+            _rangeSaved = true;
+        }
+    }
+
+    // Wheel → zoom centered at cursor
+    WheelHandler {
+        id: wheelZoom
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: (event) => {
+            const plotL = root.marginLeft;
+            const plotR = root.width  - root.marginRight;
+            const plotT = root.marginTop;
+            const plotB = root.height - root.marginBottom;
+            const plotW = plotR - plotL;
+            const plotH = plotB - plotT;
+            if (plotW <= 0 || plotH <= 0) return;
+
+            const px = event.x;
+            const py = event.y;
+            if (px < plotL || px > plotR || py < plotT || py > plotB) return;
+
+            const degrees = event.angleDelta.y / 8.0;
+            const factor = Math.pow(0.9, degrees / 15.0);
+
+            const dataX = root.xMin + (px - plotL) / plotW * (root.xMax - root.xMin);
+            const dataY = root.yMax - (py - plotT) / plotH * (root.yMax - root.yMin);
+
+            root._saveRange();
+            if (root.zoomXEnabled) {
+                const spanX = root.xMax - root.xMin;
+                const newSpanX = spanX * factor;
+                const tX = (dataX - root.xMin) / spanX;
+                root.setXRange(dataX - tX * newSpanX, dataX + (1.0 - tX) * newSpanX);
+            }
+            if (root.zoomYEnabled) {
+                const spanY = root.yMax - root.yMin;
+                const newSpanY = spanY * factor;
+                const tY = (dataY - root.yMin) / spanY;
+                root.setYRange(dataY - tY * newSpanY, dataY + (1.0 - tY) * newSpanY);
+            }
+        }
+    }
+
+    // Left-drag → pan (translate both axes relative to press position)
+    DragHandler {
+        id: panHandler
+        acceptedButtons: Qt.LeftButton
+        target: null
+
+        property double startXMin: 0
+        property double startXMax: 10
+        property double startYMin: 0
+        property double startYMax: 10
+
+        onActiveChanged: {
+            if (active) {
+                startXMin = root.xMin;
+                startXMax = root.xMax;
+                startYMin = root.yMin;
+                startYMax = root.yMax;
+                root._saveRange();
+            }
+        }
+        onTranslationChanged: {
+            if (!active) return;
+            const plotW = root.width  - root.marginLeft - root.marginRight;
+            const plotH = root.height - root.marginTop  - root.marginBottom;
+            if (plotW <= 0 || plotH <= 0) return;
+            const dx = -translation.x / plotW * (startXMax - startXMin);
+            const dy =  translation.y / plotH * (startYMax - startYMin);
+            if (root.zoomXEnabled) root.setXRange(startXMin + dx, startXMax + dx);
+            if (root.zoomYEnabled) root.setYRange(startYMin + dy, startYMax + dy);
+        }
+    }
+
+    // Right-drag → rubberband area zoom
+    DragHandler {
+        id: rubberbandHandler
+        acceptedButtons: Qt.RightButton
+        target: null
+
+        property real rbX1: 0
+        property real rbY1: 0
+        property real rbX2: 0
+        property real rbY2: 0
+
+        onActiveChanged: {
+            if (active) {
+                rbX1 = centroid.pressPosition.x;
+                rbY1 = centroid.pressPosition.y;
+                rbX2 = centroid.position.x;
+                rbY2 = centroid.position.y;
+            } else {
+                const w = Math.abs(rbX2 - rbX1);
+                const h = Math.abs(rbY2 - rbY1);
+                if (w > 4 && h > 4) {
+                    const plotL = root.marginLeft;
+                    const plotR = root.width  - root.marginRight;
+                    const plotT = root.marginTop;
+                    const plotB = root.height - root.marginBottom;
+                    const plotW = plotR - plotL;
+                    const plotH = plotB - plotT;
+                    if (plotW <= 0 || plotH <= 0) return;
+
+                    const bx1 = Math.max(Math.min(rbX1, rbX2), plotL);
+                    const bx2 = Math.min(Math.max(rbX1, rbX2), plotR);
+                    const by1 = Math.max(Math.min(rbY1, rbY2), plotT);
+                    const by2 = Math.min(Math.max(rbY1, rbY2), plotB);
+                    if (bx2 <= bx1 || by2 <= by1) return;
+
+                    const xSpan = root.xMax - root.xMin;
+                    const ySpan = root.yMax - root.yMin;
+                    const newXMin = root.xMin + (bx1 - plotL) / plotW * xSpan;
+                    const newXMax = root.xMin + (bx2 - plotL) / plotW * xSpan;
+                    const newYMax = root.yMax - (by1 - plotT) / plotH * ySpan;
+                    const newYMin = root.yMax - (by2 - plotT) / plotH * ySpan;
+
+                    root._saveRange();
+                    if (root.zoomXEnabled) root.setXRange(newXMin, newXMax);
+                    if (root.zoomYEnabled) root.setYRange(newYMin, newYMax);
+                }
+            }
+        }
+        onCentroidChanged: {
+            if (active) {
+                rbX2 = centroid.position.x;
+                rbY2 = centroid.position.y;
+            }
+        }
+    }
+
+    // Rubberband rectangle shown while right-drag is active
+    Rectangle {
+        id: rubberbandRect
+        visible: rubberbandHandler.active
+        x: Math.min(rubberbandHandler.rbX1, rubberbandHandler.rbX2)
+        y: Math.min(rubberbandHandler.rbY1, rubberbandHandler.rbY2)
+        width:  Math.abs(rubberbandHandler.rbX2 - rubberbandHandler.rbX1)
+        height: Math.abs(rubberbandHandler.rbY2 - rubberbandHandler.rbY1)
+        color: Qt.rgba(0, 0.47, 1, 0.15)
+        border.color: Qt.rgba(0, 0.47, 1, 0.8)
+        border.width: 1
+    }
+
+    // Double-click → restore pre-zoom range
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onDoubleTapped: {
+            if (root._rangeSaved) {
+                root.setXRange(root._savedXMin, root._savedXMax);
+                root.setYRange(root._savedYMin, root._savedYMax);
+                root._rangeSaved = false;
+            }
+        }
+    }
 }

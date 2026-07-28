@@ -64,6 +64,10 @@ class WidgetChartView : public QWidget
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
 
+    // ── Zoom / pan interaction (issue #64) ────────────────────────
+    Q_PROPERTY(bool zoomXEnabled READ zoomXEnabled WRITE setZoomXEnabled NOTIFY zoomXEnabledChanged)
+    Q_PROPERTY(bool zoomYEnabled READ zoomYEnabled WRITE setZoomYEnabled NOTIFY zoomYEnabledChanged)
+
 public:
     explicit WidgetChartView(QWidget* parent = nullptr);
     ~WidgetChartView() override;
@@ -123,6 +127,17 @@ public:
 
     void setTheme(QGraphPlotTheme* theme);
 
+    // ── Zoom / pan (issue #64) ────────────────────────────────────
+    [[nodiscard]] bool zoomXEnabled() const noexcept { return m_zoomXEnabled; }
+    [[nodiscard]] bool zoomYEnabled() const noexcept { return m_zoomYEnabled; }
+    void setZoomXEnabled(bool enabled);
+    void setZoomYEnabled(bool enabled);
+
+    //! Atomically update both X-axis bounds.  Disables autoScaleX.
+    void setXRange(double min, double max);
+    //! Atomically update both Y-axis bounds.  Disables autoScaleY.
+    void setYRange(double min, double max);
+
     // Child series management (stub)
     void addSeries(QAbstractSeries* aSeries);
     void removeSeries(QAbstractSeries* aSeries);
@@ -146,10 +161,17 @@ signals:
     void autoScalePaddingChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
+    void zoomXEnabledChanged();
+    void zoomYEnabledChanged();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
     //! Recomputes axis bounds via QAutoScaler — same role as in QmlChartView.
@@ -200,6 +222,25 @@ private:
     // [modelChanged conn, dataChanged conn, pointsInserted conn, pointsRemoved conn].
     // Index 0 is the series-level modelChanged conn; 1..N are current-model connections.
     QHash<QAbstractSeries*, QList<QMetaObject::Connection>> m_repaintConnections;
+
+    bool m_zoomXEnabled{true};
+    bool m_zoomYEnabled{true};
+
+    // Pan state
+    bool m_panning{false};
+    QPointF m_panLastPixel;
+
+    // Rubberband state (right-button drag → area zoom)
+    bool m_rubberbanding{false};
+    QPointF m_rubberbandOrigin;
+    QPointF m_rubberbandCurrent;
+
+    // Range saved before zoom starts (for double-click reset)
+    double m_savedXMin{0.0};
+    double m_savedXMax{10.0};
+    double m_savedYMin{0.0};
+    double m_savedYMax{10.0};
+    bool m_rangeSaved{false};
 };
 
 }  // namespace qgraphplot
