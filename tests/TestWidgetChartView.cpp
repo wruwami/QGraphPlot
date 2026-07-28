@@ -1062,9 +1062,19 @@ void TestWidgetChartView::paintScatterSeriesCircleRendersWithoutCrash()
     s->setMarkerShape(qgraphplot::MarkerShape::Circle);
     s->setMarkerSize(10.0);
 
-    TestPaintContext ctx;
-    qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
-    // No crash expected; exercises Circle branch.
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    // Validate Circle rendering: center should be colored, corners should NOT be.
+    // Data (5,5) → pixel (50,50) with markerSize=10 → radius=5 → bounds [45,55].
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(50, 50) != white);  // center pixel painted
+    // Corner of bounding box: for a circle, (45,45) is outside the ellipse.
+    QVERIFY(img.pixel(45, 45) == white);  // corner not painted for Circle
 }
 
 void TestWidgetChartView::paintScatterSeriesSquareRendersWithoutCrash()
@@ -1075,9 +1085,18 @@ void TestWidgetChartView::paintScatterSeriesSquareRendersWithoutCrash()
     s->setMarkerShape(qgraphplot::MarkerShape::Square);
     s->setMarkerSize(8.0);
 
-    TestPaintContext ctx;
-    qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
-    // No crash expected; exercises Square branch.
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    // Validate Square rendering: both center AND corners should be colored.
+    // Data (5,5) → pixel (50,50) with markerSize=8 → radius=4 → bounds [46,54].
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(50, 50) != white);  // center pixel painted
+    QVERIFY(img.pixel(46, 46) != white);  // corner painted for Square
 }
 
 void TestWidgetChartView::paintScatterSeriesOpacityFoldedIntoAlpha()
@@ -1116,8 +1135,13 @@ void TestWidgetChartView::paintEventWithScatterSeriesNoCrash()
     QImage img(400, 300, QImage::Format_ARGB32);
     img.fill(Qt::white);
     view.render(&img);
-    // Verifies WidgetChartView::paintAllSeries() dispatches SeriesType::Scatter
-    // without crashing (regression: before issue #101 this was a silent no-op).
+
+    // Verify markers are actually rendered by checking pixels at marker positions.
+    // View defaults: xMin=0, xMax=10, yMin=0, yMax=10; margins left=50, top=20,
+    // right=20, bottom=40 → plot area width=330, height=240.
+    // Transform: data (5,5) → pixel (50 + 330*5/10, 20 + 240*(10-5)/10) = (215, 140).
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(215, 140) != white);  // marker at (5,5) painted
 }
 
 // ════════════════════════════════════════════════════════════════
