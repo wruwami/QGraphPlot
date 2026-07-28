@@ -18,7 +18,7 @@
 //! @brief Unit tests for qgraphplot::QmlLegendItem and qgraphplot::QmlLegend
 //!        (per-series legend entries auto-populated from a QmlChartView's
 //!        series collection, issue #65), plus QML-level integration tests
-//!        for Legend.qml's rendering/toggle behavior.
+//!        for Legend.qml's rendering/toggle behavior and position layout (#93).
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -106,6 +106,7 @@ private slots:
     // ── Legend.qml integration ──────────────────────────────────
     void legendQmlRendersSeriesNameAndColor();
     void legendQmlTogglingItemHidesRowDelegate();
+    void legendQmlPositionBottomRightPlacesColumn();
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -517,7 +518,54 @@ void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
     legendItem->toggle();  // simulates the MouseArea's onClicked handler
 
     QVERIFY(!chart->seriesAt(0)->isVisible());
-    QTRY_COMPARE(rowVisible.read().toBool(), false);
+    // Opacity-based hide (issue #94): row stays visible, opacity drops.
+    QTRY_VERIFY(rowVisible.read().toBool());
+    QQmlProperty rowOpacity(rowDelegate, QStringLiteral("opacity"));
+    QVERIFY(rowOpacity.isValid());
+    QTRY_VERIFY(rowOpacity.read().toDouble() < 0.5);
+}
+
+void TestQmlLegend::legendQmlPositionBottomRightPlacesColumn()
+{
+    // issue #93: setting position must move the legend column on-screen.
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(createQmlObject(
+        QByteArrayLiteral(
+            "import QtQuick\nimport QGraphPlot\nItem {\n"
+            "  width: 400; height: 300\n"
+            "  QmlChartView { id: chartView; objectName: \"chart\"\n"
+            "    QmlLineSeries { name: \"Series A\" }\n"
+            "  }\n"
+            "  Legend {\n"
+            "    id: legendItem\n"
+            "    objectName: \"legend\"\n"
+            "    chart: chartView\n"
+            "    anchors.fill: parent\n"
+            "    position: Qt.AlignTop\n"
+            "  }\n"
+            "}\n"),
+        engine,
+        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* legend = root->findChild<QmlLegend*>(QStringLiteral("legend"));
+    QVERIFY(legend);
+    QTRY_COMPARE(legend->items().size(), 1);
+
+    QQuickItem* column = legend->findChild<QQuickItem*>(QStringLiteral("legendColumn"));
+    QVERIFY2(column, "Legend.qml legendColumn not found");
+
+    // Default AlignTop → column near the top of the legend bounds.
+    QTRY_VERIFY(column->y() < 20.0);
+
+    // AlignBottom | AlignRight → column sits in the bottom-right corner.
+    legend->setPosition(Qt::AlignBottom | Qt::AlignRight);
+    QCOMPARE(legend->position(), Qt::Alignment(Qt::AlignBottom | Qt::AlignRight));
+
+    // Wait for QML anchors to re-evaluate after positionChanged.
+    QTRY_VERIFY(column->y() + column->height() > legend->height() - 30.0);
+    QTRY_VERIFY(column->x() + column->width() > legend->width() - 30.0);
 }
 
 QTEST_MAIN(TestQmlLegend)
