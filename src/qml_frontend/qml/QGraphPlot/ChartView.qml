@@ -115,6 +115,8 @@ GP.QmlChartView {
     property double _savedXMax: 10.0
     property double _savedYMin: 0.0
     property double _savedYMax: 10.0
+    property bool _savedAutoScaleX: false
+    property bool _savedAutoScaleY: false
     property bool _rangeSaved: false
 
     function _saveRange() {
@@ -123,6 +125,8 @@ GP.QmlChartView {
             _savedXMax = root.xMax;
             _savedYMin = root.yMin;
             _savedYMax = root.yMax;
+            _savedAutoScaleX = root.autoScaleX;
+            _savedAutoScaleY = root.autoScaleY;
             _rangeSaved = true;
         }
     }
@@ -277,6 +281,8 @@ GP.QmlChartView {
         if (!_rangeSaved) return;
         setXRange(_savedXMin, _savedXMax);
         setYRange(_savedYMin, _savedYMax);
+        root.autoScaleX = _savedAutoScaleX;
+        root.autoScaleY = _savedAutoScaleY;
         _rangeSaved = false;
     }
 

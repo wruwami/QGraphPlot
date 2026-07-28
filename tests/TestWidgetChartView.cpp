@@ -644,12 +644,11 @@ void TestWidgetChartView::repaintConnectionWiredOnAddSeries()
     s->setModel(model);
     view.addSeries(s);
 
-    // After addSeries, inserting a point into the model should not crash
-    // (the repaint connection should forward the signal to update()).
+    // Model mutation must trigger view.update() via the wired connection;
+    // Qt sets WA_PendingUpdate until processEvents clears it.
     QList<QPointF> pts{QPointF(1, 1)};
     model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
-    // If we got here without a crash or assert, the connection is working.
-    QVERIFY(true);
+    QVERIFY(view.testAttribute(Qt::WA_PendingUpdate));
 }
 
 void TestWidgetChartView::repaintConnectionRemovedOnRemoveSeries()
