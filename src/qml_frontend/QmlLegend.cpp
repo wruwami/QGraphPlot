@@ -74,7 +74,6 @@ private:
     QString m_text;
 };
 
-
 // ── QmlLegendItem ────────────────────────────────────────────────────────────
 
 QmlLegendItem::QmlLegendItem(QObject* parent) : QObject(parent) {}

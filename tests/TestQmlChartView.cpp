@@ -413,7 +413,6 @@ void TestQmlChartView::setTitleRedundantWriteDoesNotEmit()
     QCOMPARE(spy.count(), 0);
 }
 
-
 // ════════════════════════════════════════════════════════════════
 // Series collection (issue #58)
 //
