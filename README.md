@@ -18,7 +18,7 @@ This is an independent, clean-room implementation — see [`NOTICE`](NOTICE) (if
 - **Dual UI**: QQuickItem-based `QmlChartView` and QWidget-based `WidgetChartView` both consume the same core data models and coordinate transform logic.
 - **High-Performance Models**: `QRingBufferSeriesModel` provides O(1) allocation-free data appending and streaming up to 60fps with optional thread safety.
 - **Interface-First Architecture**: Core business logic (coordinate transform, axis ticks, models, series properties) is completely decoupled from rendering views.
-- **Concrete series**: `QLineSeries` and `QScatterSeries` (core) with QML renderers (`QmlLineSeries`, `QmlScatterSeries`). Widget Phase 1 renders **Line** series (see parity note below).
+- **Concrete series**: `QLineSeries` and `QScatterSeries` (core) with matching frontend renderers — QML (`QmlLineSeries`, `QmlScatterSeries`) and Widget (`WidgetLineSeries`, `WidgetScatterSeries`). Circle/Square markers, `markerSize` / `markerShape`, opacity parity (AI.md §3.1).
 - **Nice Axis Ticks**: Paul Heckbert's nice graph label algorithm computes optimal ticks and formats labels dynamically to prevent floating-point noise.
 - **Logarithmic Scales**: Built-in support for log scale coordinate mapping and log tick calculations.
 - **Auto-scale**: `autoScaleX` / `autoScaleY` + padding on both frontends via shared `QAutoScaler`.
@@ -26,22 +26,17 @@ This is an independent, clean-room implementation — see [`NOTICE`](NOTICE) (if
 - **Shared theme**: `QGraphPlotTheme` (Light / Dark / Scientific) drives chrome, grid, axes, and series styling on both frontends.
 - **Legend (QML)**: `QmlLegend` / `Legend.qml` with series toggle (opacity-based hide).
 
-### Frontend parity note (AI.md §3.1)
-
-QML supports Line and Scatter series. The Widget frontend currently paints **Line** series only (`WidgetLineSeries`). Scatter on Widget is tracked as a follow-up (#96); until then Widget is intentionally Line-only for Phase 1.
-
 ## Status
 
 **Implemented on `main`:**
 
 - Core: models (`QAbstractSeriesModel`, `QRingBufferSeriesModel`, `QStaticSeriesModel`), transform (`QCoordinateTransform`, `QScaleEngine`, `QAutoScaler`), series interface (`QAbstractSeries`, `QLineSeries`, `QScatterSeries`), theme (`QGraphPlotTheme`).
 - QML frontend: `QmlChartView`, axes, legend, Line + Scatter series, zoom/pan/auto-scale, theme, real-time streaming demo.
-- Widget frontend (Phase 1): `WidgetChartView` with theme chrome, grid/axes/labels, Line series painting, zoom/pan/rubber-band, auto-scale, and demo.
+- Widget frontend: `WidgetChartView` with theme chrome, grid/axes/labels, Line + Scatter painting (`WidgetLineSeries`, `WidgetScatterSeries`), zoom/pan/rubber-band, auto-scale, and demo.
 - CMake package export (`find_package(QGraphPlot)`), install targets, consumer smoke test, multi-platform CI + coverage.
 
 **Planned / tracked:**
 
-- Widget scatter rendering or explicit long-term Line-only scope (#96)
 - Legend position layout, legend test alignment (#93, #94)
 - Shared zoom/pan saved-viewport API (#97)
 - LOD/downsampling for 1M-point 60fps (#68), hit-test/hover (#66), export PNG/SVG (#69)
@@ -72,11 +67,12 @@ auto ticks = qgraphplot::QScaleEngine::calculateTicks(
 );
 ```
 
-Widget example (Phase 1 line chart):
+Widget example (line + scatter):
 
 ```cpp
 #include "WidgetChartView.h"
 #include "WidgetLineSeries.h"
+#include "WidgetScatterSeries.h"
 #include "model/QStaticSeriesModel.h"
 #include "theme/QGraphPlotTheme.h"
 
@@ -87,13 +83,18 @@ theme.applyPreset(qgraphplot::QGraphPlotTheme::Preset::Dark);
 view->setTheme(&theme);
 
 auto* model = new qgraphplot::QStaticSeriesModel(view);
-// Populate model with data
 QList<QPointF> points = {{0.0, 0.0}, {1.0, 1.0}, {2.0, 0.5}};
 model->setPoints(QSpan<const QPointF>(points.constData(), points.size()));
 
-auto* series = new qgraphplot::WidgetLineSeries(view);
-series->setModel(model);
-view->addSeries(series);
+auto* line = new qgraphplot::WidgetLineSeries(view);
+line->setModel(model);
+view->addSeries(line);
+
+auto* scatter = new qgraphplot::WidgetScatterSeries(view);
+scatter->setModel(model);
+scatter->setMarkerShape(qgraphplot::MarkerShape::Circle);
+scatter->setMarkerSize(10.0);
+view->addSeries(scatter);
 ```
 
 ## Using the QML view
@@ -136,7 +137,7 @@ Data sources are fully decoupled from rendering logic by implementing the `QAbst
 
 ## Examples
 
-Demonstration examples are located in `examples/qml_demo` (streaming line + scatter, theme, auto-scale, legend) and `examples/widget_demo` (Phase 1 line chart with interaction).
+Demonstration examples are located in `examples/qml_demo` (streaming line + scatter, theme, auto-scale, legend) and `examples/widget_demo` (line chart with interaction; scatter via `WidgetScatterSeries`).
 
 ## Testing & CI
 
@@ -165,7 +166,7 @@ cppcheck @cppcheck.options src
   - `series/`: `QAbstractSeries`, `QLineSeries`, `QScatterSeries`.
   - `theme/`: `QGraphPlotTheme`.
 - `src/qml_frontend/`: QML Quick Item rendering modules.
-- `src/widget_frontend/`: QWidget front-end modules (Phase 1 Line).
+- `src/widget_frontend/`: QWidget front-end modules (Line + Scatter).
 - `tests/`: Unit test suite.
 - `examples/`: Minimal example projects.
 
