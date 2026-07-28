@@ -17,13 +17,35 @@ This is an independent, clean-room implementation — see [`NOTICE`](NOTICE) (if
 
 - **Dual UI**: QQuickItem-based `QmlChartView` and QWidget-based `WidgetChartView` both consume the same core data models and coordinate transform logic.
 - **High-Performance Models**: `QRingBufferSeriesModel` provides O(1) allocation-free data appending and streaming up to 60fps with optional thread safety.
-- **Interface-First Architecture**: Core business logic (coordinate transform, axis ticks, models) is completely decoupled from rendering views.
+- **Interface-First Architecture**: Core business logic (coordinate transform, axis ticks, models, series properties) is completely decoupled from rendering views.
+- **Concrete series**: `QLineSeries` and `QScatterSeries` (core) with QML renderers (`QmlLineSeries`, `QmlScatterSeries`). Widget Phase 1 renders **Line** series (see parity note below).
 - **Nice Axis Ticks**: Paul Heckbert's nice graph label algorithm computes optimal ticks and formats labels dynamically to prevent floating-point noise.
 - **Logarithmic Scales**: Built-in support for log scale coordinate mapping and log tick calculations.
+- **Auto-scale**: `autoScaleX` / `autoScaleY` + padding on both frontends via shared `QAutoScaler`.
+- **Zoom / pan / rubber-band**: Wheel zoom, drag pan, and rubber-band zoom on both QML and Widget views; double-click restores saved viewport.
+- **Shared theme**: `QGraphPlotTheme` (Light / Dark / Scientific) drives chrome, grid, axes, and series styling on both frontends.
+- **Legend (QML)**: `QmlLegend` / `Legend.qml` with series toggle (opacity-based hide).
+
+### Frontend parity note (AI.md §3.1)
+
+QML supports Line and Scatter series. The Widget frontend currently paints **Line** series only (`WidgetLineSeries`). Scatter on Widget is tracked as a follow-up (#96); until then Widget is intentionally Line-only for Phase 1.
 
 ## Status
 
-The core library, series models (`QAbstractSeriesModel`, `QRingBufferSeriesModel`), coordinate transform engine (`QCoordinateTransform`), tick generation engine (`QScaleEngine`), and unit test suites are fully implemented. Next steps include the abstract series interface and front-end rendering modules (QML and QWidget).
+**Implemented on `main`:**
+
+- Core: models (`QAbstractSeriesModel`, `QRingBufferSeriesModel`, `QStaticSeriesModel`), transform (`QCoordinateTransform`, `QScaleEngine`, `QAutoScaler`), series interface (`QAbstractSeries`, `QLineSeries`, `QScatterSeries`), theme (`QGraphPlotTheme`).
+- QML frontend: `QmlChartView`, axes, legend, Line + Scatter series, zoom/pan/auto-scale, theme, real-time streaming demo.
+- Widget frontend (Phase 1): `WidgetChartView` with theme chrome, grid/axes/labels, Line series painting, zoom/pan/rubber-band, auto-scale, and demo.
+- CMake package export (`find_package(QGraphPlot)`), install targets, consumer smoke test, multi-platform CI + coverage.
+
+**Planned / tracked:**
+
+- Widget scatter rendering or explicit long-term Line-only scope (#96)
+- Legend position layout, legend test alignment (#93, #94)
+- Shared zoom/pan saved-viewport API (#97)
+- LOD/downsampling for 1M-point 60fps (#68), hit-test/hover (#66), export PNG/SVG (#69)
+- Widget performance (visible-range culling, font-metrics labels) (#90, #91)
 
 ## Using the C++ Core / QWidget view
 
@@ -48,6 +70,22 @@ QPointF pixelPt = trans.toPixel(QPointF(1.0, 10.0));
 auto ticks = qgraphplot::QScaleEngine::calculateTicks(
     dataBounds.left(), dataBounds.right(), 5, false
 );
+```
+
+Widget example (Phase 1 line chart):
+
+```cpp
+#include "WidgetChartView.h"
+#include "WidgetLineSeries.h"
+#include "series/QLineSeries.h"
+#include "model/QRingBufferSeriesModel.h"
+#include "theme/QGraphPlotTheme.h"
+
+auto* view = new qgraphplot::WidgetChartView;
+view->setTheme(qgraphplot::QGraphPlotTheme::createDarkTheme(view));
+auto* series = new qgraphplot::WidgetLineSeries(view);
+// attach model, addSeries, set ranges / autoScale as needed
+view->addSeries(series);
 ```
 
 ## Using the QML view
@@ -90,7 +128,7 @@ Data sources are fully decoupled from rendering logic by implementing the `QAbst
 
 ## Examples
 
-Demonstration examples are located in `examples/qml_demo` and `examples/widget_demo` (to be fully realized in subsequent phases).
+Demonstration examples are located in `examples/qml_demo` (streaming line + scatter, theme, auto-scale, legend) and `examples/widget_demo` (Phase 1 line chart with interaction).
 
 ## Testing & CI
 
@@ -116,14 +154,16 @@ cppcheck @cppcheck.options src
 - `src/core/`: Core shared library target `QGraphPlotCore`.
   - `model/`: Data models (`QAbstractSeriesModel`, `QRingBufferSeriesModel`).
   - `transform/`: Viewport transformations (`QCoordinateTransform`) and tick generators (`QScaleEngine`).
+  - `series/`: `QAbstractSeries`, `QLineSeries`, `QScatterSeries`.
+  - `theme/`: `QGraphPlotTheme`.
 - `src/qml_frontend/`: QML Quick Item rendering modules.
-- `src/widget_frontend/`: QWidget front-end modules.
+- `src/widget_frontend/`: QWidget front-end modules (Phase 1 Line).
 - `tests/`: Unit test suite.
 - `examples/`: Minimal example projects.
 
 ## Versioning
 
-Follows Semantic Versioning. Details in `VERSIONING.md` and release history in `CHANGELOG.md` (if available).
+Follows Semantic Versioning. Details in `VERSIONING.md` and release history in `CHANGELOG.md`.
 
 ## License
 
