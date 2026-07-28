@@ -557,6 +557,7 @@ void TestQmlLegend::legendQmlPositionBottomRightPlacesColumn()
 
     // Default AlignTop → column near the top of the legend bounds.
     QTRY_VERIFY(column->y() < 20.0);
+    QTRY_VERIFY(column->x() < 20.0);
 
     // AlignBottom | AlignRight → column sits in the bottom-right corner.
     legend->setPosition(Qt::AlignBottom | Qt::AlignRight);
