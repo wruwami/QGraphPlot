@@ -36,6 +36,7 @@
 #include "../src/widget_frontend/WidgetChartView.h"
 #include "../src/widget_frontend/WidgetLineSeries.h"
 
+using qgraphplot::QGraphPlotTheme;
 using qgraphplot::WidgetChartView;
 
 namespace
