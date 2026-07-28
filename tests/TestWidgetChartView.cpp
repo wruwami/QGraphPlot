@@ -32,9 +32,11 @@
 
 #include "../src/core/model/QStaticSeriesModel.h"
 #include "../src/core/series/QLineSeries.h"
+#include "../src/core/series/QScatterSeries.h"
 #include "../src/core/theme/QGraphPlotTheme.h"
 #include "../src/widget_frontend/WidgetChartView.h"
 #include "../src/widget_frontend/WidgetLineSeries.h"
+#include "../src/widget_frontend/WidgetScatterSeries.h"
 
 using qgraphplot::QGraphPlotTheme;
 using qgraphplot::WidgetChartView;
@@ -84,6 +86,18 @@ private slots:
     void autoScaleRespectsPaddingRatio();
     void autoScaleXHandlesEmptyModel();
     void autoScaleXHandlesSinglePoint();
+
+    // ── WidgetScatterSeries (issue #101) ────────────────────────
+    void widgetScatterSeriesTypeIsScatter();
+    void widgetScatterSeriesDefaultMarkerSize();
+    void widgetScatterSeriesDefaultMarkerShape();
+    void paintScatterSeriesNopWhenInvisible();
+    void paintScatterSeriesNopWhenNullModel();
+    void paintScatterSeriesNopWhenEmptyModel();
+    void paintScatterSeriesCircleRendersWithoutCrash();
+    void paintScatterSeriesSquareRendersWithoutCrash();
+    void paintScatterSeriesOpacityFoldedIntoAlpha();
+    void paintEventWithScatterSeriesNoCrash();
 
     // ── Phase 1 rendering: WidgetLineSeries (issue #70) ─────────
     void widgetLineSeriesTypeIsLine();
@@ -956,6 +970,178 @@ void TestWidgetChartView::paintSeriesWithDashPattern()
     TestPaintContext ctx;
     qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
     // No crash expected; exercises the dash-pattern branch in paintSeries.
+}
+
+// ════════════════════════════════════════════════════════════════
+// WidgetScatterSeries (issue #101)
+// ════════════════════════════════════════════════════════════════
+
+namespace
+{
+//! Builds a QScatterSeries whose backing static model holds @p points,
+//! parented to @p owner so it cleans up with the owner.
+qgraphplot::QScatterSeries* makeScatterWith(QObject& owner, const QList<QPointF>& points)
+{
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    model->setPoints(QSpan<const QPointF>(points.data(), points.size()));
+    auto* series = new qgraphplot::QScatterSeries(&owner);
+    series->setModel(model);
+    return series;
+}
+}  // namespace
+
+void TestWidgetChartView::widgetScatterSeriesTypeIsScatter()
+{
+    qgraphplot::WidgetScatterSeries s;
+    QCOMPARE(s.type(), qgraphplot::SeriesType::Scatter);
+}
+
+void TestWidgetChartView::widgetScatterSeriesDefaultMarkerSize()
+{
+    qgraphplot::WidgetScatterSeries s;
+    QCOMPARE(s.markerSize(), 8.0);
+}
+
+void TestWidgetChartView::widgetScatterSeriesDefaultMarkerShape()
+{
+    qgraphplot::WidgetScatterSeries s;
+    QCOMPARE(s.markerShape(), qgraphplot::MarkerShape::Circle);
+}
+
+void TestWidgetChartView::paintScatterSeriesNopWhenInvisible()
+{
+    QObject owner;
+    auto* s = makeScatterWith(owner, {QPointF(0, 0), QPointF(5, 5)});
+    s->setVisible(false);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    bool unchanged = true;
+    for (int y = 0; y < img.height() && unchanged; ++y) {
+        for (int x = 0; x < img.width() && unchanged; ++x) {
+            if (img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
+                unchanged = false;
+            }
+        }
+    }
+    QVERIFY(unchanged);
+}
+
+void TestWidgetChartView::paintScatterSeriesNopWhenNullModel()
+{
+    qgraphplot::WidgetScatterSeries s;
+    QVERIFY(s.model() == nullptr);
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, &s);
+    // No crash expected.
+}
+
+void TestWidgetChartView::paintScatterSeriesNopWhenEmptyModel()
+{
+    QObject owner;
+    auto* emptyModel = new qgraphplot::QStaticSeriesModel(&owner);
+    qgraphplot::WidgetScatterSeries s;
+    s.setModel(emptyModel);
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, &s);
+    // No crash expected.
+}
+
+void TestWidgetChartView::paintScatterSeriesCircleRendersWithoutCrash()
+{
+    QObject owner;
+    auto* s = makeScatterWith(owner, {QPointF(2, 2), QPointF(5, 5), QPointF(8, 3)});
+    s->setColor(Qt::blue);
+    s->setMarkerShape(qgraphplot::MarkerShape::Circle);
+    s->setMarkerSize(10.0);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    // Validate Circle rendering: center should be colored, corners should NOT be.
+    // Data (5,5) → pixel (50,50) with markerSize=10 → radius=5 → bounds [45,55].
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(50, 50) != white);  // center pixel painted
+    // Corner of bounding box: for a circle, (45,45) is outside the ellipse.
+    QVERIFY(img.pixel(45, 45) == white);  // corner not painted for Circle
+}
+
+void TestWidgetChartView::paintScatterSeriesSquareRendersWithoutCrash()
+{
+    QObject owner;
+    auto* s = makeScatterWith(owner, {QPointF(1, 1), QPointF(5, 5), QPointF(9, 9)});
+    s->setColor(Qt::red);
+    s->setMarkerShape(qgraphplot::MarkerShape::Square);
+    s->setMarkerSize(8.0);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    // Validate Square rendering: both center AND corners should be colored.
+    // Data (5,5) → pixel (50,50) with markerSize=8 → radius=4 → bounds [46,54].
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(50, 50) != white);  // center pixel painted
+    QVERIFY(img.pixel(46, 46) != white);  // corner painted for Square
+}
+
+void TestWidgetChartView::paintScatterSeriesOpacityFoldedIntoAlpha()
+{
+    // Render with opacity=0.0 → markers are transparent → canvas unchanged.
+    QObject owner;
+    auto* s = makeScatterWith(owner, {QPointF(5, 5)});
+    s->setColor(Qt::red);
+    s->setOpacity(0.0);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetScatterSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+
+    bool unchanged = true;
+    for (int y = 0; y < img.height() && unchanged; ++y) {
+        for (int x = 0; x < img.width() && unchanged; ++x) {
+            if (img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
+                unchanged = false;
+            }
+        }
+    }
+    QVERIFY(unchanged);
+}
+
+void TestWidgetChartView::paintEventWithScatterSeriesNoCrash()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QObject owner;
+    auto* s = makeScatterWith(owner, {QPointF(2, 2), QPointF(5, 5), QPointF(8, 3)});
+    view.addSeries(s);
+    QImage img(400, 300, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    view.render(&img);
+
+    // Verify markers are actually rendered by checking pixels at marker positions.
+    // View defaults: xMin=0, xMax=10, yMin=0, yMax=10; margins left=50, top=20,
+    // right=20, bottom=40 → plot area width=330, height=240.
+    // Transform: data (5,5) → pixel (50 + 330*5/10, 20 + 240*(10-5)/10) = (215, 140).
+    const QRgb white = qRgba(255, 255, 255, 255);
+    QVERIFY(img.pixel(215, 140) != white);  // marker at (5,5) painted
 }
 
 // ════════════════════════════════════════════════════════════════

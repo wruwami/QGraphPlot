@@ -9,6 +9,8 @@ qt_add_library(widget_frontend STATIC
     WidgetChartView.cpp
     WidgetLineSeries.h
     WidgetLineSeries.cpp
+    WidgetScatterSeries.h
+    WidgetScatterSeries.cpp
 )
 
 set_target_properties(widget_frontend PROPERTIES
@@ -42,6 +44,6 @@ install(TARGETS widget_frontend
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(FILES WidgetChartView.h WidgetLineSeries.h
+install(FILES WidgetChartView.h WidgetLineSeries.h WidgetScatterSeries.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qgraphplot/widget_frontend
 )

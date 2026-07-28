@@ -30,6 +30,7 @@
 #include "transform/QAutoScaler.h"
 #include "transform/QScaleEngine.h"
 #include "WidgetLineSeries.h"
+#include "WidgetScatterSeries.h"
 
 namespace qgraphplot
 {
@@ -685,6 +686,8 @@ void WidgetChartView::paintAllSeries(QPainter& painter, const QCoordinateTransfo
     for (const QAbstractSeries* s : m_series) {
         if (s->type() == SeriesType::Line) {
             WidgetLineSeries::paintSeries(&painter, xform, s);
+        } else if (s->type() == SeriesType::Scatter) {
+            WidgetScatterSeries::paintSeries(&painter, xform, s);
         }
     }
 }
