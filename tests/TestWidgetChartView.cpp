@@ -23,20 +23,18 @@
 
 #include <QtCore/QRegularExpression>
 #include <QtGui/QImage>
+#include <QtGui/QMouseEvent>
 #include <QtGui/QPainter>
+#include <QtGui/QResizeEvent>
+#include <QtGui/QWheelEvent>
 #include <QtTest/QtTest>
+#include <QtWidgets/QApplication>
 
 #include "../src/core/model/QStaticSeriesModel.h"
 #include "../src/core/series/QLineSeries.h"
+#include "../src/core/theme/QGraphPlotTheme.h"
 #include "../src/widget_frontend/WidgetChartView.h"
 #include "../src/widget_frontend/WidgetLineSeries.h"
-
-#include <QtGui/QMouseEvent>
-#include <QtGui/QResizeEvent>
-#include <QtGui/QWheelEvent>
-#include <QtWidgets/QApplication>
-
-#include "../src/core/theme/QGraphPlotTheme.h"
 
 using qgraphplot::WidgetChartView;
 
@@ -787,7 +785,7 @@ void TestWidgetChartView::setYRangeAtomicUpdate()
 void TestWidgetChartView::setYRangeInvalidRejected()
 {
     WidgetChartView view;
-    view.setYRange(5.0, 5.0);   // min == max: rejected
+    view.setYRange(5.0, 5.0);    // min == max: rejected
     QCOMPARE(view.yMin(), 0.0);  // unchanged
     QCOMPARE(view.yMax(), 10.0);
 }
@@ -914,12 +912,18 @@ void TestWidgetChartView::paintEventWithRubberbandNoCrash()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
-                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                        QPointF(100.0, 50.0),
+                        QPointF(100.0, 50.0),
+                        Qt::RightButton,
+                        Qt::RightButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
     QMouseEvent moveEv(QEvent::MouseMove,
-                       QPointF(250.0, 200.0), QPointF(250.0, 200.0),
-                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+                       QPointF(250.0, 200.0),
+                       QPointF(250.0, 200.0),
+                       Qt::NoButton,
+                       Qt::RightButton,
+                       Qt::NoModifier);
     QApplication::sendEvent(&view, &moveEv);
 
     QImage img(400, 300, QImage::Format_ARGB32);
@@ -948,8 +952,14 @@ void TestWidgetChartView::wheelEventZoomsInside()
     view.resize(400, 300);
     // Default: plot area = QRectF(50, 20, 330, 240); center ≈ (215, 140).
     const QPointF center(215.0, 140.0);
-    QWheelEvent ev(center, center, QPoint(), QPoint(0, 120),
-                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QWheelEvent ev(center,
+                   center,
+                   QPoint(),
+                   QPoint(0, 120),
+                   Qt::NoButton,
+                   Qt::NoModifier,
+                   Qt::ScrollUpdate,
+                   false);
     QApplication::sendEvent(&view, &ev);
 
     // One notch up (angleDelta.y=120) → factor = 0.9 → span shrinks by 10%.
@@ -962,8 +972,14 @@ void TestWidgetChartView::wheelEventOutsidePlotPassesThrough()
     view.resize(400, 300);
     // x=10 is inside the left margin (marginLeft=50), so outside the plot.
     const QPointF outside(10.0, 140.0);
-    QWheelEvent ev(outside, outside, QPoint(), QPoint(0, 120),
-                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QWheelEvent ev(outside,
+                   outside,
+                   QPoint(),
+                   QPoint(0, 120),
+                   Qt::NoButton,
+                   Qt::NoModifier,
+                   Qt::ScrollUpdate,
+                   false);
     QApplication::sendEvent(&view, &ev);
 
     QCOMPARE(view.xMin(), 0.0);
@@ -975,8 +991,11 @@ void TestWidgetChartView::mousePressLeftButtonStartsPan()
     WidgetChartView view;
     view.resize(400, 300);
     QMouseEvent ev(QEvent::MouseButtonPress,
-                   QPointF(215.0, 140.0), QPointF(215.0, 140.0),
-                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                   QPointF(215.0, 140.0),
+                   QPointF(215.0, 140.0),
+                   Qt::LeftButton,
+                   Qt::LeftButton,
+                   Qt::NoModifier);
     QApplication::sendEvent(&view, &ev);
     QCOMPARE(view.cursor().shape(), Qt::ClosedHandCursor);
 }
@@ -986,8 +1005,11 @@ void TestWidgetChartView::mousePressRightButtonStartsRubberband()
     WidgetChartView view;
     view.resize(400, 300);
     QMouseEvent ev(QEvent::MouseButtonPress,
-                   QPointF(215.0, 140.0), QPointF(215.0, 140.0),
-                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                   QPointF(215.0, 140.0),
+                   QPointF(215.0, 140.0),
+                   Qt::RightButton,
+                   Qt::RightButton,
+                   Qt::NoModifier);
     QApplication::sendEvent(&view, &ev);
     // Rubberband started; range unchanged until release.
     QCOMPARE(view.xMin(), 0.0);
@@ -1000,8 +1022,11 @@ void TestWidgetChartView::mousePressOutsidePassesThrough()
     view.resize(400, 300);
     // x=10 is in the left margin — outside the plot area.
     QMouseEvent ev(QEvent::MouseButtonPress,
-                   QPointF(10.0, 140.0), QPointF(10.0, 140.0),
-                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                   QPointF(10.0, 140.0),
+                   QPointF(10.0, 140.0),
+                   Qt::LeftButton,
+                   Qt::LeftButton,
+                   Qt::NoModifier);
     QApplication::sendEvent(&view, &ev);
     QVERIFY(view.cursor().shape() != Qt::ClosedHandCursor);
 }
@@ -1012,15 +1037,21 @@ void TestWidgetChartView::mouseMoveWhilePanningShiftsRange()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(215.0, 140.0), QPointF(215.0, 140.0),
-                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                        QPointF(215.0, 140.0),
+                        QPointF(215.0, 140.0),
+                        Qt::LeftButton,
+                        Qt::LeftButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
 
     const double prevXMin = view.xMin();
 
     QMouseEvent moveEv(QEvent::MouseMove,
-                       QPointF(265.0, 140.0), QPointF(265.0, 140.0),
-                       Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+                       QPointF(265.0, 140.0),
+                       QPointF(265.0, 140.0),
+                       Qt::NoButton,
+                       Qt::LeftButton,
+                       Qt::NoModifier);
     QApplication::sendEvent(&view, &moveEv);
 
     // Moving right pans the view left: xMin decreases.
@@ -1033,13 +1064,19 @@ void TestWidgetChartView::mouseMoveWhileRubberbanding()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
-                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                        QPointF(100.0, 50.0),
+                        QPointF(100.0, 50.0),
+                        Qt::RightButton,
+                        Qt::RightButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
 
     QMouseEvent moveEv(QEvent::MouseMove,
-                       QPointF(250.0, 200.0), QPointF(250.0, 200.0),
-                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+                       QPointF(250.0, 200.0),
+                       QPointF(250.0, 200.0),
+                       Qt::NoButton,
+                       Qt::RightButton,
+                       Qt::NoModifier);
     QApplication::sendEvent(&view, &moveEv);
 
     // Range is not yet changed — zoom only applies on button release.
@@ -1053,14 +1090,20 @@ void TestWidgetChartView::mouseReleaseEndsPan()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(215.0, 140.0), QPointF(215.0, 140.0),
-                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                        QPointF(215.0, 140.0),
+                        QPointF(215.0, 140.0),
+                        Qt::LeftButton,
+                        Qt::LeftButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
     QCOMPARE(view.cursor().shape(), Qt::ClosedHandCursor);
 
     QMouseEvent releaseEv(QEvent::MouseButtonRelease,
-                          QPointF(215.0, 140.0), QPointF(215.0, 140.0),
-                          Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+                          QPointF(215.0, 140.0),
+                          QPointF(215.0, 140.0),
+                          Qt::LeftButton,
+                          Qt::NoButton,
+                          Qt::NoModifier);
     QApplication::sendEvent(&view, &releaseEv);
 
     QCOMPARE(view.cursor().shape(), Qt::ArrowCursor);
@@ -1072,18 +1115,27 @@ void TestWidgetChartView::mouseReleaseRubberbandSmallBandNoZoom()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(200.0, 140.0), QPointF(200.0, 140.0),
-                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                        QPointF(200.0, 140.0),
+                        QPointF(200.0, 140.0),
+                        Qt::RightButton,
+                        Qt::RightButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
 
     QMouseEvent moveEv(QEvent::MouseMove,
-                       QPointF(202.0, 142.0), QPointF(202.0, 142.0),
-                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+                       QPointF(202.0, 142.0),
+                       QPointF(202.0, 142.0),
+                       Qt::NoButton,
+                       Qt::RightButton,
+                       Qt::NoModifier);
     QApplication::sendEvent(&view, &moveEv);
 
     QMouseEvent releaseEv(QEvent::MouseButtonRelease,
-                          QPointF(202.0, 142.0), QPointF(202.0, 142.0),
-                          Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+                          QPointF(202.0, 142.0),
+                          QPointF(202.0, 142.0),
+                          Qt::RightButton,
+                          Qt::NoButton,
+                          Qt::NoModifier);
     QApplication::sendEvent(&view, &releaseEv);
 
     // Band was only 2×2 pixels — too small to apply zoom.
@@ -1097,18 +1149,27 @@ void TestWidgetChartView::mouseReleaseRubberbandLargeBandAppliesZoom()
     view.resize(400, 300);
 
     QMouseEvent pressEv(QEvent::MouseButtonPress,
-                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
-                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+                        QPointF(100.0, 50.0),
+                        QPointF(100.0, 50.0),
+                        Qt::RightButton,
+                        Qt::RightButton,
+                        Qt::NoModifier);
     QApplication::sendEvent(&view, &pressEv);
 
     QMouseEvent moveEv(QEvent::MouseMove,
-                       QPointF(300.0, 200.0), QPointF(300.0, 200.0),
-                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+                       QPointF(300.0, 200.0),
+                       QPointF(300.0, 200.0),
+                       Qt::NoButton,
+                       Qt::RightButton,
+                       Qt::NoModifier);
     QApplication::sendEvent(&view, &moveEv);
 
     QMouseEvent releaseEv(QEvent::MouseButtonRelease,
-                          QPointF(300.0, 200.0), QPointF(300.0, 200.0),
-                          Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+                          QPointF(300.0, 200.0),
+                          QPointF(300.0, 200.0),
+                          Qt::RightButton,
+                          Qt::NoButton,
+                          Qt::NoModifier);
     QApplication::sendEvent(&view, &releaseEv);
 
     // 200×150-pixel band is large enough to apply zoom; view zoomed in.
@@ -1126,15 +1187,24 @@ void TestWidgetChartView::mouseDoubleClickResetsViewport()
 
     // Wheel zoom triggers saveViewportIfNeeded and changes the range.
     const QPointF center(215.0, 140.0);
-    QWheelEvent wheelEv(center, center, QPoint(), QPoint(0, 120),
-                        Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QWheelEvent wheelEv(center,
+                        center,
+                        QPoint(),
+                        QPoint(0, 120),
+                        Qt::NoButton,
+                        Qt::NoModifier,
+                        Qt::ScrollUpdate,
+                        false);
     QApplication::sendEvent(&view, &wheelEv);
     QVERIFY(view.xMax() - view.xMin() < 10.0);
 
     // Double-click restores the pre-zoom viewport.
     QMouseEvent dblClickEv(QEvent::MouseButtonDblClick,
-                           center, center,
-                           Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                           center,
+                           center,
+                           Qt::LeftButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier);
     QApplication::sendEvent(&view, &dblClickEv);
 
     QCOMPARE(view.xMin(), initXMin);
