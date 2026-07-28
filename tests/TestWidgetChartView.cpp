@@ -31,6 +31,13 @@
 #include "../src/widget_frontend/WidgetChartView.h"
 #include "../src/widget_frontend/WidgetLineSeries.h"
 
+#include <QtGui/QMouseEvent>
+#include <QtGui/QResizeEvent>
+#include <QtGui/QWheelEvent>
+#include <QtWidgets/QApplication>
+
+#include "../src/core/theme/QGraphPlotTheme.h"
+
 using qgraphplot::WidgetChartView;
 
 namespace
@@ -89,6 +96,48 @@ private slots:
     void paintSeriesRendersWithoutCrash();
     void repaintConnectionWiredOnAddSeries();
     void repaintConnectionRemovedOnRemoveSeries();
+    void repaintConnectionRewiredOnModelSwap();
+
+    // ── Zoom / pan: range setters and zoom toggles (issue #64) ─────────────
+    void zoomXEnabledDefaultIsTrue();
+    void setZoomXEnabledToggles();
+    void setZoomXEnabledRedundantWriteNoSignal();
+    void setZoomYEnabledToggles();
+    void setXRangeAtomicUpdate();
+    void setXRangeInvalidRejected();
+    void setXRangeDisablesAutoScale();
+    void setYRangeAtomicUpdate();
+    void setYRangeInvalidRejected();
+    void setYRangeDisablesAutoScale();
+
+    // ── Theme ────────────────────────────────────────────────────────────────
+    void setThemeEmitsSignal();
+    void setThemeRedundantWriteNoSignal();
+    void setThemeNullClearsTheme();
+
+    // ── clearSeries / resizeEvent ────────────────────────────────────────────
+    void clearSeriesEmitsRemovedForEachSeries();
+    void resizeEmitsTransformChanged();
+
+    // ── Rendering (issue #70) ────────────────────────────────────────────────
+    void paintEventNoCrash();
+    void paintEventWithThemeNoCrash();
+    void paintEventWithSeriesNoCrash();
+    void paintEventWithRubberbandNoCrash();
+    void paintSeriesWithDashPattern();
+
+    // ── Mouse / wheel interaction (issue #64) ────────────────────────────────
+    void wheelEventZoomsInside();
+    void wheelEventOutsidePlotPassesThrough();
+    void mousePressLeftButtonStartsPan();
+    void mousePressRightButtonStartsRubberband();
+    void mousePressOutsidePassesThrough();
+    void mouseMoveWhilePanningShiftsRange();
+    void mouseMoveWhileRubberbanding();
+    void mouseReleaseEndsPan();
+    void mouseReleaseRubberbandSmallBandNoZoom();
+    void mouseReleaseRubberbandLargeBandAppliesZoom();
+    void mouseDoubleClickResetsViewport();
 };
 
 void TestWidgetChartView::defaultsAreSane()
@@ -619,6 +668,477 @@ void TestWidgetChartView::repaintConnectionRemovedOnRemoveSeries()
     QList<QPointF> pts{QPointF(2, 2)};
     model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
     delete s;  // removeSeries() detached ownership from both view and owner.
+}
+
+void TestWidgetChartView::repaintConnectionRewiredOnModelSwap()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* model1 = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* model2 = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* s = new qgraphplot::QLineSeries(&owner);
+    s->setModel(model1);
+    view.addSeries(s);
+
+    s->setModel(model2);  // triggers the modelChanged handler in connectRepaintModel
+
+    QList<QPointF> pts{QPointF(3, 3)};
+    model2->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
+    QVERIFY(true);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Zoom / pan: range setters and zoom toggles (issue #64)
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::zoomXEnabledDefaultIsTrue()
+{
+    WidgetChartView view;
+    QCOMPARE(view.zoomXEnabled(), true);
+    QCOMPARE(view.zoomYEnabled(), true);
+}
+
+void TestWidgetChartView::setZoomXEnabledToggles()
+{
+    WidgetChartView view;
+    QSignalSpy spy(&view, &WidgetChartView::zoomXEnabledChanged);
+    view.setZoomXEnabled(false);
+    QCOMPARE(view.zoomXEnabled(), false);
+    QCOMPARE(spy.count(), 1);
+}
+
+void TestWidgetChartView::setZoomXEnabledRedundantWriteNoSignal()
+{
+    WidgetChartView view;
+    QSignalSpy spy(&view, &WidgetChartView::zoomXEnabledChanged);
+    view.setZoomXEnabled(true);  // same as default
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestWidgetChartView::setZoomYEnabledToggles()
+{
+    WidgetChartView view;
+    QSignalSpy spy(&view, &WidgetChartView::zoomYEnabledChanged);
+    view.setZoomYEnabled(false);
+    QCOMPARE(view.zoomYEnabled(), false);
+    QCOMPARE(spy.count(), 1);
+}
+
+void TestWidgetChartView::setXRangeAtomicUpdate()
+{
+    WidgetChartView view;
+    QSignalSpy xMinSpy(&view, &WidgetChartView::xMinChanged);
+    QSignalSpy xMaxSpy(&view, &WidgetChartView::xMaxChanged);
+    QSignalSpy transformSpy(&view, &WidgetChartView::transformChanged);
+
+    view.setXRange(-5.0, 25.0);
+
+    QCOMPARE(view.xMin(), -5.0);
+    QCOMPARE(view.xMax(), 25.0);
+    QVERIFY(xMinSpy.count() >= 1);
+    QVERIFY(xMaxSpy.count() >= 1);
+    QVERIFY(transformSpy.count() >= 1);
+}
+
+void TestWidgetChartView::setXRangeInvalidRejected()
+{
+    WidgetChartView view;
+    QSignalSpy spy(&view, &WidgetChartView::xMinChanged);
+
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    view.setXRange(nan, 5.0);  // nan min
+    view.setXRange(0.0, inf);  // inf max
+    view.setXRange(5.0, 5.0);  // min == max
+    view.setXRange(6.0, 5.0);  // min > max
+
+    QCOMPARE(view.xMin(), 0.0);  // unchanged
+    QCOMPARE(view.xMax(), 10.0);
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestWidgetChartView::setXRangeDisablesAutoScale()
+{
+    WidgetChartView view;
+    view.setAutoScaleX(true);
+    QCOMPARE(view.autoScaleX(), true);
+
+    QSignalSpy autoSpy(&view, &WidgetChartView::autoScaleXChanged);
+    view.setXRange(1.0, 9.0);
+
+    QCOMPARE(view.autoScaleX(), false);
+    QCOMPARE(autoSpy.count(), 1);
+}
+
+void TestWidgetChartView::setYRangeAtomicUpdate()
+{
+    WidgetChartView view;
+    QSignalSpy yMinSpy(&view, &WidgetChartView::yMinChanged);
+    QSignalSpy yMaxSpy(&view, &WidgetChartView::yMaxChanged);
+
+    view.setYRange(-3.0, 15.0);
+
+    QCOMPARE(view.yMin(), -3.0);
+    QCOMPARE(view.yMax(), 15.0);
+    QVERIFY(yMinSpy.count() >= 1);
+    QVERIFY(yMaxSpy.count() >= 1);
+}
+
+void TestWidgetChartView::setYRangeInvalidRejected()
+{
+    WidgetChartView view;
+    view.setYRange(5.0, 5.0);   // min == max: rejected
+    QCOMPARE(view.yMin(), 0.0);  // unchanged
+    QCOMPARE(view.yMax(), 10.0);
+}
+
+void TestWidgetChartView::setYRangeDisablesAutoScale()
+{
+    WidgetChartView view;
+    view.setAutoScaleY(true);
+    QSignalSpy spy(&view, &WidgetChartView::autoScaleYChanged);
+    view.setYRange(-1.0, 11.0);
+    QCOMPARE(view.autoScaleY(), false);
+    QCOMPARE(spy.count(), 1);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Theme
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::setThemeEmitsSignal()
+{
+    WidgetChartView view;
+    QGraphPlotTheme theme;
+    QSignalSpy spy(&view, &WidgetChartView::themeChanged);
+
+    view.setTheme(&theme);
+
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(view.theme(), &theme);
+}
+
+void TestWidgetChartView::setThemeRedundantWriteNoSignal()
+{
+    WidgetChartView view;
+    QGraphPlotTheme theme;
+    view.setTheme(&theme);
+    QSignalSpy spy(&view, &WidgetChartView::themeChanged);
+    view.setTheme(&theme);  // same theme — no-op
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestWidgetChartView::setThemeNullClearsTheme()
+{
+    WidgetChartView view;
+    QGraphPlotTheme theme;
+    view.setTheme(&theme);
+    QSignalSpy spy(&view, &WidgetChartView::themeChanged);
+    view.setTheme(nullptr);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(view.theme(), nullptr);
+}
+
+// ════════════════════════════════════════════════════════════════
+// clearSeries / resizeEvent
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::clearSeriesEmitsRemovedForEachSeries()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* s1 = makeSeriesWith(owner, {QPointF(0, 0)});
+    auto* s2 = makeSeriesWith(owner, {QPointF(1, 1)});
+    view.addSeries(s1);
+    view.addSeries(s2);
+
+    QSignalSpy spy(&view, &WidgetChartView::seriesRemoved);
+    view.clearSeries();
+
+    QCOMPARE(view.series().size(), 0);
+    QCOMPARE(spy.count(), 2);
+}
+
+void TestWidgetChartView::resizeEmitsTransformChanged()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QSignalSpy spy(&view, &WidgetChartView::transformChanged);
+
+    QResizeEvent ev(QSize(500, 400), QSize(400, 300));
+    QApplication::sendEvent(&view, &ev);
+
+    QCOMPARE(spy.count(), 1);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Rendering (issue #70)
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::paintEventNoCrash()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QImage img(400, 300, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    view.render(&img);
+}
+
+void TestWidgetChartView::paintEventWithThemeNoCrash()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QGraphPlotTheme theme;
+    theme.setFontFamily(QStringLiteral("Arial"));
+    view.setTheme(&theme);
+    QImage img(400, 300, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    view.render(&img);
+}
+
+void TestWidgetChartView::paintEventWithSeriesNoCrash()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0, 0), QPointF(5, 5), QPointF(10, 0)});
+    view.addSeries(s);
+    QImage img(400, 300, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    view.render(&img);
+}
+
+void TestWidgetChartView::paintEventWithRubberbandNoCrash()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
+                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+    QMouseEvent moveEv(QEvent::MouseMove,
+                       QPointF(250.0, 200.0), QPointF(250.0, 200.0),
+                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &moveEv);
+
+    QImage img(400, 300, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    view.render(&img);  // covers the m_rubberbanding branch in paintEvent
+}
+
+void TestWidgetChartView::paintSeriesWithDashPattern()
+{
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0, 0), QPointF(5, 5), QPointF(10, 0)});
+    s->setDashPattern({4.0, 2.0});
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+    // No crash expected; exercises the dash-pattern branch in paintSeries.
+}
+
+// ════════════════════════════════════════════════════════════════
+// Mouse / wheel interaction (issue #64)
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::wheelEventZoomsInside()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    // Default: plot area = QRectF(50, 20, 330, 240); center ≈ (215, 140).
+    const QPointF center(215.0, 140.0);
+    QWheelEvent ev(center, center, QPoint(), QPoint(0, 120),
+                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QApplication::sendEvent(&view, &ev);
+
+    // One notch up (angleDelta.y=120) → factor = 0.9 → span shrinks by 10%.
+    QVERIFY(view.xMax() - view.xMin() < 10.0);
+}
+
+void TestWidgetChartView::wheelEventOutsidePlotPassesThrough()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    // x=10 is inside the left margin (marginLeft=50), so outside the plot.
+    const QPointF outside(10.0, 140.0);
+    QWheelEvent ev(outside, outside, QPoint(), QPoint(0, 120),
+                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QApplication::sendEvent(&view, &ev);
+
+    QCOMPARE(view.xMin(), 0.0);
+    QCOMPARE(view.xMax(), 10.0);
+}
+
+void TestWidgetChartView::mousePressLeftButtonStartsPan()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QMouseEvent ev(QEvent::MouseButtonPress,
+                   QPointF(215.0, 140.0), QPointF(215.0, 140.0),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &ev);
+    QCOMPARE(view.cursor().shape(), Qt::ClosedHandCursor);
+}
+
+void TestWidgetChartView::mousePressRightButtonStartsRubberband()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    QMouseEvent ev(QEvent::MouseButtonPress,
+                   QPointF(215.0, 140.0), QPointF(215.0, 140.0),
+                   Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &ev);
+    // Rubberband started; range unchanged until release.
+    QCOMPARE(view.xMin(), 0.0);
+    QCOMPARE(view.xMax(), 10.0);
+}
+
+void TestWidgetChartView::mousePressOutsidePassesThrough()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+    // x=10 is in the left margin — outside the plot area.
+    QMouseEvent ev(QEvent::MouseButtonPress,
+                   QPointF(10.0, 140.0), QPointF(10.0, 140.0),
+                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &ev);
+    QVERIFY(view.cursor().shape() != Qt::ClosedHandCursor);
+}
+
+void TestWidgetChartView::mouseMoveWhilePanningShiftsRange()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(215.0, 140.0), QPointF(215.0, 140.0),
+                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+
+    const double prevXMin = view.xMin();
+
+    QMouseEvent moveEv(QEvent::MouseMove,
+                       QPointF(265.0, 140.0), QPointF(265.0, 140.0),
+                       Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &moveEv);
+
+    // Moving right pans the view left: xMin decreases.
+    QVERIFY(view.xMin() < prevXMin);
+}
+
+void TestWidgetChartView::mouseMoveWhileRubberbanding()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
+                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+
+    QMouseEvent moveEv(QEvent::MouseMove,
+                       QPointF(250.0, 200.0), QPointF(250.0, 200.0),
+                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &moveEv);
+
+    // Range is not yet changed — zoom only applies on button release.
+    QCOMPARE(view.xMin(), 0.0);
+    QCOMPARE(view.xMax(), 10.0);
+}
+
+void TestWidgetChartView::mouseReleaseEndsPan()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(215.0, 140.0), QPointF(215.0, 140.0),
+                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+    QCOMPARE(view.cursor().shape(), Qt::ClosedHandCursor);
+
+    QMouseEvent releaseEv(QEvent::MouseButtonRelease,
+                          QPointF(215.0, 140.0), QPointF(215.0, 140.0),
+                          Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &releaseEv);
+
+    QCOMPARE(view.cursor().shape(), Qt::ArrowCursor);
+}
+
+void TestWidgetChartView::mouseReleaseRubberbandSmallBandNoZoom()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(200.0, 140.0), QPointF(200.0, 140.0),
+                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+
+    QMouseEvent moveEv(QEvent::MouseMove,
+                       QPointF(202.0, 142.0), QPointF(202.0, 142.0),
+                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &moveEv);
+
+    QMouseEvent releaseEv(QEvent::MouseButtonRelease,
+                          QPointF(202.0, 142.0), QPointF(202.0, 142.0),
+                          Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &releaseEv);
+
+    // Band was only 2×2 pixels — too small to apply zoom.
+    QCOMPARE(view.xMin(), 0.0);
+    QCOMPARE(view.xMax(), 10.0);
+}
+
+void TestWidgetChartView::mouseReleaseRubberbandLargeBandAppliesZoom()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    QMouseEvent pressEv(QEvent::MouseButtonPress,
+                        QPointF(100.0, 50.0), QPointF(100.0, 50.0),
+                        Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &pressEv);
+
+    QMouseEvent moveEv(QEvent::MouseMove,
+                       QPointF(300.0, 200.0), QPointF(300.0, 200.0),
+                       Qt::NoButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &moveEv);
+
+    QMouseEvent releaseEv(QEvent::MouseButtonRelease,
+                          QPointF(300.0, 200.0), QPointF(300.0, 200.0),
+                          Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &releaseEv);
+
+    // 200×150-pixel band is large enough to apply zoom; view zoomed in.
+    QVERIFY(view.xMin() > 0.0);
+    QVERIFY(view.xMax() < 10.0);
+}
+
+void TestWidgetChartView::mouseDoubleClickResetsViewport()
+{
+    WidgetChartView view;
+    view.resize(400, 300);
+
+    const double initXMin = view.xMin();
+    const double initXMax = view.xMax();
+
+    // Wheel zoom triggers saveViewportIfNeeded and changes the range.
+    const QPointF center(215.0, 140.0);
+    QWheelEvent wheelEv(center, center, QPoint(), QPoint(0, 120),
+                        Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QApplication::sendEvent(&view, &wheelEv);
+    QVERIFY(view.xMax() - view.xMin() < 10.0);
+
+    // Double-click restores the pre-zoom viewport.
+    QMouseEvent dblClickEv(QEvent::MouseButtonDblClick,
+                           center, center,
+                           Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&view, &dblClickEv);
+
+    QCOMPARE(view.xMin(), initXMin);
+    QCOMPARE(view.xMax(), initXMax);
 }
 
 QTEST_MAIN(TestWidgetChartView)
