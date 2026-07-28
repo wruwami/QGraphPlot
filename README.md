@@ -77,14 +77,22 @@ Widget example (Phase 1 line chart):
 ```cpp
 #include "WidgetChartView.h"
 #include "WidgetLineSeries.h"
-#include "series/QLineSeries.h"
-#include "model/QRingBufferSeriesModel.h"
+#include "model/QStaticSeriesModel.h"
 #include "theme/QGraphPlotTheme.h"
 
 auto* view = new qgraphplot::WidgetChartView;
-view->setTheme(qgraphplot::QGraphPlotTheme::createDarkTheme(view));
+
+qgraphplot::QGraphPlotTheme theme(view);
+theme.applyPreset(qgraphplot::QGraphPlotTheme::Preset::Dark);
+view->setTheme(&theme);
+
+auto* model = new qgraphplot::QStaticSeriesModel(view);
+// Populate model with data
+QList<QPointF> points = {{0.0, 0.0}, {1.0, 1.0}, {2.0, 0.5}};
+model->setPoints(QSpan<const QPointF>(points.constData(), points.size()));
+
 auto* series = new qgraphplot::WidgetLineSeries(view);
-// attach model, addSeries, set ranges / autoScale as needed
+series->setModel(model);
 view->addSeries(series);
 ```
 
