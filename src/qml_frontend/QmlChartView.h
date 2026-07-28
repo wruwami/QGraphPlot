@@ -39,6 +39,7 @@ class QGRAPHPLOT_QML_EXPORT QmlChartView : public QQuickItem
 
     Q_PROPERTY(qgraphplot::QGraphPlotTheme* theme READ theme WRITE setTheme NOTIFY themeChanged)
     Q_PROPERTY(QRectF plotArea READ plotArea NOTIFY transformChanged)
+    Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
 
     // ── Zoom / pan interaction (issue #64) ────────────────────────
     // When false the corresponding axis is locked: wheel/drag/rubberband
@@ -105,6 +106,10 @@ public:
 
     void setTheme(qgraphplot::QGraphPlotTheme* theme);
 
+    // Title property accessors
+    [[nodiscard]] QString title() const noexcept { return m_title; }
+    void setTitle(const QString& title);
+
     // ── Zoom / pan (issue #64) ────────────────────────────────────
     [[nodiscard]] bool zoomXEnabled() const noexcept { return m_zoomXEnabled; }
     [[nodiscard]] bool zoomYEnabled() const noexcept { return m_zoomYEnabled; }
@@ -149,6 +154,7 @@ signals:
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
     void zoomXEnabledChanged();
     void zoomYEnabledChanged();
+    void titleChanged();
 
 protected:
     QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updateData) override;
@@ -209,6 +215,7 @@ private:
 
     bool m_zoomXEnabled{true};
     bool m_zoomYEnabled{true};
+    QString m_title;
 };
 
 }  // namespace qgraphplot

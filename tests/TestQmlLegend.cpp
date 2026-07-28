@@ -158,8 +158,8 @@ void TestQmlLegend::legendItemForwardsNameColorVisibleChanges()
     QCOMPARE(item.name(), QStringLiteral("Beta"));
     QCOMPARE(nameSpy.count(), 1);
 
-    series.setColor(QColor(Qt::blue));
-    QCOMPARE(item.color(), QColor(Qt::blue));
+    series.setColor(QColor(Qt::green));
+    QCOMPARE(item.color(), QColor(Qt::green));
     QCOMPARE(colorSpy.count(), 1);
 
     series.setVisible(false);
@@ -507,7 +507,9 @@ void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
     QVERIFY2(nameText, "Legend.qml did not render the series name Text delegate");
     QQuickItem* rowDelegate = nameText->parentItem();
     QVERIFY(rowDelegate);
-    QCOMPARE(rowDelegate->isVisible(), true);
+    QQmlProperty rowVisible(rowDelegate, QStringLiteral("visible"));
+    QVERIFY(rowVisible.isValid());
+    QCOMPARE(rowVisible.read().toBool(), true);
 
     auto* legendItem = legend->items().at(0).value<QmlLegendItem*>();
     QVERIFY(legendItem);
@@ -515,7 +517,7 @@ void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
     legendItem->toggle();  // simulates the MouseArea's onClicked handler
 
     QVERIFY(!chart->seriesAt(0)->isVisible());
-    QTRY_COMPARE(rowDelegate->isVisible(), false);
+    QTRY_COMPARE(rowVisible.read().toBool(), false);
 }
 
 QTEST_MAIN(TestQmlLegend)

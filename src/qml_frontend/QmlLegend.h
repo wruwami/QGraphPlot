@@ -68,7 +68,7 @@ signals:
 
 private:
     QString m_name;
-    QColor m_color;        // default-constructed QColor is invalid (no colour set)
+    QColor m_color;  // default-constructed QColor is invalid (no colour set)
     bool m_visible{true};
     QPointer<QAbstractSeries> m_series;
 
@@ -84,7 +84,7 @@ private:
 class QGRAPHPLOT_QML_EXPORT QmlLegend : public QQuickItem
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(Legend)
 
     Q_PROPERTY(qgraphplot::QmlChartView* chart READ chart WRITE setChart NOTIFY chartChanged)
     Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
@@ -116,9 +116,14 @@ private:
     //! duplicate connections.
     void connectChartSignals();
     void rebuildItems();
+    //! Create a visual row QQuickItem (with marker and label children) for
+    //! @p item, wiring up color/name/visibility signals.  The row is owned
+    //! by this QmlLegend (QObject parent = this).
+    QQuickItem* addVisualRow(QmlLegendItem* item);
 
     QPointer<QmlChartView> m_chart;
     QVariantList m_items;
+    QList<QQuickItem*> m_rows;
     Qt::Alignment m_position{Qt::AlignTop};
     QList<QMetaObject::Connection> m_chartConnections;
 };
