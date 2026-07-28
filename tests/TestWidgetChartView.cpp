@@ -682,9 +682,15 @@ void TestWidgetChartView::repaintConnectionRewiredOnModelSwap()
 
     s->setModel(model2);  // triggers the modelChanged handler in connectRepaintModel
 
+    // New model must be subscribed: pointsInserted fires without crash.
+    QSignalSpy spy(model2, &qgraphplot::QAbstractSeriesModel::pointsInserted);
     QList<QPointF> pts{QPointF(3, 3)};
     model2->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
-    QVERIFY(true);
+    QCOMPARE(spy.count(), 1);
+
+    // Old model mutations must not crash (stale connections torn down).
+    QList<QPointF> pts1{QPointF(9, 9)};
+    model1->appendBatch(QSpan<const QPointF>(pts1.constData(), pts1.size()));
 }
 
 // ════════════════════════════════════════════════════════════════
