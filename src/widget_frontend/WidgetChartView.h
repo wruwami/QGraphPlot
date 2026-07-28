@@ -21,9 +21,13 @@
 #define WIDGETCHARTVIEW_H
 
 #include <QtCore/QHash>
+#include <QtCore/QList>
 #include <QtCore/QMetaObject>
 #include <QtCore/QPointer>
+#include <QtCore/QPointF>
 #include <QtWidgets/QWidget>
+
+class QPainter;
 
 #include "series/QAbstractSeries.h"
 #include "theme/QGraphPlotTheme.h"
@@ -32,12 +36,11 @@
 namespace qgraphplot
 {
 
-//! @brief QWidget 파생 차트 뷰 스텁.
+//! @brief QWidget 파생 차트 뷰.
 //!
-//! Phase 0.8에서는 렌더링 없이 API 표면과 빌드/링크 통합 지점만 검증.
+//! Phase 1에서는 QPainter 기반 렌더링(배경, 그리드, 시리즈, 축)을 포함.
 //! QML 프론트엔드의 QmlChartView와 동일한 속성(xMin/xMax/yMin/yMax,
 //! margin*) 및 시그널(transformChanged 등)을 노출한다 (AI.md §3.1 패리티).
-//! 실제 그리기는 Phase 1에서 추가 예정.
 class WidgetChartView : public QWidget
 {
     Q_OBJECT
@@ -156,6 +159,21 @@ private:
     //! Tears down the subscriptions wired by connectAutoScaleModel.
     void disconnectAutoScaleModel(QAbstractSeries* aSeries);
 
+    // ── Phase 1 rendering helpers (issue #70) ────────────────────
+    //! Draws grid lines for both axes using QScaleEngine tick positions.
+    void paintGrid(QPainter& painter, const QCoordinateTransform& xform) const;
+    //! Renders all visible Line-type series via WidgetLineSeries::paintSeries.
+    void paintAllSeries(QPainter& painter, const QCoordinateTransform& xform) const;
+    //! Draws axis lines, tick marks, and tick labels outside the plot area.
+    void paintAxes(QPainter& painter, const QCoordinateTransform& xform) const;
+
+    //! Subscribes to a series' model data-change signals so any insert /
+    //! remove / dataChanged from the model triggers a full repaint. Also
+    //! re-wires when the series swaps models (modelChanged).
+    void connectRepaintModel(QAbstractSeries* aSeries);
+    //! Tears down the subscriptions wired by connectRepaintModel.
+    void disconnectRepaintModel(QAbstractSeries* aSeries);
+
     // QPointer: the theme is typically owned by the application, not by the
     // view, so either object may be destroyed first.
     QPointer<QGraphPlotTheme> m_theme;
@@ -179,6 +197,9 @@ private:
     // [modelChanged conn, current-model boundsChanged conn].
     QHash<QAbstractSeries*, QPair<QMetaObject::Connection, QMetaObject::Connection>>
         m_autoScaleConnections;
+    // [modelChanged conn, dataChanged conn, pointsInserted conn, pointsRemoved conn].
+    // Index 0 is the series-level modelChanged conn; 1..N are current-model connections.
+    QHash<QAbstractSeries*, QList<QMetaObject::Connection>> m_repaintConnections;
 };
 
 }  // namespace qgraphplot

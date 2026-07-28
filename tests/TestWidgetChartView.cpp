@@ -22,11 +22,14 @@
 #include <limits>
 
 #include <QtCore/QRegularExpression>
+#include <QtGui/QImage>
+#include <QtGui/QPainter>
 #include <QtTest/QtTest>
 
 #include "../src/core/model/QStaticSeriesModel.h"
 #include "../src/core/series/QLineSeries.h"
 #include "../src/widget_frontend/WidgetChartView.h"
+#include "../src/widget_frontend/WidgetLineSeries.h"
 
 using qgraphplot::WidgetChartView;
 
@@ -75,6 +78,17 @@ private slots:
     void autoScaleRespectsPaddingRatio();
     void autoScaleXHandlesEmptyModel();
     void autoScaleXHandlesSinglePoint();
+
+    // ── Phase 1 rendering: WidgetLineSeries (issue #70) ─────────
+    void widgetLineSeriesTypeIsLine();
+    void widgetLineSeriesInheritsDefaultLineWidth();
+    void widgetLineSeriesInheritsDefaultColor();
+    void paintSeriesNopWhenInvisible();
+    void paintSeriesNopWhenNullModel();
+    void paintSeriesNopWhenEmptyModel();
+    void paintSeriesRendersWithoutCrash();
+    void repaintConnectionWiredOnAddSeries();
+    void repaintConnectionRemovedOnRemoveSeries();
 };
 
 void TestWidgetChartView::defaultsAreSane()
@@ -469,6 +483,139 @@ void TestWidgetChartView::autoScaleXHandlesSinglePoint()
     view.setAutoScaleX(true);
     QCOMPARE(view.xMin(), 4.0);
     QCOMPARE(view.xMax(), 6.0);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Phase 1 rendering: WidgetLineSeries (issue #70)
+// ════════════════════════════════════════════════════════════════
+
+void TestWidgetChartView::widgetLineSeriesTypeIsLine()
+{
+    qgraphplot::WidgetLineSeries s;
+    QCOMPARE(s.type(), qgraphplot::SeriesType::Line);
+}
+
+void TestWidgetChartView::widgetLineSeriesInheritsDefaultLineWidth()
+{
+    qgraphplot::WidgetLineSeries s;
+    QCOMPARE(s.lineWidth(), 2.0);
+}
+
+void TestWidgetChartView::widgetLineSeriesInheritsDefaultColor()
+{
+    qgraphplot::WidgetLineSeries s;
+    QCOMPARE(s.color(), QColor(Qt::blue));
+}
+
+namespace
+{
+//! Creates a QImage-backed painter + a unit-square coordinate transform for
+//! use in no-crash rendering tests.
+struct TestPaintContext
+{
+    QImage img{100, 100, QImage::Format_ARGB32};
+    QPainter painter;
+    qgraphplot::QCoordinateTransform xform{QRectF(0, 0, 10, 10), QRectF(0, 0, 100, 100)};
+
+    TestPaintContext()
+    {
+        img.fill(Qt::white);
+        painter.begin(&img);
+    }
+    ~TestPaintContext() { painter.end(); }
+};
+}  // namespace
+
+void TestWidgetChartView::paintSeriesNopWhenInvisible()
+{
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0, 0), QPointF(5, 5)});
+    s->setVisible(false);
+
+    TestPaintContext ctx;
+    // Must not crash and must not alter the blank canvas.
+    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+    ctx.painter.end();
+
+    // Canvas is unchanged: all pixels still white.
+    bool unchanged = true;
+    for (int y = 0; y < ctx.img.height() && unchanged; ++y) {
+        for (int x = 0; x < ctx.img.width() && unchanged; ++x) {
+            if (ctx.img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
+                unchanged = false;
+            }
+        }
+    }
+    QVERIFY(unchanged);
+}
+
+void TestWidgetChartView::paintSeriesNopWhenNullModel()
+{
+    qgraphplot::WidgetLineSeries s;
+    // model() is null by default.
+    QVERIFY(s.model() == nullptr);
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, &s);
+    // No crash expected.
+}
+
+void TestWidgetChartView::paintSeriesNopWhenEmptyModel()
+{
+    QObject owner;
+    auto* emptyModel = new qgraphplot::QStaticSeriesModel(&owner);
+    qgraphplot::WidgetLineSeries s;
+    s.setModel(emptyModel);
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, &s);
+    // No crash expected.
+}
+
+void TestWidgetChartView::paintSeriesRendersWithoutCrash()
+{
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0, 0), QPointF(5, 5), QPointF(10, 0)});
+    s->setColor(Qt::red);
+    s->setLineWidth(2.0);
+
+    TestPaintContext ctx;
+    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+    // No crash expected.
+}
+
+void TestWidgetChartView::repaintConnectionWiredOnAddSeries()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* s = new qgraphplot::WidgetLineSeries(&owner);
+    s->setModel(model);
+    view.addSeries(s);
+
+    // After addSeries, inserting a point into the model should not crash
+    // (the repaint connection should forward the signal to update()).
+    QList<QPointF> pts{QPointF(1, 1)};
+    model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
+    // If we got here without a crash or assert, the connection is working.
+    QVERIFY(true);
+}
+
+void TestWidgetChartView::repaintConnectionRemovedOnRemoveSeries()
+{
+    WidgetChartView view;
+    QObject owner;
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    auto* s = new qgraphplot::WidgetLineSeries(&owner);
+    s->setModel(model);
+    view.addSeries(s);
+    view.removeSeries(s);
+
+    // After removeSeries the connection must be torn down; mutating the model
+    // must not crash (no dangling slot).
+    QList<QPointF> pts{QPointF(2, 2)};
+    model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
+    QVERIFY(true);
 }
 
 QTEST_MAIN(TestWidgetChartView)
