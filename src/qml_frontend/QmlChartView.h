@@ -105,10 +105,6 @@ public:
 
     void setTheme(qgraphplot::QGraphPlotTheme* theme);
 
-    // Title property accessors
-    [[nodiscard]] QString title() const noexcept { return m_title; }
-    void setTitle(const QString& title);
-
     // ── Zoom / pan (issue #64) ────────────────────────────────────
     [[nodiscard]] bool zoomXEnabled() const noexcept { return m_zoomXEnabled; }
     [[nodiscard]] bool zoomYEnabled() const noexcept { return m_zoomYEnabled; }
@@ -151,7 +147,6 @@ signals:
     void autoScalePaddingChanged();
     void seriesAdded(qgraphplot::QAbstractSeries* aSeries);
     void seriesRemoved(qgraphplot::QAbstractSeries* aSeries);
-    void titleChanged();
     void zoomXEnabledChanged();
     void zoomYEnabledChanged();
 
@@ -211,8 +206,6 @@ private:
     // whenever the series swaps models (modelChanged fires).
     QHash<qgraphplot::QAbstractSeries*, QPair<QMetaObject::Connection, QMetaObject::Connection>>
         m_autoScaleConnections;
-
-    QString m_title;
 
     bool m_zoomXEnabled{true};
     bool m_zoomYEnabled{true};

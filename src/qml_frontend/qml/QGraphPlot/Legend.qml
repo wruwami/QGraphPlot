@@ -3,8 +3,9 @@
 // Root is GP.QmlLegend so that `Legend { chart: chartView }` in host QML
 // exposes QmlLegend's C++ properties (chart, items, position) directly.
 // The Repeater builds one Row per series: a coloured rectangle marker
-// followed by the series name.  Rows whose series is currently hidden are
-// made invisible; the MouseArea on the outer Item toggles visibility on click.
+// followed by the series name.  Clicking a row toggles the series visibility
+// via modelData.toggle(); hidden series are shown at reduced opacity so the
+// row itself remains clickable.
 import QtQuick
 import QGraphPlot 0.1 as GP
 
@@ -18,7 +19,11 @@ GP.QmlLegend {
             model: root.items
             delegate: Row {
                 spacing: 6
-                visible: modelData.visible
+                opacity: modelData.visible ? 1.0 : 0.4
+
+                TapHandler {
+                    onTapped: modelData.toggle()
+                }
 
                 Rectangle {
                     width: 12

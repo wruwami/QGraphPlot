@@ -322,6 +322,20 @@ void WidgetChartView::setZoomYEnabled(bool enabled)
     emit zoomYEnabledChanged();
 }
 
+void WidgetChartView::saveViewportIfNeeded()
+{
+    if (m_rangeSaved) {
+        return;
+    }
+    m_savedXMin = m_xMin;
+    m_savedXMax = m_xMax;
+    m_savedYMin = m_yMin;
+    m_savedYMax = m_yMax;
+    m_savedAutoScaleX = m_autoScaleX;
+    m_savedAutoScaleY = m_autoScaleY;
+    m_rangeSaved = true;
+}
+
 void WidgetChartView::wheelEvent(QWheelEvent* event)
 {
     const QRectF plot = plotArea();
@@ -335,13 +349,14 @@ void WidgetChartView::wheelEvent(QWheelEvent* event)
     const QCoordinateTransform xform = coordinateTransform();
     const QPointF dataPos = xform.toData(event->position());
 
-    if (m_zoomXEnabled) {
+    saveViewportIfNeeded();
+    if (m_zoomXEnabled && m_xMax != m_xMin) {
         const double span = m_xMax - m_xMin;
         const double newSpan = span * factor;
         const double t = (dataPos.x() - m_xMin) / span;
         setXRange(dataPos.x() - t * newSpan, dataPos.x() + (1.0 - t) * newSpan);
     }
-    if (m_zoomYEnabled) {
+    if (m_zoomYEnabled && m_yMax != m_yMin) {
         const double span = m_yMax - m_yMin;
         const double newSpan = span * factor;
         const double t = (dataPos.y() - m_yMin) / span;
@@ -360,26 +375,14 @@ void WidgetChartView::mousePressEvent(QMouseEvent* event)
     if (event->button() == Qt::LeftButton) {
         m_panning = true;
         m_panLastPixel = event->position();
-        if (!m_rangeSaved) {
-            m_savedXMin = m_xMin;
-            m_savedXMax = m_xMax;
-            m_savedYMin = m_yMin;
-            m_savedYMax = m_yMax;
-            m_rangeSaved = true;
-        }
+        saveViewportIfNeeded();
         setCursor(Qt::ClosedHandCursor);
         event->accept();
     } else if (event->button() == Qt::RightButton) {
         m_rubberbanding = true;
         m_rubberbandOrigin = event->position();
         m_rubberbandCurrent = event->position();
-        if (!m_rangeSaved) {
-            m_savedXMin = m_xMin;
-            m_savedXMax = m_xMax;
-            m_savedYMin = m_yMin;
-            m_savedYMax = m_yMax;
-            m_rangeSaved = true;
-        }
+        saveViewportIfNeeded();
         event->accept();
     } else {
         QWidget::mousePressEvent(event);
@@ -445,6 +448,12 @@ void WidgetChartView::mouseDoubleClickEvent(QMouseEvent* event)
     if (event->button() == Qt::LeftButton && m_rangeSaved) {
         setXRange(m_savedXMin, m_savedXMax);
         setYRange(m_savedYMin, m_savedYMax);
+        if (m_savedAutoScaleX != m_autoScaleX) {
+            setAutoScaleX(m_savedAutoScaleX);
+        }
+        if (m_savedAutoScaleY != m_autoScaleY) {
+            setAutoScaleY(m_savedAutoScaleY);
+        }
         m_rangeSaved = false;
         event->accept();
     } else {

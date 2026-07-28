@@ -20,6 +20,11 @@
 #include <cmath>
 
 #include <QtCore/QList>
+
+namespace
+{
+constexpr double kPi = 3.14159265358979323846;
+}  // namespace
 #include <QtWidgets/QApplication>
 
 #include "model/QStaticSeriesModel.h"
@@ -43,7 +48,7 @@ int main(int argc, char* argv[])
     QList<QPointF> points;
     points.reserve(N);
     for (int i = 0; i < N; ++i) {
-        const double x = i * 2.0 * M_PI / (N - 1);
+        const double x = i * 2.0 * kPi / (N - 1);
         points.append({x, std::sin(x)});
     }
     model->setPoints(QSpan<const QPointF>(points.constData(), points.size()));
@@ -53,10 +58,8 @@ int main(int argc, char* argv[])
     series->setModel(model);
     chart.addSeries(series);
 
-    chart.setXMin(0.0);
-    chart.setXMax(2.0 * M_PI);
-    chart.setYMin(-1.2);
-    chart.setYMax(1.2);
+    chart.setXRange(0.0, 2.0 * kPi);
+    chart.setYRange(-1.2, 1.2);
 
     chart.setWindowTitle("QGraphPlot Widget Demo — sine wave (Phase 1)");
     chart.resize(800, 600);

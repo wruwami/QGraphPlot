@@ -81,13 +81,13 @@ GP.QmlChartView {
             const dataY = root.yMax - (py - plotT) / plotH * (root.yMax - root.yMin);
 
             root._saveRange();
-            if (root.zoomXEnabled) {
+            if (root.zoomXEnabled && root.xMax !== root.xMin) {
                 const spanX = root.xMax - root.xMin;
                 const newSpanX = spanX * factor;
                 const tX = (dataX - root.xMin) / spanX;
                 root.setXRange(dataX - tX * newSpanX, dataX + (1.0 - tX) * newSpanX);
             }
-            if (root.zoomYEnabled) {
+            if (root.zoomYEnabled && root.yMax !== root.yMin) {
                 const spanY = root.yMax - root.yMin;
                 const newSpanY = spanY * factor;
                 const tY = (dataY - root.yMin) / spanY;
@@ -116,13 +116,16 @@ GP.QmlChartView {
                 root._saveRange();
             }
         }
-        onTranslationChanged: {
+        onActiveTranslationChanged: {
             if (!active) return;
             const plotW = root.width  - root.marginLeft - root.marginRight;
             const plotH = root.height - root.marginTop  - root.marginBottom;
             if (plotW <= 0 || plotH <= 0) return;
-            const dx = -translation.x / plotW * (startXMax - startXMin);
-            const dy =  translation.y / plotH * (startYMax - startYMin);
+            const spanX = startXMax - startXMin;
+            const spanY = startYMax - startYMin;
+            if (spanX === 0 || spanY === 0) return;
+            const dx = -activeTranslation.x / plotW * spanX;
+            const dy =  activeTranslation.y / plotH * spanY;
             if (root.zoomXEnabled) root.setXRange(startXMin + dx, startXMax + dx);
             if (root.zoomYEnabled) root.setYRange(startYMin + dy, startYMax + dy);
         }
@@ -165,6 +168,7 @@ GP.QmlChartView {
 
                     const xSpan = root.xMax - root.xMin;
                     const ySpan = root.yMax - root.yMin;
+                    if (xSpan === 0 || ySpan === 0) return;
                     const newXMin = root.xMin + (bx1 - plotL) / plotW * xSpan;
                     const newXMax = root.xMin + (bx2 - plotL) / plotW * xSpan;
                     const newYMax = root.yMax - (by1 - plotT) / plotH * ySpan;
@@ -197,15 +201,18 @@ GP.QmlChartView {
         border.width: 1
     }
 
+    //! Restores the viewport that was saved before the first zoom/pan gesture.
+    //! No-op when no snapshot is held.
+    function resetZoom() {
+        if (!_rangeSaved) return;
+        setXRange(_savedXMin, _savedXMax);
+        setYRange(_savedYMin, _savedYMax);
+        _rangeSaved = false;
+    }
+
     // Double-click → restore pre-zoom range
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onDoubleTapped: {
-            if (root._rangeSaved) {
-                root.setXRange(root._savedXMin, root._savedXMax);
-                root.setYRange(root._savedYMin, root._savedYMax);
-                root._rangeSaved = false;
-            }
-        }
+        onDoubleTapped: root.resetZoom()
     }
 }

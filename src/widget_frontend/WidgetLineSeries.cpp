@@ -38,6 +38,9 @@ void WidgetLineSeries::paintSeries(QPainter* painter,
                                    const QCoordinateTransform& transform,
                                    const QAbstractSeries* series)
 {
+    if (!painter || !series) {
+        return;
+    }
     if (!series->isVisible()) {
         return;
     }

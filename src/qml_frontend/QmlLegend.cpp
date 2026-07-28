@@ -42,21 +42,19 @@ void QmlLegendItem::setSeries(QAbstractSeries* series)
         m_color = series->color();
         m_visible = series->isVisible();
 
-        m_nameConn = connect(series, &QAbstractSeries::nameChanged, this,
-                             [this](QString name) {
-                                 m_name = std::move(name);
-                                 emit nameChanged();
-                             });
-        m_colorConn = connect(series, &QAbstractSeries::colorChanged, this,
-                              [this](QColor color) {
-                                  m_color = color;
-                                  emit colorChanged();
-                              });
-        m_visibleConn = connect(series, &QAbstractSeries::visibleChanged, this,
-                                [this](bool visible) {
-                                    m_visible = visible;
-                                    emit visibleChanged();
-                                });
+        m_nameConn = connect(series, &QAbstractSeries::nameChanged, this, [this](QString name) {
+            m_name = std::move(name);
+            emit nameChanged();
+        });
+        m_colorConn = connect(series, &QAbstractSeries::colorChanged, this, [this](QColor color) {
+            m_color = color;
+            emit colorChanged();
+        });
+        m_visibleConn =
+            connect(series, &QAbstractSeries::visibleChanged, this, [this](bool visible) {
+                m_visible = visible;
+                emit visibleChanged();
+            });
     } else {
         m_name = QString{};
         m_color = QColor(Qt::transparent);
@@ -133,21 +131,21 @@ void QmlLegend::connectChartSignals()
         return;
     }
 
-    m_chartConnections.append(connect(
-        m_chart, &QmlChartView::seriesAdded, this, [this](QAbstractSeries* series) {
+    m_chartConnections.append(
+        connect(m_chart, &QmlChartView::seriesAdded, this, [this](QAbstractSeries* series) {
             auto* item = new QmlLegendItem(this);
             item->setSeries(series);
             m_items.append(QVariant::fromValue(item));
             emit itemsChanged();
         }));
 
-    m_chartConnections.append(connect(
-        m_chart, &QmlChartView::seriesRemoved, this, [this](QAbstractSeries* series) {
+    m_chartConnections.append(
+        connect(m_chart, &QmlChartView::seriesRemoved, this, [this](QAbstractSeries* series) {
             for (int i = 0; i < m_items.size(); ++i) {
                 auto* item = m_items.at(i).value<QmlLegendItem*>();
                 if (item && item->series() == series) {
                     m_items.removeAt(i);
-                    delete item;
+                    item->deleteLater();
                     emit itemsChanged();
                     break;
                 }
@@ -158,7 +156,9 @@ void QmlLegend::connectChartSignals()
 void QmlLegend::rebuildItems()
 {
     for (const auto& var : m_items) {
-        delete var.value<QmlLegendItem*>();
+        if (auto* p = var.value<QmlLegendItem*>()) {
+            p->deleteLater();
+        }
     }
     m_items.clear();
 

@@ -532,16 +532,19 @@ void TestWidgetChartView::paintSeriesNopWhenInvisible()
     auto* s = makeSeriesWith(owner, {QPointF(0, 0), QPointF(5, 5)});
     s->setVisible(false);
 
-    TestPaintContext ctx;
-    // Must not crash and must not alter the blank canvas.
-    qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
-    ctx.painter.end();
+    QImage img;
+    {
+        TestPaintContext ctx;
+        // Must not crash and must not alter the blank canvas.
+        qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }  // ctx destructor calls painter.end() here
 
     // Canvas is unchanged: all pixels still white.
     bool unchanged = true;
-    for (int y = 0; y < ctx.img.height() && unchanged; ++y) {
-        for (int x = 0; x < ctx.img.width() && unchanged; ++x) {
-            if (ctx.img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
+    for (int y = 0; y < img.height() && unchanged; ++y) {
+        for (int x = 0; x < img.width() && unchanged; ++x) {
+            if (img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
                 unchanged = false;
             }
         }
@@ -615,7 +618,7 @@ void TestWidgetChartView::repaintConnectionRemovedOnRemoveSeries()
     // must not crash (no dangling slot).
     QList<QPointF> pts{QPointF(2, 2)};
     model->appendBatch(QSpan<const QPointF>(pts.constData(), pts.size()));
-    QVERIFY(true);
+    delete s;  // removeSeries() detached ownership from both view and owner.
 }
 
 QTEST_MAIN(TestWidgetChartView)

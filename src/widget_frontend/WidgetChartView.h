@@ -196,6 +196,12 @@ private:
     //! Tears down the subscriptions wired by connectRepaintModel.
     void disconnectRepaintModel(QAbstractSeries* aSeries);
 
+    //! Snapshot the current viewport (ranges + autoScale flags) into the
+    //! m_saved* members the first time an interaction starts. No-op when a
+    //! snapshot is already held.  Used by wheel/pan/rubberband so double-click
+    //! always restores the pre-interaction state.
+    void saveViewportIfNeeded();
+
     // QPointer: the theme is typically owned by the application, not by the
     // view, so either object may be destroyed first.
     QPointer<QGraphPlotTheme> m_theme;
@@ -235,11 +241,13 @@ private:
     QPointF m_rubberbandOrigin;
     QPointF m_rubberbandCurrent;
 
-    // Range saved before zoom starts (for double-click reset)
+    // Range + autoScale flags saved before zoom starts (for double-click reset)
     double m_savedXMin{0.0};
     double m_savedXMax{10.0};
     double m_savedYMin{0.0};
     double m_savedYMax{10.0};
+    bool m_savedAutoScaleX{false};
+    bool m_savedAutoScaleY{false};
     bool m_rangeSaved{false};
 };
 
