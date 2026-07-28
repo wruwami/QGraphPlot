@@ -15,6 +15,13 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 ## [Unreleased]
 
 ### Added
+- `WidgetScatterSeries` — QPainter scatter renderer for the Widget frontend
+  (Circle via `drawEllipse`, Square via `fillRect`; `markerSize` /
+  `markerShape` / opacity parity with `QmlScatterSeries`).
+  `WidgetChartView::paintAllSeries` dispatches `SeriesType::Scatter`
+  (#101, #96, AI.md §3.1).
+- Unit tests for Widget scatter in `TestWidgetChartView.cpp` (type,
+  defaults, no-op edges, both shapes, opacity, paint-event integration).
 - Axis auto-range (auto-scale) on both `QmlChartView` and `WidgetChartView`
   (issue #63): new `autoScaleX` / `autoScaleY` (bool, default false for
   backward compat) and `autoScalePadding` (double, default 0.05 = 5%)
@@ -59,6 +66,8 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 - Unit tests for `setOpacity` validation (reject / accept / no-op-on-same).
 
 ### Changed
+- README Status/Features updated for Widget Line + Scatter parity; removed
+  obsolete Phase 1 Line-only note (#96, #95).
 - `QmlLineSeries` now composes a core `QLineSeries` instead of duplicating
   the property/validation/signal layer. All property state, change-guards
   and validation live in `QAbstractSeries` (single source of truth); QML
@@ -81,7 +90,8 @@ See [`VERSIONING.md`](VERSIONING.md) for the detailed policy.
 - _(none — API surface not yet public)_
 
 ### Fixed
-- _(nothing yet)_
+- Widget `paintAllSeries` no longer silently skips `SeriesType::Scatter`
+  (#101, #96).
 
 ---
 
