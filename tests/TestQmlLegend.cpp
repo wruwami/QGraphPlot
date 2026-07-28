@@ -530,23 +530,22 @@ void TestQmlLegend::legendQmlPositionBottomRightPlacesColumn()
     // issue #93: setting position must move the legend column on-screen.
     QQmlEngine engine;
     QString error;
-    QScopedPointer<QObject> root(createQmlObject(
-        QByteArrayLiteral(
-            "import QtQuick\nimport QGraphPlot\nItem {\n"
-            "  width: 400; height: 300\n"
-            "  QmlChartView { id: chartView; objectName: \"chart\"\n"
-            "    QmlLineSeries { name: \"Series A\" }\n"
-            "  }\n"
-            "  Legend {\n"
-            "    id: legendItem\n"
-            "    objectName: \"legend\"\n"
-            "    chart: chartView\n"
-            "    anchors.fill: parent\n"
-            "    position: Qt.AlignTop\n"
-            "  }\n"
-            "}\n"),
-        engine,
-        &error));
+    QScopedPointer<QObject> root(
+        createQmlObject(QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem {\n"
+                                          "  width: 400; height: 300\n"
+                                          "  QmlChartView { id: chartView; objectName: \"chart\"\n"
+                                          "    QmlLineSeries { name: \"Series A\" }\n"
+                                          "  }\n"
+                                          "  Legend {\n"
+                                          "    id: legendItem\n"
+                                          "    objectName: \"legend\"\n"
+                                          "    chart: chartView\n"
+                                          "    anchors.fill: parent\n"
+                                          "    position: Qt.AlignTop\n"
+                                          "  }\n"
+                                          "}\n"),
+                        engine,
+                        &error));
     QVERIFY2(root, qPrintable(error));
 
     auto* legend = root->findChild<QmlLegend*>(QStringLiteral("legend"));
