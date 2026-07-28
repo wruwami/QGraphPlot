@@ -143,6 +143,19 @@ private slots:
     void autoScaleRespectsPaddingRatio();
     void autoScaleXHandlesEmptyModel();
     void autoScaleXHandlesSinglePoint();
+
+    // ── Zoom / pan API (issue #64) ───────────────────────────────
+    void zoomXEnabledDefaultIsTrue();
+    void zoomYEnabledDefaultIsTrue();
+    void setZoomXEnabledToggle();
+    void setZoomYEnabledToggle();
+    void setXRangeAcceptsValidRange();
+    void setXRangeRejectsInvalidRange();
+    void setXRangeDisablesAutoScaleX();
+    void setXRangeEmitsTransformChanged();
+    void setYRangeAcceptsValidRange();
+    void setYRangeRejectsInvalidRange();
+    void setYRangeDisablesAutoScaleY();
 };
 
 void TestQmlChartView::defaultsAreSane()
@@ -884,6 +897,152 @@ void TestQmlChartView::autoScaleXHandlesSinglePoint()
     // Single x coordinate → expanded by unit on each side.
     QCOMPARE(view.xMin(), 4.0);
     QCOMPARE(view.xMax(), 6.0);
+}
+
+// ════════════════════════════════════════════════════════════════
+// Zoom / pan API (issue #64)
+//
+// setXRange / setYRange: atomic dual-setter that validates the pair and
+// disables autoScale for the axis. zoomXEnabled / zoomYEnabled: flags
+// that control whether wheel/drag gestures affect the axis (API parity
+// with WidgetChartView, AI.md §3.1).
+// ════════════════════════════════════════════════════════════════
+
+void TestQmlChartView::zoomXEnabledDefaultIsTrue()
+{
+    QmlChartView view;
+    QCOMPARE(view.zoomXEnabled(), true);
+}
+
+void TestQmlChartView::zoomYEnabledDefaultIsTrue()
+{
+    QmlChartView view;
+    QCOMPARE(view.zoomYEnabled(), true);
+}
+
+void TestQmlChartView::setZoomXEnabledToggle()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::zoomXEnabledChanged);
+    view.setZoomXEnabled(false);
+    QCOMPARE(view.zoomXEnabled(), false);
+    QCOMPARE(spy.count(), 1);
+    view.setZoomXEnabled(false);  // no-op
+    QCOMPARE(spy.count(), 1);
+    view.setZoomXEnabled(true);
+    QCOMPARE(view.zoomXEnabled(), true);
+    QCOMPARE(spy.count(), 2);
+}
+
+void TestQmlChartView::setZoomYEnabledToggle()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::zoomYEnabledChanged);
+    view.setZoomYEnabled(false);
+    QCOMPARE(view.zoomYEnabled(), false);
+    QCOMPARE(spy.count(), 1);
+    view.setZoomYEnabled(false);  // no-op
+    QCOMPARE(spy.count(), 1);
+}
+
+void TestQmlChartView::setXRangeAcceptsValidRange()
+{
+    QmlChartView view;
+    QSignalSpy xMinSpy(&view, &QmlChartView::xMinChanged);
+    QSignalSpy xMaxSpy(&view, &QmlChartView::xMaxChanged);
+
+    view.setXRange(-5.0, 15.0);
+
+    QCOMPARE(view.xMin(), -5.0);
+    QCOMPARE(view.xMax(), 15.0);
+    QCOMPARE(xMinSpy.count(), 1);
+    QCOMPARE(xMaxSpy.count(), 1);
+}
+
+void TestQmlChartView::setXRangeRejectsInvalidRange()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::xMinChanged);
+
+    view.setXRange(5.0, -5.0);  // inverted
+    view.setXRange(3.0, 3.0);   // equal
+    view.setXRange(std::numeric_limits<double>::quiet_NaN(), 10.0);
+    view.setXRange(0.0, std::numeric_limits<double>::infinity());
+
+    QCOMPARE(view.xMin(), 0.0);  // defaults unchanged
+    QCOMPARE(view.xMax(), 10.0);
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestQmlChartView::setXRangeDisablesAutoScaleX()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(4.0, 1.0)});
+    view.addSeries(s);
+    view.setAutoScaleX(true);
+    QCOMPARE(view.autoScaleX(), true);
+
+    QSignalSpy autoSpy(&view, &QmlChartView::autoScaleXChanged);
+    view.setXRange(1.0, 3.0);
+
+    QCOMPARE(view.autoScaleX(), false);
+    QCOMPARE(autoSpy.count(), 1);
+    QCOMPARE(view.xMin(), 1.0);
+    QCOMPARE(view.xMax(), 3.0);
+}
+
+void TestQmlChartView::setXRangeEmitsTransformChanged()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::transformChanged);
+    view.setXRange(2.0, 8.0);
+    QVERIFY(spy.count() >= 1);
+}
+
+void TestQmlChartView::setYRangeAcceptsValidRange()
+{
+    QmlChartView view;
+    QSignalSpy yMinSpy(&view, &QmlChartView::yMinChanged);
+    QSignalSpy yMaxSpy(&view, &QmlChartView::yMaxChanged);
+
+    view.setYRange(-2.0, 2.0);
+
+    QCOMPARE(view.yMin(), -2.0);
+    QCOMPARE(view.yMax(), 2.0);
+    QCOMPARE(yMinSpy.count(), 1);
+    QCOMPARE(yMaxSpy.count(), 1);
+}
+
+void TestQmlChartView::setYRangeRejectsInvalidRange()
+{
+    QmlChartView view;
+    QSignalSpy spy(&view, &QmlChartView::yMinChanged);
+
+    view.setYRange(5.0, -5.0);  // inverted
+    view.setYRange(2.0, 2.0);   // equal
+
+    QCOMPARE(view.yMin(), 0.0);  // defaults unchanged
+    QCOMPARE(view.yMax(), 10.0);
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestQmlChartView::setYRangeDisablesAutoScaleY()
+{
+    QmlChartView view;
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(0.0, 0.0), QPointF(1.0, 4.0)});
+    view.addSeries(s);
+    view.setAutoScaleY(true);
+    QCOMPARE(view.autoScaleY(), true);
+
+    QSignalSpy autoSpy(&view, &QmlChartView::autoScaleYChanged);
+    view.setYRange(-1.0, 5.0);
+
+    QCOMPARE(view.autoScaleY(), false);
+    QCOMPARE(autoSpy.count(), 1);
+    QCOMPARE(view.yMin(), -1.0);
+    QCOMPARE(view.yMax(), 5.0);
 }
 
 QTEST_MAIN(TestQmlChartView)

@@ -204,6 +204,18 @@ Window {
             theme: chartTheme
             onClicked: rootWindow.scatterShapeSquare = !rootWindow.scatterShapeSquare
         }
+
+        DemoButton {
+            text: "Reset Zoom"
+            theme: chartTheme
+            onClicked: {
+                if (chart._rangeSaved) {
+                    chart.setXRange(chart._savedXMin, chart._savedXMax);
+                    chart.setYRange(chart._savedYMin, chart._savedYMax);
+                    chart._rangeSaved = false;
+                }
+            }
+        }
     }
 
     Rectangle {
