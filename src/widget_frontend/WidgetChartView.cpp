@@ -22,8 +22,8 @@
 #include <QtCore/QLoggingCategory>
 #include <QtCore/qmath.h>
 #include <QtGui/QFont>
-#include <QtGui/QMouseEvent>
 #include <QtGui/QFontMetrics>
+#include <QtGui/QMouseEvent>
 #include <QtGui/QPainter>
 #include <QtGui/QPen>
 #include <QtGui/QWheelEvent>
@@ -740,7 +740,8 @@ void WidgetChartView::paintAxes(QPainter& painter, const QCoordinateTransform& x
         painter.drawLine(QPointF(plot.left() - tickLen, py), QPointF(plot.left(), py));
         painter.setPen(textColor);
         const int labelW = fm.horizontalAdvance(tick.label) + 4;
-        const QRectF labelRect(plot.left() - tickLen - labelW - 2.0, py - labelH / 2.0, labelW, labelH);
+        const QRectF labelRect(
+            plot.left() - tickLen - labelW - 2.0, py - labelH / 2.0, labelW, labelH);
         painter.drawText(labelRect, Qt::AlignRight | Qt::AlignVCenter, tick.label);
     }
 }
