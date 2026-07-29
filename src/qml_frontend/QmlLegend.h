@@ -81,10 +81,14 @@ private:
 //! collection.  Declare it as a child of (or alongside) a ChartView in QML
 //! and set the `chart` property; the legend tracks series additions and
 //! removals automatically.
+//!
+//! Registered as **QmlLegend** (not Legend). The public QML type is the
+//! `Legend.qml` skin, which wraps this type and applies `position` layout
+//! (issue #93) — same pattern as ChartView / LineSeries.
 class QGRAPHPLOT_QML_EXPORT QmlLegend : public QQuickItem
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(Legend)
+    QML_NAMED_ELEMENT(QmlLegend)
 
     Q_PROPERTY(qgraphplot::QmlChartView* chart READ chart WRITE setChart NOTIFY chartChanged)
     Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)

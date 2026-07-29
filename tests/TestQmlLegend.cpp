@@ -18,7 +18,7 @@
 //! @brief Unit tests for qgraphplot::QmlLegendItem and qgraphplot::QmlLegend
 //!        (per-series legend entries auto-populated from a QmlChartView's
 //!        series collection, issue #65), plus QML-level integration tests
-//!        for Legend.qml's rendering/toggle behavior.
+//!        for Legend.qml's rendering/toggle behavior and position layout (#93).
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -44,8 +44,12 @@ namespace
 
 QString qmlImportPath()
 {
-    return QDir::cleanPath(
-        QDir(QCoreApplication::applicationDirPath()).filePath("../../src/qml_frontend"));
+    // The QML plugin directory (QGraphPlot/) is staged next to the test binary
+    // via CMake POST_BUILD (see tests/CMakeLists.txt).  QQmlEngine adds
+    // applicationDirPath() to its import paths by default, but an explicit
+    // addImportPath call here ensures the module is found regardless of how
+    // the engine's default list is populated.
+    return QCoreApplication::applicationDirPath();
 }
 
 QObject* createQmlObject(const QByteArray& source, QQmlEngine& engine, QString* errorString)
@@ -74,6 +78,36 @@ QQuickItem* findTextItem(QQuickItem* root, const QString& text)
     return nullptr;
 }
 
+//! Prefer the QML Legend.qml Text row (Rectangle marker sibling) over the
+//! C++ visual-row label, so toggle/position tests exercise the public skin.
+QQuickItem* findQmlLegendNameText(QQuickItem* legend, const QString& text)
+{
+    const auto children = legend->findChildren<QQuickItem*>();
+    for (QQuickItem* child : children) {
+        QQmlProperty textProp(child, QStringLiteral("text"));
+        if (!textProp.isValid() || textProp.read().toString() != text) {
+            continue;
+        }
+        QQuickItem* parent = child->parentItem();
+        if (!parent) {
+            continue;
+        }
+        // QML Row delegate: first child is a Rectangle with a "color" property
+        // and typically a border (C++ marker is also colored but has no border).
+        const auto siblings = parent->childItems();
+        if (siblings.isEmpty()) {
+            continue;
+        }
+        QQuickItem* marker = siblings.first();
+        QQmlProperty borderProp(marker, QStringLiteral("border"));
+        if (borderProp.isValid()) {
+            return child;
+        }
+    }
+    // Fallback: any matching text item (C++ visual row).
+    return findTextItem(legend, text);
+}
+
 }  // namespace
 
 class TestQmlLegend : public QObject
@@ -81,7 +115,6 @@ class TestQmlLegend : public QObject
     Q_OBJECT
 
 private slots:
-    // ── QmlLegendItem ───────────────────────────────────────────
     void legendItemDefaultStateIsEmpty();
     void legendItemSetSeriesPopulatesProperties();
     void legendItemForwardsNameColorVisibleChanges();
@@ -92,7 +125,6 @@ private slots:
     void legendItemSetSeriesDisconnectsPreviousSeries();
     void legendItemSurvivesSeriesDestruction();
 
-    // ── QmlLegend ────────────────────────────────────────────────
     void legendDefaultsAreEmpty();
     void legendSetChartPopulatesItemsFromExistingSeries();
     void legendSetChartSameValueIsNoOp();
@@ -103,14 +135,10 @@ private slots:
     void legendSetPositionSameValueIsNoOp();
     void legendReparentingPreservesItemConsistency();
 
-    // ── Legend.qml integration ──────────────────────────────────
     void legendQmlRendersSeriesNameAndColor();
-    void legendQmlTogglingItemHidesRowDelegate();
+    void legendQmlTogglingItemDimsRowDelegate();
+    void legendQmlPositionBottomRightPlacesColumn();
 };
-
-// ════════════════════════════════════════════════════════════════
-// QmlLegendItem
-// ════════════════════════════════════════════════════════════════
 
 void TestQmlLegend::legendItemDefaultStateIsEmpty()
 {
@@ -169,7 +197,7 @@ void TestQmlLegend::legendItemForwardsNameColorVisibleChanges()
 
 void TestQmlLegend::legendItemToggleFlipsSeriesVisibility()
 {
-    QLineSeries series;  // default visible == true
+    QLineSeries series;
     QmlLegendItem item;
     item.setSeries(&series);
     QVERIFY(item.visible());
@@ -186,7 +214,7 @@ void TestQmlLegend::legendItemToggleFlipsSeriesVisibility()
 void TestQmlLegend::legendItemToggleWithoutSeriesIsSafeNoOp()
 {
     QmlLegendItem item;
-    item.toggle();  // must not crash when no series is attached
+    item.toggle();
     QCOMPARE(item.series(), nullptr);
     QCOMPARE(item.visible(), true);
 }
@@ -198,12 +226,12 @@ void TestQmlLegend::legendItemSetSeriesSameValueIsNoOp()
     item.setSeries(&series);
 
     QSignalSpy nameSpy(&item, &QmlLegendItem::nameChanged);
-    item.setSeries(&series);  // identical pointer
+    item.setSeries(&series);
     QCOMPARE(nameSpy.count(), 0);
 
     QmlLegendItem neverAssigned;
     QSignalSpy neverSpy(&neverAssigned, &QmlLegendItem::nameChanged);
-    neverAssigned.setSeries(nullptr);  // already null -> null is a no-op too
+    neverAssigned.setSeries(nullptr);
     QCOMPARE(neverSpy.count(), 0);
 }
 
@@ -246,7 +274,7 @@ void TestQmlLegend::legendItemSetSeriesDisconnectsPreviousSeries()
 
     QSignalSpy nameSpy(&item, &QmlLegendItem::nameChanged);
 
-    s1.setName(QStringLiteral("FirstChanged"));  // must no longer affect item
+    s1.setName(QStringLiteral("FirstChanged"));
     QCOMPARE(nameSpy.count(), 0);
     QCOMPARE(item.name(), QStringLiteral("Second"));
 
@@ -264,15 +292,9 @@ void TestQmlLegend::legendItemSurvivesSeriesDestruction()
 
     delete series;
 
-    // QPointer<QAbstractSeries> auto-nulls on destruction; toggle() must
-    // remain a safe no-op afterward (regression guard).
     QCOMPARE(item.series(), nullptr);
     item.toggle();
 }
-
-// ════════════════════════════════════════════════════════════════
-// QmlLegend
-// ════════════════════════════════════════════════════════════════
 
 void TestQmlLegend::legendDefaultsAreEmpty()
 {
@@ -405,12 +427,6 @@ void TestQmlLegend::legendSetPositionSameValueIsNoOp()
 
 void TestQmlLegend::legendReparentingPreservesItemConsistency()
 {
-    // QmlLegend::itemChange re-runs connectChartSignals() on every
-    // ItemParentHasChanged. connectChartSignals() disconnects and resets all
-    // existing chart connections before re-subscribing, so no duplicates arise.
-    // This regression test verifies that connections remain active and
-    // rebuildItems() produces a correct, non-duplicated item list after
-    // reparenting.
     QmlChartView chart;
     auto* s1 = new QLineSeries(&chart);
     chart.addSeries(s1);
@@ -433,10 +449,6 @@ void TestQmlLegend::legendReparentingPreservesItemConsistency()
     QCOMPARE(item0->series(), s1);
     QCOMPARE(item1->series(), s2);
 }
-
-// ════════════════════════════════════════════════════════════════
-// Legend.qml integration
-// ════════════════════════════════════════════════════════════════
 
 void TestQmlLegend::legendQmlRendersSeriesNameAndColor()
 {
@@ -464,11 +476,9 @@ void TestQmlLegend::legendQmlRendersSeriesNameAndColor()
     QTRY_COMPARE(legend->items().size(), 1);
     QCOMPARE(legend->chart(), chart);
 
-    QQuickItem* nameText = findTextItem(legend, QStringLiteral("Series A"));
+    QQuickItem* nameText = findQmlLegendNameText(legend, QStringLiteral("Series A"));
     QVERIFY2(nameText, "Legend.qml did not render the series name Text delegate");
 
-    // Per Legend.qml, the Row delegate's direct children are
-    // [Rectangle marker, Text name] — the marker is the Text's sibling.
     QQuickItem* rowDelegate = nameText->parentItem();
     QVERIFY(rowDelegate);
     const auto rowChildren = rowDelegate->childItems();
@@ -479,8 +489,10 @@ void TestQmlLegend::legendQmlRendersSeriesNameAndColor()
     QCOMPARE(colorProp.read().value<QColor>(), QColor(Qt::red));
 }
 
-void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
+void TestQmlLegend::legendQmlTogglingItemDimsRowDelegate()
 {
+    // Legend.qml uses opacity (not visible=false) so the row stays interactive.
+    // Prefer the QML Text delegate so we do not assert on C++ visual rows.
     QQmlEngine engine;
     QString error;
     QScopedPointer<QObject> root(createQmlObject(
@@ -503,7 +515,7 @@ void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
     QVERIFY(legend);
     QTRY_COMPARE(legend->items().size(), 1);
 
-    QQuickItem* nameText = findTextItem(legend, QStringLiteral("Series A"));
+    QQuickItem* nameText = findQmlLegendNameText(legend, QStringLiteral("Series A"));
     QVERIFY2(nameText, "Legend.qml did not render the series name Text delegate");
     QQuickItem* rowDelegate = nameText->parentItem();
     QVERIFY(rowDelegate);
@@ -514,10 +526,55 @@ void TestQmlLegend::legendQmlTogglingItemHidesRowDelegate()
     auto* legendItem = legend->items().at(0).value<QmlLegendItem*>();
     QVERIFY(legendItem);
 
-    legendItem->toggle();  // simulates the MouseArea's onClicked handler
+    legendItem->toggle();
 
     QVERIFY(!chart->seriesAt(0)->isVisible());
-    QTRY_COMPARE(rowVisible.read().toBool(), false);
+    QTRY_VERIFY(rowVisible.read().toBool());
+    QQmlProperty rowOpacity(rowDelegate, QStringLiteral("opacity"));
+    QVERIFY(rowOpacity.isValid());
+    QTRY_VERIFY(rowOpacity.read().toDouble() < 0.5);
+}
+
+void TestQmlLegend::legendQmlPositionBottomRightPlacesColumn()
+{
+    // issue #93: setting position must move the legend column on-screen.
+    QQmlEngine engine;
+    QString error;
+    QScopedPointer<QObject> root(
+        createQmlObject(QByteArrayLiteral("import QtQuick\nimport QGraphPlot\nItem {\n"
+                                          "  width: 400; height: 300\n"
+                                          "  QmlChartView { id: chartView; objectName: \"chart\"\n"
+                                          "    QmlLineSeries { name: \"Series A\" }\n"
+                                          "  }\n"
+                                          "  Legend {\n"
+                                          "    id: legendItem\n"
+                                          "    objectName: \"legend\"\n"
+                                          "    chart: chartView\n"
+                                          "    anchors.fill: parent\n"
+                                          "    position: Qt.AlignTop\n"
+                                          "  }\n"
+                                          "}\n"),
+                        engine,
+                        &error));
+    QVERIFY2(root, qPrintable(error));
+
+    auto* legend = root->findChild<QmlLegend*>(QStringLiteral("legend"));
+    QVERIFY(legend);
+    QTRY_COMPARE(legend->items().size(), 1);
+
+    // Legend.qml registers the Column as objectName legendColumn.
+    QQuickItem* column = nullptr;
+    QTRY_VERIFY((column = legend->findChild<QQuickItem*>(QStringLiteral("legendColumn"))));
+
+    // Default AlignTop → top-left of the legend bounds.
+    QTRY_VERIFY(column->y() < 20.0);
+    QTRY_VERIFY(column->x() < 20.0);
+
+    legend->setPosition(Qt::AlignBottom | Qt::AlignRight);
+    QCOMPARE(legend->position(), Qt::Alignment(Qt::AlignBottom | Qt::AlignRight));
+
+    QTRY_VERIFY(column->y() + column->height() > legend->height() - 30.0);
+    QTRY_VERIFY(column->x() + column->width() > legend->width() - 30.0);
 }
 
 QTEST_MAIN(TestQmlLegend)
