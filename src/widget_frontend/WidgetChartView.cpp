@@ -23,6 +23,7 @@
 #include <QtCore/qmath.h>
 #include <QtGui/QFont>
 #include <QtGui/QMouseEvent>
+#include <QtGui/QFontMetrics>
 #include <QtGui/QPainter>
 #include <QtGui/QPen>
 #include <QtGui/QWheelEvent>
@@ -710,6 +711,8 @@ void WidgetChartView::paintAxes(QPainter& painter, const QCoordinateTransform& x
         font.setPixelSize(11);
     }
     painter.setFont(font);
+    const QFontMetrics fm(font);
+    const int labelH = fm.height();
 
     QPen axisPen(axisColor);
     axisPen.setWidthF(axisLineWidth);
@@ -725,7 +728,8 @@ void WidgetChartView::paintAxes(QPainter& painter, const QCoordinateTransform& x
         painter.setPen(axisPen);
         painter.drawLine(QPointF(px, plot.bottom()), QPointF(px, plot.bottom() + tickLen));
         painter.setPen(textColor);
-        const QRectF labelRect(px - 30.0, plot.bottom() + tickLen + 2.0, 60.0, 16.0);
+        const int labelW = fm.horizontalAdvance(tick.label) + 4;
+        const QRectF labelRect(px - labelW / 2.0, plot.bottom() + tickLen + 2.0, labelW, labelH);
         painter.drawText(labelRect, Qt::AlignHCenter | Qt::AlignTop, tick.label);
     }
 
@@ -735,7 +739,8 @@ void WidgetChartView::paintAxes(QPainter& painter, const QCoordinateTransform& x
         painter.setPen(axisPen);
         painter.drawLine(QPointF(plot.left() - tickLen, py), QPointF(plot.left(), py));
         painter.setPen(textColor);
-        const QRectF labelRect(plot.left() - tickLen - 42.0, py - 8.0, 40.0, 16.0);
+        const int labelW = fm.horizontalAdvance(tick.label) + 4;
+        const QRectF labelRect(plot.left() - tickLen - labelW - 2.0, py - labelH / 2.0, labelW, labelH);
         painter.drawText(labelRect, Qt::AlignRight | Qt::AlignVCenter, tick.label);
     }
 }
