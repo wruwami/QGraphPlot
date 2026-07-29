@@ -44,16 +44,12 @@ namespace
 
 QString qmlImportPath()
 {
-    // QGRAPHPLOT_QML_PLUGIN_DIR is baked in by CMake (see tests/CMakeLists.txt)
-    // and points to <build>/src/qml_frontend, the directory that contains the
-    // Qt-generated QGraphPlot/qmldir (plus the shared plugin).  Without it the
-    // relative fallback resolves to the SOURCE tree, which has no qmldir.
-#ifdef QGRAPHPLOT_QML_PLUGIN_DIR
-    return QDir::cleanPath(QLatin1String(QGRAPHPLOT_QML_PLUGIN_DIR));
-#else
-    return QDir::cleanPath(
-        QDir(QCoreApplication::applicationDirPath()).filePath("../../src/qml_frontend"));
-#endif
+    // The QML plugin directory (QGraphPlot/) is staged next to the test binary
+    // via CMake POST_BUILD (see tests/CMakeLists.txt).  QQmlEngine adds
+    // applicationDirPath() to its import paths by default, but an explicit
+    // addImportPath call here ensures the module is found regardless of how
+    // the engine's default list is populated.
+    return QCoreApplication::applicationDirPath();
 }
 
 QObject* createQmlObject(const QByteArray& source, QQmlEngine& engine, QString* errorString)

@@ -92,16 +92,15 @@ if(TARGET qml_frontend)
         SOURCES TestQmlLegend.cpp
         LIBRARIES qml_frontend Qt6::Quick Qt6::Qml
     )
-    # QML file types (Legend.qml) live in the generated plugin, not the backing
-    # library.  qt_import_qml_plugins emits Q_IMPORT_QML_PLUGIN so the static
-    # plugin is included in the test binary and its qmldir/resources are found.
-    qt_import_qml_plugins(TestQmlLegend)
-    # The QML plugin (shared) is only discoverable at runtime if the engine's
-    # import path points to the BUILD tree, where Qt generates QGraphPlot/qmldir.
-    # Bake the absolute path in at compile time so it works on all platforms and
-    # build-directory layouts.
-    target_compile_definitions(TestQmlLegend PRIVATE
-        "QGRAPHPLOT_QML_PLUGIN_DIR=\"${CMAKE_BINARY_DIR}/src/qml_frontend\""
+    # Legend.qml lives in the shared QML plugin (qml_frontendplugin), not in
+    # the backing library.  QQmlEngine automatically adds applicationDirPath()
+    # to its import paths, so staging the plugin directory (qmldir + .so/.dll)
+    # next to the test binary makes import QGraphPlot find Legend at run time.
+    add_custom_command(TARGET TestQmlLegend POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "$<TARGET_FILE_DIR:qml_frontendplugin>"
+            "$<TARGET_FILE_DIR:TestQmlLegend>/QGraphPlot"
+        COMMENT "Stage QGraphPlot QML plugin alongside TestQmlLegend"
     )
 endif()
 
