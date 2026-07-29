@@ -96,6 +96,13 @@ if(TARGET qml_frontend)
     # library.  qt_import_qml_plugins emits Q_IMPORT_QML_PLUGIN so the static
     # plugin is included in the test binary and its qmldir/resources are found.
     qt_import_qml_plugins(TestQmlLegend)
+    # The QML plugin (shared) is only discoverable at runtime if the engine's
+    # import path points to the BUILD tree, where Qt generates QGraphPlot/qmldir.
+    # Bake the absolute path in at compile time so it works on all platforms and
+    # build-directory layouts.
+    target_compile_definitions(TestQmlLegend PRIVATE
+        "QGRAPHPLOT_QML_PLUGIN_DIR=\"${CMAKE_BINARY_DIR}/src/qml_frontend\""
+    )
 endif()
 
 # ── TestWidgetChartView ───────────────────────────────────────
