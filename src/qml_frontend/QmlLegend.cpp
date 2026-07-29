@@ -237,7 +237,6 @@ void QmlLegend::rebuildItems()
 QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
 {
     auto* row = new QQuickItem(this);
-    row->setVisible(item->visible());
 
     auto* marker = new QmlLegendMarker(row);
     marker->setColor(item->color());
@@ -250,9 +249,6 @@ QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
     });
     connect(item, &QmlLegendItem::nameChanged, label, [item, label]() {
         label->setText(item->name());
-    });
-    connect(item, &QmlLegendItem::visibleChanged, row, [item, row]() {
-        row->setVisible(item->visible());
     });
 
     return row;
