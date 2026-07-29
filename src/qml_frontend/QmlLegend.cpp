@@ -250,6 +250,9 @@ QQuickItem* QmlLegend::addVisualRow(QmlLegendItem* item)
     connect(item, &QmlLegendItem::nameChanged, label, [item, label]() {
         label->setText(item->name());
     });
+    connect(item, &QmlLegendItem::visibleChanged, row, [item, row]() {
+        row->setOpacity(item->visible() ? 1.0 : 0.45);
+    });
 
     return row;
 }
