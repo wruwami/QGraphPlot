@@ -1,5 +1,4 @@
 import QtQuick
-import QGraphPlot 0.1 as GP
 
 //! Public QML legend type — skins the C++ QmlLegend and places the entry
 //! column according to `position` (Qt::Alignment). Same pattern as
@@ -7,7 +6,7 @@ import QGraphPlot 0.1 as GP
 //!
 //! Combine vertical and horizontal flags, e.g. `Qt.AlignBottom | Qt.AlignRight`.
 //! Default is Qt.AlignTop (top-left). See issue #93.
-GP.QmlLegend {
+QmlLegend {
     id: root
 
     readonly property bool _alignTop: (root.position & Qt.AlignTop) !== 0

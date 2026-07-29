@@ -92,6 +92,10 @@ if(TARGET qml_frontend)
         SOURCES TestQmlLegend.cpp
         LIBRARIES qml_frontend Qt6::Quick Qt6::Qml
     )
+    # QML file types (Legend.qml) live in the generated plugin, not the backing
+    # library.  qt_import_qml_plugins emits Q_IMPORT_QML_PLUGIN so the static
+    # plugin is included in the test binary and its qmldir/resources are found.
+    qt_import_qml_plugins(TestQmlLegend)
 endif()
 
 # ── TestWidgetChartView ───────────────────────────────────────
