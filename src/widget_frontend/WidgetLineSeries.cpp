@@ -91,10 +91,12 @@ void WidgetLineSeries::paintSeries(QPainter* painter,
     // standard layout for time series), find the visible subrange in O(log N)
     // and extend one point beyond each edge so that line segments crossing
     // the viewport boundary are drawn correctly.
-    // Detection heuristic: span.front().x() <= span.back().x() is a
-    // necessary (not sufficient) condition for ascending order; it correctly
-    // handles the common case without requiring a full O(N) sort check.
-    if (count >= 2 && span[0].x() <= span[count - 1].x()) {
+    // Monotonicity guard: span[0] must hold the model's x-minimum and
+    // span[N-1] must hold the model's x-maximum (both O(1) from the cached
+    // mb already computed above).  This rules out non-monotone datasets where
+    // the endpoint heuristic span[0].x() <= span[N-1].x() would pass but the
+    // interior is not sorted, which would cause binary search to omit segments.
+    if (count >= 2 && span[0].x() == mb.left() && span[count - 1].x() == mb.right()) {
         const double xMin = db.left();
         const double xMax = db.right();
         auto lo = std::lower_bound(
@@ -103,6 +105,9 @@ void WidgetLineSeries::paintSeries(QPainter* painter,
             itFirst, itLast, xMax, [](double x, const QPointF& p) { return x < p.x(); });
         if (lo != itFirst) {
             --lo;
+        }
+        if (hi != itLast) {
+            ++hi;
         }
         itFirst = lo;
         itLast = hi;
