@@ -97,10 +97,10 @@ void WidgetLineSeries::paintSeries(QPainter* painter,
     if (count >= 2 && span[0].x() <= span[count - 1].x()) {
         const double xMin = db.left();
         const double xMax = db.right();
-        auto lo = std::lower_bound(itFirst, itLast, xMin,
-                                   [](const QPointF& p, double x) { return p.x() < x; });
-        auto hi = std::upper_bound(itFirst, itLast, xMax,
-                                   [](double x, const QPointF& p) { return x < p.x(); });
+        auto lo = std::lower_bound(
+            itFirst, itLast, xMin, [](const QPointF& p, double x) { return p.x() < x; });
+        auto hi = std::upper_bound(
+            itFirst, itLast, xMax, [](double x, const QPointF& p) { return x < p.x(); });
         if (lo != itFirst) {
             --lo;
         }
