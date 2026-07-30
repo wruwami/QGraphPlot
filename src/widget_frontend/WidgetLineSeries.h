@@ -45,8 +45,16 @@ class QAbstractSeries;
 //! retained rather than collapsed to a free function. Planned work in issue
 //! #66 (hit-test, hover, and click signals) and issue #90 (visible-range
 //! clipping and pixel-space downsampling) will add Widget-specific per-series
-//! interaction and rendering state. The subclass is the correct extensibility
-//! point for that state; a free function would force it into WidgetChartView.
+//! interaction and rendering state. However, because WidgetChartView currently
+//! stores series as `QAbstractSeries*` and renders via static type-based
+//! dispatch (`paintSeries()`) rather than virtual calls on guaranteed
+//! `WidgetLineSeries` instances, reaching per-instance state from rendering
+//! will require either: (a) guaranteeing/enforcing that WidgetChartView-tracked
+//! Line series are `WidgetLineSeries` instances (with `paintAllSeries()` doing
+//! an instance check/cast to access that state), or (b) explicit side-table
+//! state storage in WidgetChartView keyed by series pointer for plain
+//! `QLineSeries` instances. The subclass provides a natural home for that state
+//! but does not, by itself, make it reachable from the current rendering path.
 class WidgetLineSeries : public QLineSeries
 {
     Q_OBJECT
