@@ -40,6 +40,13 @@ class QAbstractSeries;
 //! The static overload paintSeries() lets WidgetChartView render any
 //! SeriesType::Line series (including plain QLineSeries instances) without
 //! requiring a WidgetLineSeries wrapper, preserving backward compatibility.
+//!
+//! **Design rationale (issue #92):** The QObject subclass is intentionally
+//! retained rather than collapsed to a free function. Planned work in issue
+//! #66 (hit-test, hover, and click signals) and issue #90 (visible-range
+//! clipping and pixel-space downsampling) will add Widget-specific per-series
+//! interaction and rendering state. The subclass is the correct extensibility
+//! point for that state; a free function would force it into WidgetChartView.
 class WidgetLineSeries : public QLineSeries
 {
     Q_OBJECT
