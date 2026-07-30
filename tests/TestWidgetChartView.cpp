@@ -139,6 +139,11 @@ private slots:
     void paintEventWithRubberbandNoCrash();
     void paintSeriesWithDashPattern();
 
+    // ── Visible-range culling (issue #90) ────────────────────────────────────
+    void paintSeriesCulledWhenEntirelyBeforeViewport();
+    void paintSeriesCulledWhenEntirelyAfterViewport();
+    void paintSeriesXCulledNoCrashWithPartiallyVisibleData();
+
     // ── Mouse / wheel interaction (issue #64) ────────────────────────────────
     void wheelEventZoomsInside();
     void wheelEventOutsidePlotPassesThrough();
@@ -970,6 +975,87 @@ void TestWidgetChartView::paintSeriesWithDashPattern()
     TestPaintContext ctx;
     qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
     // No crash expected; exercises the dash-pattern branch in paintSeries.
+}
+
+// ════════════════════════════════════════════════════════════════
+// Visible-range culling (issue #90)
+// TestPaintContext viewport: data [0,10]×[0,10] → 100×100 px.
+// ════════════════════════════════════════════════════════════════
+
+namespace
+{
+bool imageIsAllWhite(const QImage& img)
+{
+    for (int y = 0; y < img.height(); ++y) {
+        for (int x = 0; x < img.width(); ++x) {
+            if (img.pixel(x, y) != qRgba(255, 255, 255, 255)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+}  // namespace
+
+void TestWidgetChartView::paintSeriesCulledWhenEntirelyBeforeViewport()
+{
+    // All points at x ∈ {-5, -3, -1}, entirely left of viewport xMin = 0.
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(-5, 0), QPointF(-3, 5), QPointF(-1, 0)});
+    s->setColor(Qt::red);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+    QVERIFY(imageIsAllWhite(img));
+}
+
+void TestWidgetChartView::paintSeriesCulledWhenEntirelyAfterViewport()
+{
+    // All points at x ∈ {11, 15, 20}, entirely right of viewport xMax = 10.
+    QObject owner;
+    auto* s = makeSeriesWith(owner, {QPointF(11, 0), QPointF(15, 5), QPointF(20, 0)});
+    s->setColor(Qt::red);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+    QVERIFY(imageIsAllWhite(img));
+}
+
+void TestWidgetChartView::paintSeriesXCulledNoCrashWithPartiallyVisibleData()
+{
+    // 1 000 000 points spanning x ∈ [−5, 15]; visible window is [0, 10].
+    // The binary-search culling reduces vertex count; no crash expected and
+    // at least one non-white pixel must appear (series crosses viewport).
+    QObject owner;
+    auto* model = new qgraphplot::QStaticSeriesModel(&owner);
+    const int N = 1'000'000;
+    QList<QPointF> pts;
+    pts.reserve(N);
+    for (int i = 0; i < N; ++i) {
+        const double x = -5.0 + 20.0 * i / (N - 1);
+        pts.append({x, 5.0});
+    }
+    model->setPoints(QSpan<const QPointF>(pts.data(), pts.size()));
+
+    auto* s = new qgraphplot::QLineSeries(&owner);
+    s->setModel(model);
+    s->setColor(Qt::blue);
+
+    QImage img;
+    {
+        TestPaintContext ctx;
+        qgraphplot::WidgetLineSeries::paintSeries(&ctx.painter, ctx.xform, s);
+        img = ctx.img;
+    }
+    QVERIFY(!imageIsAllWhite(img));
 }
 
 // ════════════════════════════════════════════════════════════════
