@@ -553,8 +553,10 @@ void WidgetChartView::clearSeries()
         disconnect(aSeries, &QAbstractSeries::colorChanged, this, qOverload<>(&QWidget::update));
         disconnect(aSeries, &QAbstractSeries::visibleChanged, this, qOverload<>(&QWidget::update));
         disconnect(aSeries, &QAbstractSeries::opacityChanged, this, qOverload<>(&QWidget::update));
-        disconnect(aSeries, &QAbstractSeries::lineWidthChanged, this, qOverload<>(&QWidget::update));
-        disconnect(aSeries, &QAbstractSeries::dashPatternChanged, this, qOverload<>(&QWidget::update));
+        disconnect(
+            aSeries, &QAbstractSeries::lineWidthChanged, this, qOverload<>(&QWidget::update));
+        disconnect(
+            aSeries, &QAbstractSeries::dashPatternChanged, this, qOverload<>(&QWidget::update));
         if (aSeries) {
             aSeries->setParent(nullptr);
         }
