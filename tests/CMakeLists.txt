@@ -111,6 +111,11 @@ if(TARGET widget_frontend)
         SOURCES TestWidgetChartView.cpp
         LIBRARIES widget_frontend Qt6::Widgets
     )
+
+    qt_add_test(TestWidgetSeriesRepaint
+        SOURCES TestWidgetSeriesRepaint.cpp
+        LIBRARIES widget_frontend Qt6::Widgets
+    )
 endif()
 
 # The test sources include a private .moc include at the bottom which
