@@ -482,6 +482,36 @@ void WidgetChartView::addSeries(QAbstractSeries* aSeries)
         });
     connectAutoScaleModel(aSeries);
     connectRepaintModel(aSeries);
+
+    // Series visual properties are consumed directly by the Widget renderers.
+    // Repaint immediately when they change instead of waiting for an unrelated
+    // model mutation or expose event (issue #108).
+    connect(aSeries,
+            &QAbstractSeries::colorChanged,
+            this,
+            qOverload<>(&QWidget::update),
+            Qt::UniqueConnection);
+    connect(aSeries,
+            &QAbstractSeries::visibleChanged,
+            this,
+            qOverload<>(&QWidget::update),
+            Qt::UniqueConnection);
+    connect(aSeries,
+            &QAbstractSeries::opacityChanged,
+            this,
+            qOverload<>(&QWidget::update),
+            Qt::UniqueConnection);
+    connect(aSeries,
+            &QAbstractSeries::lineWidthChanged,
+            this,
+            qOverload<>(&QWidget::update),
+            Qt::UniqueConnection);
+    connect(aSeries,
+            &QAbstractSeries::dashPatternChanged,
+            this,
+            qOverload<>(&QWidget::update),
+            Qt::UniqueConnection);
+
     applyAutoScale();
     emit seriesAdded(aSeries);
     update();
@@ -497,6 +527,11 @@ void WidgetChartView::removeSeries(QAbstractSeries* aSeries)
     }
     disconnectAutoScaleModel(aSeries);
     disconnectRepaintModel(aSeries);
+    disconnect(aSeries, &QAbstractSeries::colorChanged, this, qOverload<>(&QWidget::update));
+    disconnect(aSeries, &QAbstractSeries::visibleChanged, this, qOverload<>(&QWidget::update));
+    disconnect(aSeries, &QAbstractSeries::opacityChanged, this, qOverload<>(&QWidget::update));
+    disconnect(aSeries, &QAbstractSeries::lineWidthChanged, this, qOverload<>(&QWidget::update));
+    disconnect(aSeries, &QAbstractSeries::dashPatternChanged, this, qOverload<>(&QWidget::update));
     m_series.removeOne(aSeries);
     if (aSeries) {
         aSeries->setParent(nullptr);
@@ -515,6 +550,11 @@ void WidgetChartView::clearSeries()
         }
         disconnectAutoScaleModel(aSeries);
         disconnectRepaintModel(aSeries);
+        disconnect(aSeries, &QAbstractSeries::colorChanged, this, qOverload<>(&QWidget::update));
+        disconnect(aSeries, &QAbstractSeries::visibleChanged, this, qOverload<>(&QWidget::update));
+        disconnect(aSeries, &QAbstractSeries::opacityChanged, this, qOverload<>(&QWidget::update));
+        disconnect(aSeries, &QAbstractSeries::lineWidthChanged, this, qOverload<>(&QWidget::update));
+        disconnect(aSeries, &QAbstractSeries::dashPatternChanged, this, qOverload<>(&QWidget::update));
         if (aSeries) {
             aSeries->setParent(nullptr);
         }
